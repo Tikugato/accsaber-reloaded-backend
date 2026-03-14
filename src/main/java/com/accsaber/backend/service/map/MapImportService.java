@@ -3,6 +3,7 @@ package com.accsaber.backend.service.map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.accsaber.backend.client.BeatLeaderClient;
 import com.accsaber.backend.client.BeatSaverClient;
@@ -12,7 +13,9 @@ import com.accsaber.backend.model.dto.platform.beatsaver.BeatSaverMapResponse;
 import com.accsaber.backend.model.dto.request.map.CreateMapDifficultyRequest;
 import com.accsaber.backend.model.dto.request.map.ImportMapFromLeaderboardIdsRequest;
 import com.accsaber.backend.model.dto.response.map.MapDifficultyResponse;
+import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
+import com.accsaber.backend.repository.map.MapDifficultyRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +28,10 @@ public class MapImportService {
     private final BeatLeaderClient beatLeaderClient;
     private final BeatSaverClient beatSaverClient;
     private final MapService mapService;
+    private final MapDifficultyComplexityService complexityService;
+    private final MapDifficultyRepository mapDifficultyRepository;
 
+    @Transactional
     public MapDifficultyResponse importByLeaderboardIds(ImportMapFromLeaderboardIdsRequest importRequest,
             UUID staffId, MapDifficultyStatus status) {
         String blId = importRequest.getBlLeaderboardId();
@@ -88,6 +94,14 @@ public class MapImportService {
 
         log.info("Importing map difficulty: {} ({}) - BL:{} SS:{}", songName, importRequest.getDifficulty(), blId,
                 ssId);
-        return mapService.importMapDifficulty(request, staffId, status);
+        MapDifficultyResponse response = mapService.importMapDifficulty(request, staffId, status);
+
+        if (importRequest.getComplexity() != null) {
+            MapDifficulty entity = mapDifficultyRepository.findById(response.getId())
+                    .orElseThrow(() -> new ValidationException("Map difficulty not found after creation"));
+            complexityService.setComplexity(entity, importRequest.getComplexity(), "Initial import", null);
+        }
+
+        return response;
     }
 }

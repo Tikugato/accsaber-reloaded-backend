@@ -1,5 +1,6 @@
 package com.accsaber.backend.model.dto.request.map;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -26,6 +27,8 @@ public class ImportMapFromLeaderboardIdsRequest {
 
     @NotBlank
     private String characteristic;
+
+    private BigDecimal complexity;
 
     private UUID batchId;
 

@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,7 +29,9 @@ import com.accsaber.backend.model.dto.request.map.CreateMapDifficultyRequest;
 import com.accsaber.backend.model.dto.request.map.ImportMapFromLeaderboardIdsRequest;
 import com.accsaber.backend.model.dto.response.map.MapDifficultyResponse;
 import com.accsaber.backend.model.entity.map.Difficulty;
+import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
+import com.accsaber.backend.repository.map.MapDifficultyRepository;
 
 @ExtendWith(MockitoExtension.class)
 class MapImportServiceTest {
@@ -39,6 +42,10 @@ class MapImportServiceTest {
         private BeatSaverClient beatSaverClient;
         @Mock
         private MapService mapService;
+        @Mock
+        private MapDifficultyComplexityService complexityService;
+        @Mock
+        private MapDifficultyRepository mapDifficultyRepository;
 
         @InjectMocks
         private MapImportService mapImportService;
@@ -114,6 +121,33 @@ class MapImportServiceTest {
                         assertThat(created.getCharacteristic()).isEqualTo("Standard");
                         assertThat(created.getBeatsaverCode()).isEqualTo("abc");
                         assertThat(created.getCoverUrl()).isEqualTo("https://cdn.beatsaver.com/cover.jpg");
+                }
+
+                @Test
+                void setsComplexity_whenProvided() {
+                        BeatLeaderLeaderboardResponse blLb = buildBlLeaderboard();
+                        when(beatLeaderClient.getLeaderboard("bl_123")).thenReturn(Optional.of(blLb));
+                        when(beatSaverClient.getMapByHash("abc123hash")).thenReturn(Optional.empty());
+
+                        UUID diffId = UUID.randomUUID();
+                        MapDifficultyResponse expectedResponse = MapDifficultyResponse.builder()
+                                        .id(diffId)
+                                        .status(MapDifficultyStatus.QUEUE)
+                                        .build();
+                        when(mapService.importMapDifficulty(any(CreateMapDifficultyRequest.class), eq(STAFF_ID),
+                                        eq(MapDifficultyStatus.QUEUE)))
+                                        .thenReturn(expectedResponse);
+
+                        MapDifficulty entity = new MapDifficulty();
+                        when(mapDifficultyRepository.findById(diffId)).thenReturn(Optional.of(entity));
+
+                        ImportMapFromLeaderboardIdsRequest req = request("bl_123", "ss_456");
+                        req.setComplexity(new BigDecimal("7.5"));
+
+                        mapImportService.importByLeaderboardIds(req, STAFF_ID, MapDifficultyStatus.QUEUE);
+
+                        verify(complexityService).setComplexity(eq(entity), eq(new BigDecimal("7.5")),
+                                        eq("Initial import"), eq(null));
                 }
 
                 @Test

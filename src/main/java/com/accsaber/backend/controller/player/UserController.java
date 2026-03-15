@@ -1,5 +1,6 @@
 package com.accsaber.backend.controller.player;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.accsaber.backend.model.dto.response.player.NameHistoryResponse;
 import com.accsaber.backend.model.dto.response.player.UserResponse;
 import com.accsaber.backend.model.dto.response.score.ScoreResponse;
 import com.accsaber.backend.service.player.UserService;
@@ -35,6 +37,15 @@ public class UserController {
     @GetMapping("/{steamId}")
     public ResponseEntity<UserResponse> getUser(@PathVariable Long steamId) {
         return ResponseEntity.ok(userService.findBySteamId(steamId));
+    }
+
+    @Operation(summary = "Get user name history", description = "Returns a player's previous names, most recent first")
+    @GetMapping("/{steamId}/name-history")
+    public ResponseEntity<List<NameHistoryResponse>> getNameHistory(@PathVariable Long steamId) {
+        List<NameHistoryResponse> history = userService.getNameHistory(steamId).stream()
+                .map(h -> new NameHistoryResponse(h.getName(), h.getChangedAt()))
+                .toList();
+        return ResponseEntity.ok(history);
     }
 
     @Operation(summary = "Get user scores", description = "Paginated list of a player's active scores, optionally filtered by category")

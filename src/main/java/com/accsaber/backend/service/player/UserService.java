@@ -1,6 +1,7 @@
 package com.accsaber.backend.service.player;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -10,6 +11,8 @@ import com.accsaber.backend.exception.ConflictException;
 import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.model.dto.response.player.UserResponse;
 import com.accsaber.backend.model.entity.user.User;
+import com.accsaber.backend.model.entity.user.UserNameHistory;
+import com.accsaber.backend.repository.user.UserNameHistoryRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final UserNameHistoryRepository userNameHistoryRepository;
 
     public UserResponse findBySteamId(Long steamId) {
         User user = userRepository.findByIdAndActiveTrue(steamId)
@@ -54,13 +58,22 @@ public class UserService {
     public User updateProfile(Long steamId, String name, String avatarUrl, String country) {
         User user = userRepository.findByIdAndActiveTrue(steamId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", steamId));
-        if (name != null)
+        if (name != null && !name.equals(user.getName())) {
+            userNameHistoryRepository.save(UserNameHistory.builder()
+                    .user(user)
+                    .name(user.getName())
+                    .build());
             user.setName(name);
+        }
         if (avatarUrl != null)
             user.setAvatarUrl(avatarUrl);
         if (country != null)
             user.setCountry(country);
         return userRepository.save(user);
+    }
+
+    public List<UserNameHistory> getNameHistory(Long steamId) {
+        return userNameHistoryRepository.findByUser_IdOrderByChangedAtDesc(steamId);
     }
 
     private static UserResponse toResponse(User user) {

@@ -3,14 +3,18 @@ package com.accsaber.backend.service.player;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -19,6 +23,8 @@ import com.accsaber.backend.exception.ConflictException;
 import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.model.dto.response.player.UserResponse;
 import com.accsaber.backend.model.entity.user.User;
+import com.accsaber.backend.model.entity.user.UserNameHistory;
+import com.accsaber.backend.repository.user.UserNameHistoryRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,6 +34,9 @@ class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private UserNameHistoryRepository userNameHistoryRepository;
 
     @InjectMocks
     private UserService userService;
@@ -131,11 +140,84 @@ class UserServiceTest {
         }
 
         @Test
+        void savesOldNameToHistory_whenNameChanges() {
+            User user = User.builder()
+                    .id(STEAM_ID).name("OldName").avatarUrl("avatar.png").country("US").build();
+            when(userRepository.findByIdAndActiveTrue(STEAM_ID)).thenReturn(Optional.of(user));
+            when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            userService.updateProfile(STEAM_ID, "NewName", null, null);
+
+            ArgumentCaptor<UserNameHistory> captor = ArgumentCaptor.forClass(UserNameHistory.class);
+            verify(userNameHistoryRepository).save(captor.capture());
+            UserNameHistory saved = captor.getValue();
+            assertThat(saved.getName()).isEqualTo("OldName");
+            assertThat(saved.getUser()).isEqualTo(user);
+        }
+
+        @Test
+        void doesNotSaveHistory_whenNameUnchanged() {
+            User user = User.builder()
+                    .id(STEAM_ID).name("SameName").avatarUrl("avatar.png").country("US").build();
+            when(userRepository.findByIdAndActiveTrue(STEAM_ID)).thenReturn(Optional.of(user));
+            when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            userService.updateProfile(STEAM_ID, "SameName", null, null);
+
+            verify(userNameHistoryRepository, never()).save(any());
+        }
+
+        @Test
+        void doesNotSaveHistory_whenNameIsNull() {
+            User user = User.builder()
+                    .id(STEAM_ID).name("CurrentName").avatarUrl("avatar.png").country("US").build();
+            when(userRepository.findByIdAndActiveTrue(STEAM_ID)).thenReturn(Optional.of(user));
+            when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            userService.updateProfile(STEAM_ID, null, "new-avatar.png", null);
+
+            verify(userNameHistoryRepository, never()).save(any());
+            assertThat(user.getName()).isEqualTo("CurrentName");
+        }
+
+        @Test
         void throwsNotFound_whenUserDoesNotExist() {
             when(userRepository.findByIdAndActiveTrue(STEAM_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> userService.updateProfile(STEAM_ID, "Name", null, null))
                     .isInstanceOf(ResourceNotFoundException.class);
+        }
+    }
+
+    @Nested
+    class GetNameHistory {
+
+        @Test
+        void returnsHistoryOrderedByChangedAtDesc() {
+            User user = User.builder().id(STEAM_ID).name("Current").build();
+            UserNameHistory older = UserNameHistory.builder()
+                    .user(user).name("First").changedAt(Instant.parse("2025-01-01T00:00:00Z")).build();
+            UserNameHistory newer = UserNameHistory.builder()
+                    .user(user).name("Second").changedAt(Instant.parse("2025-06-01T00:00:00Z")).build();
+
+            when(userNameHistoryRepository.findByUser_IdOrderByChangedAtDesc(STEAM_ID))
+                    .thenReturn(List.of(newer, older));
+
+            List<UserNameHistory> result = userService.getNameHistory(STEAM_ID);
+
+            assertThat(result).hasSize(2);
+            assertThat(result.get(0).getName()).isEqualTo("Second");
+            assertThat(result.get(1).getName()).isEqualTo("First");
+        }
+
+        @Test
+        void returnsEmptyList_whenNoHistory() {
+            when(userNameHistoryRepository.findByUser_IdOrderByChangedAtDesc(STEAM_ID))
+                    .thenReturn(List.of());
+
+            List<UserNameHistory> result = userService.getNameHistory(STEAM_ID);
+
+            assertThat(result).isEmpty();
         }
     }
 }

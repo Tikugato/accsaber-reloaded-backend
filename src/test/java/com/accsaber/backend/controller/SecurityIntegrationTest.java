@@ -2,15 +2,11 @@ package com.accsaber.backend.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
@@ -18,34 +14,15 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-import com.accsaber.backend.controller.map.BatchController;
+import com.accsaber.backend.controller.ranking.RankingBatchController;
 import com.accsaber.backend.controller.staff.StaffUserController;
-import com.accsaber.backend.service.map.BatchService;
 
 @ExtendWith(MockitoExtension.class)
 class SecurityIntegrationTest {
 
-        @Mock
-        private BatchService batchService;
-
-        @InjectMocks
-        private BatchController batchController;
-
         @Test
-        void releaseEndpoint_hasRankingHeadPreAuthorize() throws NoSuchMethodException {
-                Method release = BatchController.class.getMethod("release", UUID.class);
-                PreAuthorize annotation = release.getAnnotation(PreAuthorize.class);
-
-                assertThat(annotation).isNotNull();
-                assertThat(annotation.value()).isEqualTo("hasRole('RANKING_HEAD')");
-        }
-
-        @Test
-        void createBatchEndpoint_hasRankingHeadPreAuthorize() throws NoSuchMethodException {
-                Method create = BatchController.class.getMethod("createBatch",
-                                com.accsaber.backend.model.dto.request.map.CreateBatchRequest.class,
-                                com.accsaber.backend.security.StaffUserDetails.class);
-                PreAuthorize annotation = create.getAnnotation(PreAuthorize.class);
+        void rankingBatchController_hasRankingHeadClassLevelPreAuthorize() {
+                PreAuthorize annotation = RankingBatchController.class.getAnnotation(PreAuthorize.class);
 
                 assertThat(annotation).isNotNull();
                 assertThat(annotation.value()).isEqualTo("hasRole('RANKING_HEAD')");

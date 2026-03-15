@@ -23,16 +23,10 @@ public class OpenApiConfig {
 
                 return new OpenAPI()
                                 .info(new Info()
-                                                .title("AccSaber API")
+                                                .title("AccSaber Reloaded API")
                                                 .description("""
                                                                 REST API for the AccSaber Reloaded platform — an accuracy-based \
                                                                 leaderboard system for Beat Saber.
-
-                                                                Endpoints are organized into four access tiers:
-                                                                - **Public** (`/v1/{resource}`) — unauthenticated reads
-                                                                - **Ranking** (`/v1/ranking/...`) — ranking staff workflow (authenticated)
-                                                                - **Admin** (`/v1/admin/...`) — admin-only operations (ADMIN role)
-                                                                - **Staff** (`/v1/staff/...`) — staff self-service (auth, profile)
                                                                 """)
                                                 .version("0.3.0")
                                                 .contact(new Contact()
@@ -48,7 +42,7 @@ public class OpenApiConfig {
                                                 new Tag().name("Maps")
                                                                 .description("Ranked maps, difficulties, complexity history, and per-difficulty leaderboards"),
                                                 new Tag().name("Batches")
-                                                                .description("Ranking batches — curated groups of qualified maps released together"),
+                                                                .description("Ranking batches — curated groups of qualified maps released together (public reads)"),
                                                 new Tag().name("Players")
                                                                 .description("Player profiles, score history, milestones, level, and campaign progress"),
                                                 new Tag().name("Leaderboards")
@@ -61,27 +55,29 @@ public class OpenApiConfig {
                                                                 .description("Discord-to-player account linking and lookup"),
 
                                                 new Tag().name("Ranking - Map Import")
-                                                                .description("Import new map difficulties into the ranking queue (RANKING role)"),
+                                                                .description("Import new map difficulties into the ranking queue (Ranking role)"),
                                                 new Tag().name("Ranking - Map Votes")
-                                                                .description("Cast, list, and manage votes on map difficulties (RANKING / RANKING_HEAD roles)"),
+                                                                .description("Cast, list, and manage votes on map difficulties (Ranking / RANKING_HEAD roles)"),
                                                 new Tag().name("Ranking - Map Difficulty Management")
                                                                 .description("Status transitions, complexity updates, reweights, unranks, and criteria webhooks (RANKING_HEAD role)"),
+                                                new Tag().name("Ranking - Batches")
+                                                                .description("Create, manage, and release ranking batches (RANKING_HEAD role)"),
 
                                                 new Tag().name("Admin Import")
-                                                                .description("Bulk imports, score backfills, and player profile refreshes (ADMIN role)"),
+                                                                .description("Bulk imports, score backfills, and player profile refreshes (Admin role)"),
                                                 new Tag().name("Admin Recalculation")
-                                                                .description("Trigger recalculations for leaderboards, difficulties, AP/XP curves, and weight curves (ADMIN role)"),
+                                                                .description("Trigger recalculations for leaderboards, difficulties, AP/XP curves, and weight curves (Admin role)"),
                                                 new Tag().name("Admin Milestones")
-                                                                .description("Create, deactivate, backfill milestones and refresh completion stats (ADMIN role)"),
+                                                                .description("Create, deactivate, backfill milestones and refresh completion stats (Admin role)"),
                                                 new Tag().name("Admin Campaigns")
-                                                                .description("Create, update, deactivate campaigns and manage campaign maps (ADMIN role)"),
+                                                                .description("Create, update, deactivate campaigns and manage campaign maps (Admin role)"),
                                                 new Tag().name("Admin WebSocket")
-                                                                .description("Monitor and reconnect BeatLeader/ScoreSaber WebSocket feeds (ADMIN role)"),
+                                                                .description("Monitor and reconnect BeatLeader/ScoreSaber WebSocket feeds (Admin role)"),
 
                                                 new Tag().name("Staff Auth")
                                                                 .description("Staff login, token refresh, and logout"),
                                                 new Tag().name("Staff Users")
-                                                                .description("Staff account management — profiles, roles, status, and OAuth links (ADMIN role)")))
+                                                                .description("Staff account management — profiles, roles, status, and OAuth links (Admin role)")))
                                 .addSecurityItem(new SecurityRequirement().addList("Bearer Token"))
                                 .schemaRequirement("Bearer Token", new SecurityScheme()
                                                 .type(SecurityScheme.Type.HTTP)

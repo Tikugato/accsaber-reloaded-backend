@@ -270,7 +270,7 @@
       "datasource": { "type": "postgres", "uid": "accsaber-postgres" },
       "targets": [
         {
-          "rawSql": "SELECT u.name AS \"Player\", u.country AS \"Country\", ROUND(u.total_xp, 0) AS \"Total XP\", lt.level AS \"Level\", lt.title AS \"Title\" FROM users u LEFT JOIN LATERAL (SELECT level, title FROM level_thresholds WHERE xp_required <= u.total_xp ORDER BY level DESC LIMIT 1) lt ON true WHERE u.active = true AND u.total_xp > 0 ORDER BY u.total_xp DESC LIMIT 15;",
+          "rawSql": "WITH RECURSIVE levels AS (SELECT 1 AS lvl, FLOOR(30 * POWER(1, 1.15))::NUMERIC AS cum_xp UNION ALL SELECT lvl + 1, cum_xp + FLOOR(30 * POWER(LEAST(lvl + 1, 100), 1.15))::NUMERIC FROM levels WHERE lvl < 500) SELECT u.name AS \"Player\", u.country AS \"Country\", ROUND(u.total_xp, 0) AS \"Total XP\", COALESCE(cl.computed_level, 0) AS \"Level\", lt.title AS \"Title\" FROM users u LEFT JOIN LATERAL (SELECT lvl AS computed_level FROM levels WHERE cum_xp <= u.total_xp ORDER BY lvl DESC LIMIT 1) cl ON true LEFT JOIN LATERAL (SELECT title FROM level_thresholds WHERE level <= COALESCE(cl.computed_level, 0) ORDER BY level DESC LIMIT 1) lt ON true WHERE u.active = true AND u.total_xp > 0 ORDER BY u.total_xp DESC LIMIT 15;",
           "format": "table"
         }
       ]

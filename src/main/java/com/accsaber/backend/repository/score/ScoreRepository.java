@@ -91,6 +91,6 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
         @Query("SELECT DISTINCT s.mapDifficulty.id FROM Score s")
         List<UUID> findDistinctMapDifficultyIds();
 
-        @Query("SELECT DISTINCT s.user FROM Score s WHERE s.createdAt >= :since AND s.active = true")
+        @Query("SELECT DISTINCT s.user FROM Score s WHERE s.timeSet >= :since AND s.active = true")
         List<com.accsaber.backend.model.entity.user.User> findDistinctUsersWithScoresSince(@Param("since") Instant since);
 }

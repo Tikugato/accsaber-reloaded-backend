@@ -20,6 +20,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByActiveTrue();
 
+    List<User> findByCountryAndActiveTrue(String country);
+
     @Modifying
     @Transactional
     @Query("UPDATE User u SET u.totalXp = u.totalXp + :xp WHERE u.id = :id")

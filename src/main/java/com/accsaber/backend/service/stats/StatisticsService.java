@@ -93,6 +93,12 @@ public class StatisticsService {
         return toResponse(newStats);
     }
 
+    public List<UserCategoryStatisticsResponse> findAllByUser(Long userId) {
+        return statisticsRepository.findByUser_IdAndActiveTrue(userId).stream()
+                .map(StatisticsService::toResponse)
+                .toList();
+    }
+
     public UserCategoryStatisticsResponse findByUserAndCategoryCode(Long userId, String categoryCode) {
         UserCategoryStatistics stats = statisticsRepository
                 .findByUser_IdAndCategory_CodeAndActiveTrue(userId, categoryCode)

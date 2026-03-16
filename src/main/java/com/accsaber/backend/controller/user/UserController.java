@@ -60,6 +60,12 @@ public class UserController {
         return ResponseEntity.ok(history);
     }
 
+    @Operation(summary = "Get all user category statistics", description = "Returns all active category statistics for a player")
+    @GetMapping("/{steamId}/statistics/all")
+    public ResponseEntity<List<UserCategoryStatisticsResponse>> getAllUserStatistics(@PathVariable Long steamId) {
+        return ResponseEntity.ok(statisticsService.findAllByUser(steamId));
+    }
+
     @Operation(summary = "Get user category statistics", description = "Returns active category statistics for a player by category code (tech_acc, standard_acc, true_acc) (defaults to 'overall')")
     @GetMapping("/{steamId}/statistics")
     public ResponseEntity<UserCategoryStatisticsResponse> getUserStatistics(

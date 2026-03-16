@@ -59,7 +59,7 @@ public class XPReweightService {
     }
 
     private int reweightScoresForDifficulty(UUID difficultyId) {
-        List<Score> scores = scoreRepository.findByMapDifficulty_IdAndActiveTrue(difficultyId);
+        List<Score> scores = scoreRepository.findByMapDifficultyIdAndActiveTrueWithCategory(difficultyId);
         if (scores.isEmpty()) {
             return 0;
         }
@@ -76,10 +76,12 @@ public class XPReweightService {
         BigDecimal complexity = mapComplexityService.findActiveComplexity(difficultyId)
                 .orElse(BigDecimal.ONE);
 
+        int maxScore = sample.getMapDifficulty().getMaxScore();
+
         List<CompletableFuture<Void>> futures = scores.stream()
                 .map(score -> CompletableFuture.runAsync(() -> {
                     try {
-                        reweightSingleScore(score, complexity);
+                        reweightSingleScore(score.getId(), maxScore, complexity);
                     } catch (Exception e) {
                         log.error("XP reweight failed for score {}", score.getId(), e);
                     }
@@ -91,12 +93,13 @@ public class XPReweightService {
     }
 
     @Transactional
-    public void reweightSingleScore(Score score, BigDecimal complexity) {
-        Score managed = scoreRepository.findById(score.getId()).orElse(null);
+    public void reweightSingleScore(UUID scoreId, int maxScore, BigDecimal complexity) {
+        Score managed = scoreRepository.findById(scoreId).orElse(null);
         if (managed == null || !managed.isActive())
             return;
 
-        BigDecimal accuracy = computeAccuracy(managed);
+        BigDecimal accuracy = BigDecimal.valueOf(managed.getScore())
+                .divide(BigDecimal.valueOf(maxScore), 10, RoundingMode.HALF_UP);
         BigDecimal xpGained = xpCalculationService.calculateXpForNewMap(accuracy, complexity);
         managed.setXpGained(xpGained);
         scoreRepository.save(managed);
@@ -131,8 +134,4 @@ public class XPReweightService {
         userRepository.save(user);
     }
 
-    private BigDecimal computeAccuracy(Score score) {
-        return BigDecimal.valueOf(score.getScore())
-                .divide(BigDecimal.valueOf(score.getMapDifficulty().getMaxScore()), 10, RoundingMode.HALF_UP);
-    }
 }

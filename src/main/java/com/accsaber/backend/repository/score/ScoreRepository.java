@@ -26,6 +26,15 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
 
         List<Score> findByMapDifficulty_IdAndActiveTrue(UUID mapDifficultyId);
 
+        @Query("""
+                        SELECT s FROM Score s
+                        JOIN FETCH s.mapDifficulty d
+                        JOIN FETCH d.category c
+                        LEFT JOIN FETCH c.scoreCurve
+                        WHERE d.id = :mapDifficultyId AND s.active = true
+                        """)
+        List<Score> findByMapDifficultyIdAndActiveTrueWithCategory(@Param("mapDifficultyId") UUID mapDifficultyId);
+
         Page<Score> findByUser_IdAndActiveTrueOrderByApDesc(Long userId, Pageable pageable);
 
         Page<Score> findByMapDifficulty_IdAndActiveTrueOrderByScoreDesc(UUID mapDifficultyId, Pageable pageable);

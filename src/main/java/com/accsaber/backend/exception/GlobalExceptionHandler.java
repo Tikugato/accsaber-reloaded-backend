@@ -3,6 +3,9 @@ package com.accsaber.backend.exception;
 import java.time.Instant;
 import java.util.List;
 
+import org.slf4j.MDC;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -12,14 +15,12 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.accsaber.backend.model.dto.response.ErrorResponse;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.MDC;
 
 @Slf4j
 @RestControllerAdvice
@@ -138,6 +139,26 @@ public class GlobalExceptionHandler {
                                 .build();
 
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+
+        @ExceptionHandler(PropertyReferenceException.class)
+        public ResponseEntity<ErrorResponse> handlePropertyReferenceException(
+                        PropertyReferenceException ex, HttpServletRequest request) {
+                log.warn("Invalid property reference: {}", ex.getMessage());
+
+                String message = String.format("Invalid sort property '%s'", ex.getPropertyName());
+
+                ErrorResponse response = ErrorResponse.builder()
+                                .timestamp(Instant.now())
+                                .status(HttpStatus.BAD_REQUEST.value())
+                                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                                .code("INVALID_PROPERTY")
+                                .message(message)
+                                .path(request.getRequestURI())
+                                .correlationId(MDC.get("correlationId"))
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
 
         @ExceptionHandler(InvalidDataAccessApiUsageException.class)

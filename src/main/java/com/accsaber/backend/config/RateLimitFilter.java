@@ -1,8 +1,11 @@
 package com.accsaber.backend.config;
 
 import java.io.IOException;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
@@ -22,9 +25,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final ConcurrentHashMap<String, AtomicInteger> counters = new ConcurrentHashMap<>();
     private final int capacity;
+    private final Set<String> trustedIps;
 
-    public RateLimitFilter(@Value("${accsaber.rate-limit.capacity:400}") int capacity) {
+    public RateLimitFilter(
+            @Value("${accsaber.rate-limit.capacity:400}") int capacity,
+            @Value("${accsaber.rate-limit.trusted-ips:}") String trustedIpsConfig) {
         this.capacity = capacity;
+        this.trustedIps = trustedIpsConfig.isBlank()
+                ? Set.of()
+                : Stream.of(trustedIpsConfig.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .collect(Collectors.toSet());
     }
 
     @Override
@@ -50,7 +62,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return !path.startsWith("/v1/");
+        if (!path.startsWith("/v1/")) {
+            return true;
+        }
+        if (!trustedIps.isEmpty() && trustedIps.contains(request.getRemoteAddr())) {
+            return true;
+        }
+        return false;
     }
 
     @Scheduled(fixedRateString = "${accsaber.rate-limit.window-seconds:60}000")

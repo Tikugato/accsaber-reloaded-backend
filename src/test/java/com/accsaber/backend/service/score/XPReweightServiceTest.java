@@ -2,7 +2,6 @@ package com.accsaber.backend.service.score;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,7 +47,6 @@ class XPReweightServiceTest {
         void setUp() {
                 service = new XPReweightService(scoreRepository, userRepository, mapComplexityService,
                                 xpCalculationService);
-                // Inject a direct executor so async futures run synchronously in tests
                 try {
                         var field = XPReweightService.class.getDeclaredField("backfillExecutor");
                         field.setAccessible(true);
@@ -59,61 +57,10 @@ class XPReweightServiceTest {
         }
 
         @Nested
-        class ReweightSingleScore {
+        class ReweightScoresForDifficulty {
 
                 @Test
-                void calculatesXpAndSaves() {
-                        UUID scoreId = UUID.randomUUID();
-                        Score score = Score.builder()
-                                        .id(scoreId)
-                                        .score(900000)
-                                        .active(true)
-                                        .build();
-                        BigDecimal complexity = new BigDecimal("8.5");
-                        BigDecimal expectedXp = new BigDecimal("42.000000");
-
-                        when(scoreRepository.findById(scoreId)).thenReturn(Optional.of(score));
-                        when(xpCalculationService.calculateXpForNewMap(any(), eq(complexity)))
-                                        .thenReturn(expectedXp);
-
-                        service.reweightSingleScore(scoreId, 1000000, complexity);
-
-                        assertThat(score.getXpGained()).isEqualByComparingTo(expectedXp);
-                        verify(scoreRepository).save(score);
-                }
-
-                @Test
-                void skipsInactiveScore() {
-                        UUID scoreId = UUID.randomUUID();
-                        Score score = Score.builder()
-                                        .id(scoreId)
-                                        .score(900000)
-                                        .active(false)
-                                        .build();
-
-                        when(scoreRepository.findById(scoreId)).thenReturn(Optional.of(score));
-
-                        service.reweightSingleScore(scoreId, 1000000, BigDecimal.ONE);
-
-                        verify(scoreRepository, never()).save(any());
-                }
-
-                @Test
-                void skipsMissingScore() {
-                        UUID scoreId = UUID.randomUUID();
-                        when(scoreRepository.findById(scoreId)).thenReturn(Optional.empty());
-
-                        service.reweightSingleScore(scoreId, 1000000, BigDecimal.ONE);
-
-                        verify(scoreRepository, never()).save(any());
-                }
-        }
-
-        @Nested
-        class ReweightAllScores {
-
-                @Test
-                void reweightsScoresAndRecalculatesTotalXp() {
+                void calculatesXpInMemoryAndBatchSaves() {
                         UUID diffId = UUID.randomUUID();
                         Curve scoreCurve = Curve.builder().id(UUID.randomUUID()).build();
                         Category category = Category.builder().id(UUID.randomUUID()).scoreCurve(scoreCurve).build();
@@ -128,20 +75,105 @@ class XPReweightServiceTest {
                         Score score2 = Score.builder()
                                         .id(UUID.randomUUID()).score(800000).mapDifficulty(diff).active(true).build();
 
-                        when(scoreRepository.findDistinctMapDifficultyIds()).thenReturn(List.of(diffId));
                         when(scoreRepository.findByMapDifficultyIdAndActiveTrueWithCategory(diffId))
                                         .thenReturn(List.of(score1, score2));
                         when(mapComplexityService.findActiveComplexity(diffId))
                                         .thenReturn(Optional.of(new BigDecimal("8.0")));
-                        when(scoreRepository.findById(score1.getId())).thenReturn(Optional.of(score1));
-                        when(scoreRepository.findById(score2.getId())).thenReturn(Optional.of(score2));
+                        when(xpCalculationService.calculateXpForNewMap(any(), any()))
+                                        .thenReturn(new BigDecimal("50.000000"));
+
+                        int count = service.reweightScoresForDifficulty(diffId);
+
+                        assertThat(count).isEqualTo(2);
+                        assertThat(score1.getXpGained()).isEqualByComparingTo(new BigDecimal("50.000000"));
+                        assertThat(score2.getXpGained()).isEqualByComparingTo(new BigDecimal("50.000000"));
+                        verify(scoreRepository).saveAll(List.of(score1, score2));
+                }
+
+                @Test
+                void returnsZeroForEmptyDifficulty() {
+                        UUID diffId = UUID.randomUUID();
+                        when(scoreRepository.findByMapDifficultyIdAndActiveTrueWithCategory(diffId))
+                                        .thenReturn(List.of());
+
+                        int count = service.reweightScoresForDifficulty(diffId);
+
+                        assertThat(count).isZero();
+                        verify(scoreRepository, never()).saveAll(any());
+                }
+
+                @Test
+                void returnsZeroForNullCategory() {
+                        UUID diffId = UUID.randomUUID();
+                        MapDifficulty diff = MapDifficulty.builder()
+                                        .id(diffId)
+                                        .category(null)
+                                        .maxScore(1000000)
+                                        .build();
+                        Score score = Score.builder()
+                                        .id(UUID.randomUUID()).score(900000).mapDifficulty(diff).active(true).build();
+
+                        when(scoreRepository.findByMapDifficultyIdAndActiveTrueWithCategory(diffId))
+                                        .thenReturn(List.of(score));
+
+                        int count = service.reweightScoresForDifficulty(diffId);
+
+                        assertThat(count).isZero();
+                        verify(scoreRepository, never()).saveAll(any());
+                }
+
+                @Test
+                void returnsZeroForZeroMaxScore() {
+                        UUID diffId = UUID.randomUUID();
+                        Curve scoreCurve = Curve.builder().id(UUID.randomUUID()).build();
+                        Category category = Category.builder().id(UUID.randomUUID()).scoreCurve(scoreCurve).build();
+                        MapDifficulty diff = MapDifficulty.builder()
+                                        .id(diffId)
+                                        .category(category)
+                                        .maxScore(0)
+                                        .build();
+                        Score score = Score.builder()
+                                        .id(UUID.randomUUID()).score(900000).mapDifficulty(diff).active(true).build();
+
+                        when(scoreRepository.findByMapDifficultyIdAndActiveTrueWithCategory(diffId))
+                                        .thenReturn(List.of(score));
+
+                        int count = service.reweightScoresForDifficulty(diffId);
+
+                        assertThat(count).isZero();
+                        verify(scoreRepository, never()).saveAll(any());
+                }
+        }
+
+        @Nested
+        class ReweightAllScores {
+
+                @Test
+                void parallelizesAcrossDifficulties() {
+                        UUID diffId = UUID.randomUUID();
+                        Curve scoreCurve = Curve.builder().id(UUID.randomUUID()).build();
+                        Category category = Category.builder().id(UUID.randomUUID()).scoreCurve(scoreCurve).build();
+                        MapDifficulty diff = MapDifficulty.builder()
+                                        .id(diffId)
+                                        .category(category)
+                                        .maxScore(1000000)
+                                        .build();
+
+                        Score score = Score.builder()
+                                        .id(UUID.randomUUID()).score(950000).mapDifficulty(diff).active(true).build();
+
+                        when(scoreRepository.findDistinctMapDifficultyIds()).thenReturn(List.of(diffId));
+                        when(scoreRepository.findByMapDifficultyIdAndActiveTrueWithCategory(diffId))
+                                        .thenReturn(List.of(score));
+                        when(mapComplexityService.findActiveComplexity(diffId))
+                                        .thenReturn(Optional.of(new BigDecimal("8.0")));
                         when(xpCalculationService.calculateXpForNewMap(any(), any()))
                                         .thenReturn(new BigDecimal("50.000000"));
 
                         service.reweightAllScores();
 
-                        verify(scoreRepository).save(score1);
-                        verify(scoreRepository).save(score2);
+                        verify(scoreRepository).saveAll(List.of(score));
+                        verify(xpCalculationService).evictXpCurveCache();
                 }
 
                 @Test
@@ -154,49 +186,7 @@ class XPReweightServiceTest {
 
                         service.reweightAllScores();
 
-                        verify(scoreRepository, never()).save(any());
-                }
-
-                @Test
-                void skipsDifficultyWithNullCategory() {
-                        UUID diffId = UUID.randomUUID();
-                        MapDifficulty diff = MapDifficulty.builder()
-                                        .id(diffId)
-                                        .category(null)
-                                        .maxScore(1000000)
-                                        .build();
-                        Score score = Score.builder()
-                                        .id(UUID.randomUUID()).score(900000).mapDifficulty(diff).active(true).build();
-
-                        when(scoreRepository.findDistinctMapDifficultyIds()).thenReturn(List.of(diffId));
-                        when(scoreRepository.findByMapDifficultyIdAndActiveTrueWithCategory(diffId))
-                                        .thenReturn(List.of(score));
-
-                        service.reweightAllScores();
-
-                        verify(scoreRepository, never()).save(any());
-                }
-
-                @Test
-                void skipsDifficultyWithZeroMaxScore() {
-                        UUID diffId = UUID.randomUUID();
-                        Curve scoreCurve = Curve.builder().id(UUID.randomUUID()).build();
-                        Category category = Category.builder().id(UUID.randomUUID()).scoreCurve(scoreCurve).build();
-                        MapDifficulty diff = MapDifficulty.builder()
-                                        .id(diffId)
-                                        .category(category)
-                                        .maxScore(0)
-                                        .build();
-                        Score score = Score.builder()
-                                        .id(UUID.randomUUID()).score(900000).mapDifficulty(diff).active(true).build();
-
-                        when(scoreRepository.findDistinctMapDifficultyIds()).thenReturn(List.of(diffId));
-                        when(scoreRepository.findByMapDifficultyIdAndActiveTrueWithCategory(diffId))
-                                        .thenReturn(List.of(score));
-
-                        service.reweightAllScores();
-
-                        verify(scoreRepository, never()).save(any());
+                        verify(scoreRepository, never()).saveAll(any());
                 }
         }
 

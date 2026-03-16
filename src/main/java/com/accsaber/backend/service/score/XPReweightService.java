@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,16 +44,26 @@ public class XPReweightService {
         xpCalculationService.evictXpCurveCache();
 
         List<UUID> difficultyIds = scoreRepository.findDistinctMapDifficultyIds();
-        int updated = 0;
+        AtomicInteger updated = new AtomicInteger();
 
-        for (UUID difficultyId : difficultyIds) {
-            updated += reweightScoresForDifficulty(difficultyId);
-        }
+        List<CompletableFuture<Void>> futures = difficultyIds.stream()
+                .map(difficultyId -> CompletableFuture.runAsync(() -> {
+                    try {
+                        updated.addAndGet(reweightScoresForDifficulty(difficultyId));
+                    } catch (Exception e) {
+                        log.error("XP reweight failed for difficulty {}", difficultyId, e);
+                    }
+                }, backfillExecutor))
+                .toList();
 
-        log.info("XP reweight complete. Updated {} scores across {} difficulties. Run /total-xp to update user totals.", updated, difficultyIds.size());
+        futures.forEach(CompletableFuture::join);
+
+        log.info("XP reweight complete. Updated {} scores across {} difficulties. Run /total-xp to update user totals.",
+                updated.get(), difficultyIds.size());
     }
 
-    private int reweightScoresForDifficulty(UUID difficultyId) {
+    @Transactional
+    public int reweightScoresForDifficulty(UUID difficultyId) {
         List<Score> scores = scoreRepository.findByMapDifficultyIdAndActiveTrueWithCategory(difficultyId);
         if (scores.isEmpty()) {
             return 0;
@@ -72,31 +83,14 @@ public class XPReweightService {
 
         int maxScore = sample.getMapDifficulty().getMaxScore();
 
-        List<CompletableFuture<Void>> futures = scores.stream()
-                .map(score -> CompletableFuture.runAsync(() -> {
-                    try {
-                        reweightSingleScore(score.getId(), maxScore, complexity);
-                    } catch (Exception e) {
-                        log.error("XP reweight failed for score {}", score.getId(), e);
-                    }
-                }, backfillExecutor))
-                .toList();
+        for (Score score : scores) {
+            BigDecimal accuracy = BigDecimal.valueOf(score.getScore())
+                    .divide(BigDecimal.valueOf(maxScore), 10, RoundingMode.HALF_UP);
+            score.setXpGained(xpCalculationService.calculateXpForNewMap(accuracy, complexity));
+        }
 
-        futures.forEach(CompletableFuture::join);
+        scoreRepository.saveAll(scores);
         return scores.size();
-    }
-
-    @Transactional
-    public void reweightSingleScore(UUID scoreId, int maxScore, BigDecimal complexity) {
-        Score managed = scoreRepository.findById(scoreId).orElse(null);
-        if (managed == null || !managed.isActive())
-            return;
-
-        BigDecimal accuracy = BigDecimal.valueOf(managed.getScore())
-                .divide(BigDecimal.valueOf(maxScore), 10, RoundingMode.HALF_UP);
-        BigDecimal xpGained = xpCalculationService.calculateXpForNewMap(accuracy, complexity);
-        managed.setXpGained(xpGained);
-        scoreRepository.save(managed);
     }
 
     @Async("taskExecutor")

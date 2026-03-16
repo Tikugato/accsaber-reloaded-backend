@@ -19,6 +19,7 @@ public class ScoreRankingService {
 
     private final ScoreRepository scoreRepository;
 
+    @Transactional
     public void reassignRanks(UUID difficultyId) {
         scoreRepository.reassignScoreRanks(difficultyId);
     }

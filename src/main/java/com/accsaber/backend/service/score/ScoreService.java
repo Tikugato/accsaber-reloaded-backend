@@ -104,7 +104,7 @@ public class ScoreService {
                         xpGained = xpCalculationService.calculateXpForImprovement(
                                         accuracy, complexity, supersedes.getXpGained());
                         supersedes.setActive(false);
-                        supersedes.setSupersedesReason("Superseded by improvement");
+                        supersedes.setSupersedesReason("Score improved");
                         scoreRepository.saveAndFlush(supersedes);
                 } else {
                         xpGained = xpCalculationService.calculateXpForNewMap(accuracy, complexity);

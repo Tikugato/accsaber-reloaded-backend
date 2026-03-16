@@ -87,6 +87,7 @@ public class ScoreService {
                         xpGained = xpCalculationService.calculateXpForWorseScore();
                         Score history = buildScore(request, user, difficulty, rawAp, null);
                         history.setActive(false);
+                        history.setSupersedesReason("Worse score");
                         history.setXpGained(xpGained);
                         scoreRepository.saveAndFlush(history);
                         updateUserXp(user, xpGained);
@@ -103,6 +104,7 @@ public class ScoreService {
                         xpGained = xpCalculationService.calculateXpForImprovement(
                                         accuracy, complexity, supersedes.getXpGained());
                         supersedes.setActive(false);
+                        supersedes.setSupersedesReason("Superseded by improvement");
                         scoreRepository.saveAndFlush(supersedes);
                 } else {
                         xpGained = xpCalculationService.calculateXpForNewMap(accuracy, complexity);

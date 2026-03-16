@@ -395,9 +395,7 @@ public class ScoreService {
 
         public List<ScoreResponse> findHistoric(Long userId, UUID mapDifficultyId, int amount, String unit) {
                 Instant since = ZonedDateTime.now(ZoneOffset.UTC).minus(amount, parseUnit(unit)).toInstant();
-                List<Score> scores = scoreRepository
-                                .findByUser_IdAndMapDifficulty_IdAndCreatedAtAfterOrderByCreatedAtAsc(
-                                                userId, mapDifficultyId, since);
+                List<Score> scores = scoreRepository.findHistoricDownsampled(userId, mapDifficultyId, since);
 
                 return scores.stream()
                                 .map(s -> toResponse(s,

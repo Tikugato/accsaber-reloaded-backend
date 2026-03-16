@@ -152,8 +152,35 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
             """, nativeQuery = true)
     List<UUID> findDistinctActiveDifficultyIds();
 
-    List<Score> findByUser_IdAndMapDifficulty_IdAndCreatedAtAfterOrderByCreatedAtAsc(
-            Long userId, UUID mapDifficultyId, Instant since);
+    @Query(value = """
+            SELECT * FROM (
+                SELECT * FROM scores
+                WHERE user_id = :userId AND map_difficulty_id = :difficultyId
+                AND created_at > GREATEST(CAST(:since AS timestamptz), NOW() - INTERVAL '24 hours')
+                UNION ALL
+                SELECT * FROM (
+                    SELECT DISTINCT ON (date_trunc(
+                        CASE WHEN CAST(:since AS timestamptz) < NOW() - INTERVAL '65 days'
+                            THEN 'week' ELSE 'day' END,
+                        created_at
+                    )) *
+                    FROM scores
+                    WHERE user_id = :userId AND map_difficulty_id = :difficultyId
+                    AND created_at > CAST(:since AS timestamptz)
+                    AND created_at <= NOW() - INTERVAL '24 hours'
+                    ORDER BY date_trunc(
+                        CASE WHEN CAST(:since AS timestamptz) < NOW() - INTERVAL '65 days'
+                            THEN 'week' ELSE 'day' END,
+                        created_at
+                    ), created_at DESC
+                ) downsampled
+            ) combined
+            ORDER BY created_at ASC
+            """, nativeQuery = true)
+    List<Score> findHistoricDownsampled(
+            @Param("userId") Long userId,
+            @Param("difficultyId") UUID difficultyId,
+            @Param("since") Instant since);
 
     @Query(value = """
             SELECT COUNT(*) FROM scores

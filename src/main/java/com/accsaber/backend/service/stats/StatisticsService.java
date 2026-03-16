@@ -112,7 +112,7 @@ public class StatisticsService {
             String unit) {
         Instant since = ZonedDateTime.now(ZoneOffset.UTC).minus(amount, parseUnit(unit)).toInstant();
         return statisticsRepository
-                .findByUser_IdAndCategory_CodeAndCreatedAtAfterOrderByCreatedAtAsc(userId, categoryCode, since)
+                .findHistoricDownsampled(userId, categoryCode, since)
                 .stream()
                 .map(StatisticsService::toResponse)
                 .toList();

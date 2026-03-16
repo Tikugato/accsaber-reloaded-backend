@@ -345,7 +345,7 @@ class StatisticsServiceTest {
                                         .rankedPlays(5).active(true).build();
 
                         when(statisticsRepository
-                                        .findByUser_IdAndCategory_CodeAndCreatedAtAfterOrderByCreatedAtAsc(
+                                        .findHistoricDownsampled(
                                                         org.mockito.ArgumentMatchers.eq(user.getId()),
                                                         org.mockito.ArgumentMatchers.eq("true_acc"),
                                                         any(Instant.class)))

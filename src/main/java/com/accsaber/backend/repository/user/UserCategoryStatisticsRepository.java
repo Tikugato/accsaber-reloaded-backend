@@ -20,8 +20,37 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
 
   Optional<UserCategoryStatistics> findByUser_IdAndCategory_CodeAndActiveTrue(Long userId, String categoryCode);
 
-  List<UserCategoryStatistics> findByUser_IdAndCategory_CodeAndCreatedAtAfterOrderByCreatedAtAsc(
-      Long userId, String categoryCode, Instant since);
+  @Query(value = """
+      SELECT * FROM (
+          SELECT ucs.* FROM user_category_statistics ucs
+          JOIN categories c ON ucs.category_id = c.id
+          WHERE ucs.user_id = :userId AND c.code = :categoryCode
+            AND ucs.created_at > GREATEST(CAST(:since AS timestamptz), NOW() - INTERVAL '24 hours')
+          UNION ALL
+          SELECT * FROM (
+              SELECT DISTINCT ON (date_trunc(
+                  CASE WHEN CAST(:since AS timestamptz) < NOW() - INTERVAL '65 days'
+                      THEN 'week' ELSE 'day' END,
+                  ucs.created_at
+              )) ucs.*
+              FROM user_category_statistics ucs
+              JOIN categories c ON ucs.category_id = c.id
+              WHERE ucs.user_id = :userId AND c.code = :categoryCode
+                AND ucs.created_at > CAST(:since AS timestamptz)
+                AND ucs.created_at <= NOW() - INTERVAL '24 hours'
+              ORDER BY date_trunc(
+                  CASE WHEN CAST(:since AS timestamptz) < NOW() - INTERVAL '65 days'
+                      THEN 'week' ELSE 'day' END,
+                  ucs.created_at
+              ), ucs.created_at DESC
+          ) downsampled
+      ) combined
+      ORDER BY created_at ASC
+      """, nativeQuery = true)
+  List<UserCategoryStatistics> findHistoricDownsampled(
+      @Param("userId") Long userId,
+      @Param("categoryCode") String categoryCode,
+      @Param("since") Instant since);
 
   List<UserCategoryStatistics> findByUser_IdAndActiveTrue(Long userId);
 

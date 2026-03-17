@@ -24,7 +24,6 @@ import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.APResult;
 import com.accsaber.backend.model.dto.request.score.SubmitScoreRequest;
-import com.accsaber.backend.model.dto.response.score.ScoreLeaderboardResponse;
 import com.accsaber.backend.model.dto.response.score.ScoreResponse;
 import com.accsaber.backend.model.entity.Modifier;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
@@ -394,7 +393,7 @@ public class ScoreService {
                                                 loadModifierIds(s.getId())));
         }
 
-        public Page<ScoreLeaderboardResponse> findLeaderboardByMapDifficulty(UUID mapDifficultyId, String country,
+        public Page<ScoreResponse> findLeaderboardByMapDifficulty(UUID mapDifficultyId, String country,
                         String search, Pageable pageable) {
                 MapDifficulty difficulty = mapDifficultyRepository.findByIdAndActiveTrue(mapDifficultyId)
                                 .orElseThrow(() -> new ResourceNotFoundException("MapDifficulty", mapDifficultyId));
@@ -418,7 +417,7 @@ public class ScoreService {
                         scores = scoreRepository.findByMapDifficultyIdAndActiveTrueWithUser(
                                         mapDifficultyId, effective);
                 }
-                return scores.map(s -> toLeaderboardResponse(s,
+                return scores.map(s -> toResponse(s,
                                 computeAccuracy(s.getScore(), difficulty.getMaxScore()),
                                 loadModifierIds(s.getId())));
         }
@@ -576,44 +575,23 @@ public class ScoreService {
         }
 
         private ScoreResponse toResponse(Score s, BigDecimal accuracy, List<UUID> modifierIds) {
-                return ScoreResponse.builder()
-                                .id(s.getId())
-                                .userId(String.valueOf(s.getUser().getId()))
-                                .mapDifficultyId(s.getMapDifficulty().getId())
-                                .score(s.getScore())
-                                .scoreNoMods(s.getScoreNoMods())
-                                .accuracy(accuracy)
-                                .rank(s.getRank())
-                                .rankWhenSet(s.getRankWhenSet())
-                                .ap(s.getAp())
-                                .weightedAp(s.getWeightedAp())
-                                .blScoreId(s.getBlScoreId())
-                                .maxCombo(s.getMaxCombo())
-                                .badCuts(s.getBadCuts())
-                                .misses(s.getMisses())
-                                .wallHits(s.getWallHits())
-                                .bombHits(s.getBombHits())
-                                .pauses(s.getPauses())
-                                .streak115(s.getStreak115())
-                                .playCount(s.getPlayCount())
-                                .hmd(s.getHmd())
-                                .timeSet(s.getTimeSet())
-                                .reweightDerivative(s.isReweightDerivative())
-                                .xpGained(s.getXpGained())
-                                .modifierIds(modifierIds)
-                                .createdAt(s.getCreatedAt())
-                                .build();
-        }
-
-        private ScoreLeaderboardResponse toLeaderboardResponse(Score s, BigDecimal accuracy, List<UUID> modifierIds) {
                 User user = s.getUser();
-                return ScoreLeaderboardResponse.builder()
+                MapDifficulty diff = s.getMapDifficulty();
+                com.accsaber.backend.model.entity.map.Map map = diff.getMap();
+                return ScoreResponse.builder()
                                 .id(s.getId())
                                 .userId(String.valueOf(user.getId()))
                                 .userName(user.getName())
                                 .avatarUrl(user.getAvatarUrl())
                                 .country(user.getCountry())
-                                .mapDifficultyId(s.getMapDifficulty().getId())
+                                .mapDifficultyId(diff.getId())
+                                .mapId(map.getId())
+                                .songName(map.getSongName())
+                                .songAuthor(map.getSongAuthor())
+                                .mapAuthor(map.getMapAuthor())
+                                .coverUrl(map.getCoverUrl())
+                                .difficulty(diff.getDifficulty())
+                                .categoryId(diff.getCategory().getId())
                                 .score(s.getScore())
                                 .scoreNoMods(s.getScoreNoMods())
                                 .accuracy(accuracy)

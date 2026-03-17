@@ -5,6 +5,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.accsaber.backend.model.entity.map.Difficulty;
+
 import lombok.Builder;
 import lombok.Getter;
 
@@ -14,7 +16,17 @@ public class ScoreResponse {
 
     private UUID id;
     private String userId;
+    private String userName;
+    private String avatarUrl;
+    private String country;
     private UUID mapDifficultyId;
+    private UUID mapId;
+    private String songName;
+    private String songAuthor;
+    private String mapAuthor;
+    private String coverUrl;
+    private Difficulty difficulty;
+    private UUID categoryId;
     private Integer score;
     private Integer scoreNoMods;
     private BigDecimal accuracy;

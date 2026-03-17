@@ -19,7 +19,7 @@ import com.accsaber.backend.model.dto.response.map.MapComplexityHistoryResponse;
 import com.accsaber.backend.model.dto.response.map.MapDifficultyResponse;
 import com.accsaber.backend.model.dto.response.map.MapDifficultyStatisticsResponse;
 import com.accsaber.backend.model.dto.response.map.MapResponse;
-import com.accsaber.backend.model.dto.response.score.ScoreLeaderboardResponse;
+import com.accsaber.backend.model.dto.response.score.ScoreResponse;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
 import com.accsaber.backend.service.map.MapDifficultyStatisticsService;
 import com.accsaber.backend.service.map.MapService;
@@ -76,7 +76,7 @@ public class MapController {
 
     @Operation(summary = "Difficulty leaderboard", description = "Paginated scores with player info for a specific difficulty, sorted by score descending. Optionally filter by country code (e.g. ES, GB) and/or player name search")
     @GetMapping("/difficulties/{difficultyId}/scores")
-    public ResponseEntity<Page<ScoreLeaderboardResponse>> getDifficultyLeaderboard(
+    public ResponseEntity<Page<ScoreResponse>> getDifficultyLeaderboard(
             @PathVariable UUID difficultyId,
             @RequestParam(required = false) String country,
             @RequestParam(required = false) String search,

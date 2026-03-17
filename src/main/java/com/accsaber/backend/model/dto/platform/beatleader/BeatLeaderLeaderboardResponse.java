@@ -21,6 +21,7 @@ public class BeatLeaderLeaderboardResponse {
     public static class Song {
         private String hash;
         private String name;
+        private String subName;
         private String author;
         private String mapper;
     }

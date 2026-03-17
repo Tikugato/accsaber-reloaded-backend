@@ -83,7 +83,8 @@ public class MapService {
             "complexity", "c.complexity",
             "songName", "d.map.songName",
             "songAuthor", "d.map.songAuthor",
-            "mapAuthor", "d.map.mapAuthor");
+            "mapAuthor", "d.map.mapAuthor",
+            "totalScores", "mds.totalScores");
 
     private Pageable resolveDifficultySort(Pageable pageable) {
         if (!pageable.getSort().isSorted()) {
@@ -93,10 +94,19 @@ public class MapService {
         for (Sort.Order order : pageable.getSort()) {
             String mapped = JPQL_SORT_MAPPING.get(order.getProperty());
             if (mapped != null) {
-                resolved = resolved.and(JpaSort.unsafe(order.getDirection(), mapped));
+                resolved = resolved
+                    .and(JpaSort.unsafe(Sort.Direction.ASC,
+                        "(CASE WHEN " + mapped + " IS NULL THEN 1 ELSE 0 END)"))
+                    .and(JpaSort.unsafe(order.getDirection(), mapped));
             } else {
-                resolved = resolved.and(Sort.by(order.getDirection(), order.getProperty()));
+                resolved = resolved.and(Sort.by(
+                    new Sort.Order(order.getDirection(), order.getProperty(),
+                        Sort.NullHandling.NULLS_LAST)));
             }
+        }
+        boolean hasId = pageable.getSort().stream().anyMatch(o -> "id".equals(o.getProperty()));
+        if (!hasId) {
+            resolved = resolved.and(Sort.by(Sort.Order.asc("id")));
         }
         return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), resolved);
     }
@@ -305,6 +315,7 @@ public class MapService {
     private Map createMap(CreateMapDifficultyRequest request) {
         return mapRepository.save(Map.builder()
                 .songName(request.getSongName())
+                .songSubName(request.getSongSubName())
                 .songAuthor(request.getSongAuthor())
                 .songHash(request.getSongHash())
                 .mapAuthor(request.getMapAuthor())
@@ -357,6 +368,7 @@ public class MapService {
         return MapResponse.builder()
                 .id(map.getId())
                 .songName(map.getSongName())
+                .songSubName(map.getSongSubName())
                 .songAuthor(map.getSongAuthor())
                 .songHash(map.getSongHash())
                 .mapAuthor(map.getMapAuthor())
@@ -374,6 +386,7 @@ public class MapService {
                 .id(d.getId())
                 .mapId(map.getId())
                 .songName(map.getSongName())
+                .songSubName(map.getSongSubName())
                 .songAuthor(map.getSongAuthor())
                 .mapAuthor(map.getMapAuthor())
                 .coverUrl(map.getCoverUrl())

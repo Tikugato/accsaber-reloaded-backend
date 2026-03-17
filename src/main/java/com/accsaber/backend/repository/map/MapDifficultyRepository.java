@@ -106,6 +106,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
     @Query(value = """
             SELECT d FROM MapDifficulty d
             LEFT JOIN MapDifficultyComplexity c ON c.mapDifficulty = d AND c.active = true
+            LEFT JOIN MapDifficultyStatistics mds ON mds.mapDifficulty = d AND mds.active = true
             WHERE d.active = true
             AND (:categoryId IS NULL OR d.category.id = :categoryId)
             AND (:status IS NULL OR d.status = :status)
@@ -114,6 +115,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
             """, countQuery = """
             SELECT COUNT(d) FROM MapDifficulty d
             LEFT JOIN MapDifficultyComplexity c ON c.mapDifficulty = d AND c.active = true
+            LEFT JOIN MapDifficultyStatistics mds ON mds.mapDifficulty = d AND mds.active = true
             WHERE d.active = true
             AND (:categoryId IS NULL OR d.category.id = :categoryId)
             AND (:status IS NULL OR d.status = :status)
@@ -130,6 +132,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
     @Query(value = """
             SELECT d FROM MapDifficulty d
             LEFT JOIN MapDifficultyComplexity c ON c.mapDifficulty = d AND c.active = true
+            LEFT JOIN MapDifficultyStatistics mds ON mds.mapDifficulty = d AND mds.active = true
             WHERE d.active = true
             AND (:categoryId IS NULL OR d.category.id = :categoryId)
             AND (:status IS NULL OR d.status = :status)
@@ -139,6 +142,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
             """, countQuery = """
             SELECT COUNT(d) FROM MapDifficulty d
             LEFT JOIN MapDifficultyComplexity c ON c.mapDifficulty = d AND c.active = true
+            LEFT JOIN MapDifficultyStatistics mds ON mds.mapDifficulty = d AND mds.active = true
             WHERE d.active = true
             AND (:categoryId IS NULL OR d.category.id = :categoryId)
             AND (:status IS NULL OR d.status = :status)

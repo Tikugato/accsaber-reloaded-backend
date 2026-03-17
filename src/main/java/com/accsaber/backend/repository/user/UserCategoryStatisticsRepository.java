@@ -25,7 +25,7 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                 SELECT ucs.* FROM user_category_statistics ucs
                 JOIN categories c ON ucs.category_id = c.id
                 WHERE ucs.user_id = :userId AND c.code = :categoryCode
-                  AND ucs.created_at > GREATEST(CAST(:since AS timestamptz), NOW() - INTERVAL '24 hours')
+                AND ucs.created_at > GREATEST(CAST(:since AS timestamptz), NOW() - INTERVAL '24 hours')
                 UNION ALL
                 SELECT ucs.* FROM user_category_statistics ucs
                 INNER JOIN (
@@ -40,9 +40,9 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                         ) AS rn
                         FROM user_category_statistics
                         WHERE user_id = :userId
-                          AND category_id = (SELECT id FROM categories WHERE code = :categoryCode)
-                          AND created_at > CAST(:since AS timestamptz)
-                          AND created_at <= NOW() - INTERVAL '24 hours'
+                        AND category_id = (SELECT id FROM categories WHERE code = :categoryCode)
+                        AND created_at > CAST(:since AS timestamptz)
+                        AND created_at <= NOW() - INTERVAL '24 hours'
                     ) sub WHERE sub.rn = 1
                 ) picked ON ucs.id = picked.id
             ) combined
@@ -57,7 +57,7 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
             SELECT ucs.* FROM user_category_statistics ucs
             JOIN categories c ON ucs.category_id = c.id
             WHERE ucs.user_id = :userId AND c.code = :categoryCode
-              AND ucs.created_at <= NOW() - INTERVAL '24 hours'
+            AND ucs.created_at <= NOW() - INTERVAL '24 hours'
             ORDER BY ucs.created_at DESC
             LIMIT 1
             """, nativeQuery = true)
@@ -119,7 +119,7 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
             SELECT s FROM UserCategoryStatistics s
             JOIN FETCH s.user u
             WHERE s.category.id = :categoryId AND s.active = true AND u.active = true
-              AND LOWER(u.country) = LOWER(:country)
+            AND LOWER(u.country) = LOWER(:country)
             """, countQuery = """
             SELECT COUNT(s) FROM UserCategoryStatistics s
             JOIN s.user u
@@ -135,14 +135,14 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
             SELECT s FROM UserCategoryStatistics s
             JOIN FETCH s.user u
             WHERE s.category.id = :categoryId AND s.active = true AND u.active = true
-              AND LOWER(u.country) = LOWER(:country)
-              AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+            AND LOWER(u.country) = LOWER(:country)
+            AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
             """, countQuery = """
             SELECT COUNT(s) FROM UserCategoryStatistics s
             JOIN s.user u
             WHERE s.category.id = :categoryId AND s.active = true AND u.active = true
-              AND LOWER(u.country) = LOWER(:country)
-              AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+            AND LOWER(u.country) = LOWER(:country)
+            AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
             """)
     Page<UserCategoryStatistics> findActiveByCategoryAndCountryPagedWithSearch(
             @Param("categoryId") UUID categoryId,
@@ -160,9 +160,12 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
     @Modifying
     @Query(value = """
             WITH ranked AS (
-                SELECT ucs.id, ROW_NUMBER() OVER (ORDER BY ucs.ap DESC) AS new_rank
+                SELECT ucs.id, ROW_NUMBER() OVER (
+                    ORDER BY ucs.ap DESC, sp.time_set ASC NULLS LAST
+                ) AS new_rank
                 FROM user_category_statistics ucs
                 JOIN users u ON ucs.user_id = u.id
+                LEFT JOIN scores sp ON sp.id = ucs.top_play_id
                 WHERE ucs.category_id = :categoryId AND ucs.active = true AND u.active = true
             )
             UPDATE user_category_statistics ucs
@@ -176,9 +179,13 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
     @Query(value = """
             WITH ranked AS (
                 SELECT ucs.id,
-                       ROW_NUMBER() OVER (PARTITION BY u.country ORDER BY ucs.ap DESC) AS new_country_rank
+                    ROW_NUMBER() OVER (
+                        PARTITION BY u.country
+                        ORDER BY ucs.ap DESC, sp.time_set ASC NULLS LAST
+                    ) AS new_country_rank
                 FROM user_category_statistics ucs
                 JOIN users u ON ucs.user_id = u.id
+                LEFT JOIN scores sp ON sp.id = ucs.top_play_id
                 WHERE ucs.category_id = :categoryId AND ucs.active = true AND u.active = true AND u.country IS NOT NULL
             )
             UPDATE user_category_statistics ucs

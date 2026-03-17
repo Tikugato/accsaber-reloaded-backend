@@ -52,6 +52,7 @@ public class MapImportService {
         int maxScore = blLeaderboard.getDifficulty().getMaxScore();
 
         String songName = blLeaderboard.getSong().getName();
+        String songSubName = blLeaderboard.getSong().getSubName();
         String songAuthor = blLeaderboard.getSong().getAuthor();
         String mapAuthor = blLeaderboard.getSong().getMapper();
         String beatsaverCode = null;
@@ -63,6 +64,9 @@ public class MapImportService {
             if (beatSaverMap.getMetadata() != null) {
                 if (beatSaverMap.getMetadata().getSongName() != null) {
                     songName = beatSaverMap.getMetadata().getSongName();
+                }
+                if (beatSaverMap.getMetadata().getSongSubName() != null) {
+                    songSubName = beatSaverMap.getMetadata().getSongSubName();
                 }
                 if (beatSaverMap.getMetadata().getSongAuthorName() != null) {
                     songAuthor = beatSaverMap.getMetadata().getSongAuthorName();
@@ -78,6 +82,7 @@ public class MapImportService {
 
         CreateMapDifficultyRequest request = new CreateMapDifficultyRequest();
         request.setSongName(songName);
+        request.setSongSubName(songSubName);
         request.setSongAuthor(songAuthor);
         request.setSongHash(songHash);
         request.setMapAuthor(mapAuthor);

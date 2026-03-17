@@ -18,6 +18,7 @@ public class BeatSaverMapResponse {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Metadata {
         private String songName;
+        private String songSubName;
         private String songAuthorName;
         private String levelAuthorName;
     }

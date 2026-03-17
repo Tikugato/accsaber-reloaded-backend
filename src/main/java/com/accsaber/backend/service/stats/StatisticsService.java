@@ -51,6 +51,11 @@ public class StatisticsService {
 
     @Transactional
     public UserCategoryStatisticsResponse recalculate(Long userId, UUID categoryId, boolean triggerRanking) {
+        return recalculate(userId, categoryId, triggerRanking, true);
+    }
+
+    @Transactional
+    public UserCategoryStatisticsResponse recalculate(Long userId, UUID categoryId, boolean triggerRanking, boolean triggerOverall) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
         Category category = categoryRepository.findByIdAndActiveTrue(categoryId)
@@ -92,7 +97,7 @@ public class StatisticsService {
                 .build();
         statisticsRepository.saveAndFlush(newStats);
 
-        if (category.isCountForOverall()) {
+        if (category.isCountForOverall() && triggerOverall) {
             overallStatisticsService.recalculate(userId, triggerRanking);
         }
 

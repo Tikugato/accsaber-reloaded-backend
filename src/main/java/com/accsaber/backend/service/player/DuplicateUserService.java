@@ -281,8 +281,8 @@ public class DuplicateUserService {
     public void recalculateAfterUnmerge(Long primaryUserId, Long secondaryUserId) {
         var categories = categoryRepository.findByActiveTrue();
         for (var category : categories) {
-            statisticsService.recalculate(primaryUserId, category.getId(), false);
-            statisticsService.recalculate(secondaryUserId, category.getId(), false);
+            statisticsService.recalculate(primaryUserId, category.getId(), false, false);
+            statisticsService.recalculate(secondaryUserId, category.getId(), false, false);
             rankingService.updateRankings(category.getId());
         }
         overallStatisticsService.recalculate(primaryUserId, false);
@@ -387,7 +387,7 @@ public class DuplicateUserService {
     public void recalculateAfterMerge(Long primaryUserId) {
         var categories = categoryRepository.findByActiveTrue();
         for (var category : categories) {
-            statisticsService.recalculate(primaryUserId, category.getId(), false);
+            statisticsService.recalculate(primaryUserId, category.getId(), false, false);
             rankingService.updateRankings(category.getId());
         }
         overallStatisticsService.recalculate(primaryUserId, false);

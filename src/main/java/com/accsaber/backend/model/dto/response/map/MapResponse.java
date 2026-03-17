@@ -13,6 +13,7 @@ public class MapResponse {
 
     UUID id;
     String songName;
+    String songSubName;
     String songAuthor;
     String songHash;
     String mapAuthor;

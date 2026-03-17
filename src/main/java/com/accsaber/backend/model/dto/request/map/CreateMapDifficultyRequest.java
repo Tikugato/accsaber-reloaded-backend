@@ -16,6 +16,8 @@ public class CreateMapDifficultyRequest {
     @NotBlank
     private String songName;
 
+    private String songSubName;
+
     @NotBlank
     private String songAuthor;
 

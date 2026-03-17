@@ -139,7 +139,7 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
             UPDATE user_category_statistics ucs
             SET ranking = r.new_rank, updated_at = NOW()
             FROM ranked r
-            WHERE ucs.id = r.id
+            WHERE ucs.id = r.id AND ucs.ranking IS DISTINCT FROM r.new_rank
             """, nativeQuery = true)
     void assignGlobalRankings(@Param("categoryId") UUID categoryId);
 
@@ -155,7 +155,7 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
             UPDATE user_category_statistics ucs
             SET country_ranking = r.new_country_rank, updated_at = NOW()
             FROM ranked r
-            WHERE ucs.id = r.id
+            WHERE ucs.id = r.id AND ucs.country_ranking IS DISTINCT FROM r.new_country_rank
             """, nativeQuery = true)
     void assignCountryRankings(@Param("categoryId") UUID categoryId);
 }

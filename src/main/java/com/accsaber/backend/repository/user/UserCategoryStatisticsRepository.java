@@ -90,12 +90,12 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
             SELECT s FROM UserCategoryStatistics s
             JOIN FETCH s.user u
             WHERE s.category.id = :categoryId AND s.active = true AND u.active = true
-            AND (:search IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%')))
+            AND (CAST(:search AS string) IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%')))
             """, countQuery = """
             SELECT COUNT(s) FROM UserCategoryStatistics s
             JOIN s.user u
             WHERE s.category.id = :categoryId AND s.active = true AND u.active = true
-            AND (:search IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%')))
+            AND (CAST(:search AS string) IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%')))
             """)
     Page<UserCategoryStatistics> findActiveByCategoryPaged(
             @Param("categoryId") UUID categoryId,
@@ -107,13 +107,13 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
             JOIN FETCH s.user u
             WHERE s.category.id = :categoryId AND s.active = true AND u.active = true
               AND LOWER(u.country) = LOWER(:country)
-              AND (:search IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%')))
+              AND (CAST(:search AS string) IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%')))
             """, countQuery = """
             SELECT COUNT(s) FROM UserCategoryStatistics s
             JOIN s.user u
             WHERE s.category.id = :categoryId AND s.active = true AND u.active = true
               AND LOWER(u.country) = LOWER(:country)
-              AND (:search IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%')))
+              AND (CAST(:search AS string) IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%')))
             """)
     Page<UserCategoryStatistics> findActiveByCategoryAndCountryPaged(
             @Param("categoryId") UUID categoryId,

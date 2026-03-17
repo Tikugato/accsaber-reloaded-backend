@@ -24,14 +24,14 @@ public interface MapRepository extends JpaRepository<Map, UUID> {
                         WHERE m.active = true AND d.active = true
                         AND (:categoryId IS NULL OR d.category.id = :categoryId)
                         AND (:status IS NULL OR d.status = :status)
-                        AND (:search IS NULL OR LOWER(m.songName) LIKE LOWER(CONCAT('%', :search, '%')))
+                        AND (CAST(:search AS string) IS NULL OR LOWER(m.songName) LIKE LOWER(CONCAT('%', :search, '%')))
                         """, countQuery = """
                         SELECT COUNT(DISTINCT m) FROM Map m
                         JOIN m.difficulties d
                         WHERE m.active = true AND d.active = true
                         AND (:categoryId IS NULL OR d.category.id = :categoryId)
                         AND (:status IS NULL OR d.status = :status)
-                        AND (:search IS NULL OR LOWER(m.songName) LIKE LOWER(CONCAT('%', :search, '%')))
+                        AND (CAST(:search AS string) IS NULL OR LOWER(m.songName) LIKE LOWER(CONCAT('%', :search, '%')))
                         """)
         Page<Map> findByDifficultyFilters(
                         @Param("categoryId") UUID categoryId,

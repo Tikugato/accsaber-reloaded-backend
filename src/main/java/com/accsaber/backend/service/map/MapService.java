@@ -8,7 +8,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.JpaSort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,10 +76,33 @@ public class MapService {
         });
     }
 
+    private static final java.util.Map<String, String> JPQL_SORT_MAPPING = java.util.Map.of(
+            "complexity", "c.complexity",
+            "songName", "d.map.songName",
+            "songAuthor", "d.map.songAuthor",
+            "mapAuthor", "d.map.mapAuthor"
+    );
+
+    private Pageable resolveDifficultySort(Pageable pageable) {
+        if (!pageable.getSort().isSorted()) {
+            return pageable;
+        }
+        Sort resolved = Sort.unsorted();
+        for (Sort.Order order : pageable.getSort()) {
+            String mapped = JPQL_SORT_MAPPING.get(order.getProperty());
+            if (mapped != null) {
+                resolved = resolved.and(JpaSort.unsafe(order.getDirection(), mapped));
+            } else {
+                resolved = resolved.and(Sort.by(order.getDirection(), order.getProperty()));
+            }
+        }
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), resolved);
+    }
+
     public Page<MapDifficultyResponse> findDifficulties(UUID categoryId, MapDifficultyStatus status,
             BigDecimal complexityMin, BigDecimal complexityMax, Pageable pageable) {
         Page<MapDifficulty> difficulties = mapDifficultyRepository.findWithComplexityFilters(
-                categoryId, status, complexityMin, complexityMax, pageable);
+                categoryId, status, complexityMin, complexityMax, resolveDifficultySort(pageable));
 
         if (difficulties.isEmpty())
             return difficulties.map(d -> toDifficultyResponse(d, null, null, null));

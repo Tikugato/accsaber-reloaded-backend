@@ -7,6 +7,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,12 +21,15 @@ import com.accsaber.backend.model.dto.response.player.DuplicateCandidateResponse
 import com.accsaber.backend.model.dto.response.player.DuplicateLinkResponse;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.score.ScoreModifierLink;
+import com.accsaber.backend.model.entity.user.MergeScoreAction;
+import com.accsaber.backend.model.entity.user.MergeScoreAction.ActionType;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.model.entity.user.UserDuplicateLink;
 import com.accsaber.backend.repository.CategoryRepository;
 import com.accsaber.backend.repository.score.ScoreModifierLinkRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.staff.StaffUserRepository;
+import com.accsaber.backend.repository.user.MergeScoreActionRepository;
 import com.accsaber.backend.repository.user.UserDuplicateLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.stats.OverallStatisticsService;
@@ -34,8 +39,6 @@ import com.accsaber.backend.service.stats.StatisticsService;
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +47,7 @@ public class DuplicateUserService {
     private static final Logger log = LoggerFactory.getLogger(DuplicateUserService.class);
 
     private final UserDuplicateLinkRepository linkRepository;
+    private final MergeScoreActionRepository mergeScoreActionRepository;
     private final UserRepository userRepository;
     private final ScoreRepository scoreRepository;
     private final ScoreModifierLinkRepository modifierLinkRepository;
@@ -196,7 +200,7 @@ public class DuplicateUserService {
             throw new ValidationException("This duplicate link has already been merged");
         }
 
-        int reassigned = reassignScores(secondary, primary);
+        int reassigned = reassignScores(secondary, primary, link);
 
         secondary.setActive(false);
         userRepository.save(secondary);
@@ -236,7 +240,73 @@ public class DuplicateUserService {
         return linkRepository.findAll().stream().map(this::toLinkResponse).toList();
     }
 
-    private int reassignScores(User secondary, User primary) {
+    @Transactional
+    public DuplicateLinkResponse unmerge(UUID linkId) {
+        UserDuplicateLink link = linkRepository.findById(linkId)
+                .orElseThrow(() -> new ResourceNotFoundException("Duplicate link", linkId));
+        if (!link.isMerged()) {
+            throw new ValidationException("This link has not been merged yet");
+        }
+
+        List<MergeScoreAction> actions = mergeScoreActionRepository.findByLink_Id(linkId);
+        reverseActions(actions);
+        mergeScoreActionRepository.deleteByLink_Id(linkId);
+
+        User secondary = link.getSecondaryUser();
+        secondary.setActive(true);
+        userRepository.save(secondary);
+
+        link.setMerged(false);
+        link.setMergedAt(null);
+        link.setMergedBy(null);
+        linkRepository.save(link);
+
+        duplicateCache.remove(secondary.getId());
+
+        Long primaryUserId = link.getPrimaryUser().getId();
+        Long secondaryUserId = secondary.getId();
+        log.info("Unmerged user {} from {}: {} actions reversed", secondaryUserId, primaryUserId, actions.size());
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                self.recalculateAfterUnmerge(primaryUserId, secondaryUserId);
+            }
+        });
+
+        return toLinkResponse(link);
+    }
+
+    @Async("taskExecutor")
+    public void recalculateAfterUnmerge(Long primaryUserId, Long secondaryUserId) {
+        var categories = categoryRepository.findByActiveTrue();
+        for (var category : categories) {
+            statisticsService.recalculate(primaryUserId, category.getId(), false);
+            statisticsService.recalculate(secondaryUserId, category.getId(), false);
+            rankingService.updateRankings(category.getId());
+        }
+        overallStatisticsService.recalculate(primaryUserId, false);
+        overallStatisticsService.recalculate(secondaryUserId, false);
+        overallStatisticsService.updateOverallRankings();
+    }
+
+    private void reverseActions(List<MergeScoreAction> actions) {
+        for (MergeScoreAction action : actions) {
+            Score score = action.getScore();
+            switch (action.getActionType()) {
+                case CREATED_MERGED -> {
+                    score.setActive(false);
+                    scoreRepository.saveAndFlush(score);
+                }
+                case DEACTIVATED_SECONDARY, DEACTIVATED_PRIMARY -> {
+                    score.setActive(true);
+                    scoreRepository.saveAndFlush(score);
+                }
+            }
+        }
+    }
+
+    private int reassignScores(User secondary, User primary, UserDuplicateLink link) {
         List<Score> secondaryScores = scoreRepository.findByUser_IdAndActiveTrue(secondary.getId());
 
         int count = 0;
@@ -247,21 +317,33 @@ public class DuplicateUserService {
 
             score.setActive(false);
             scoreRepository.saveAndFlush(score);
+            recordAction(link, ActionType.DEACTIVATED_SECONDARY, score);
 
             if (primaryScore.isEmpty()) {
-                createMergedScore(score, primary);
+                Score merged = createMergedScore(score, primary);
+                recordAction(link, ActionType.CREATED_MERGED, merged);
                 count++;
             } else if (score.getAp().compareTo(primaryScore.get().getAp()) > 0) {
                 primaryScore.get().setActive(false);
                 scoreRepository.saveAndFlush(primaryScore.get());
-                createMergedScore(score, primary);
+                recordAction(link, ActionType.DEACTIVATED_PRIMARY, primaryScore.get());
+                Score merged = createMergedScore(score, primary);
+                recordAction(link, ActionType.CREATED_MERGED, merged);
                 count++;
             }
         }
         return count;
     }
 
-    private void createMergedScore(Score source, User primaryUser) {
+    private void recordAction(UserDuplicateLink link, ActionType actionType, Score score) {
+        mergeScoreActionRepository.save(MergeScoreAction.builder()
+                .link(link)
+                .actionType(actionType)
+                .score(score)
+                .build());
+    }
+
+    private Score createMergedScore(Score source, User primaryUser) {
         Score merged = Score.builder()
                 .user(primaryUser)
                 .mapDifficulty(source.getMapDifficulty())
@@ -288,6 +370,7 @@ public class DuplicateUserService {
                 .build();
         Score saved = scoreRepository.saveAndFlush(merged);
         copyModifierLinks(source, saved);
+        return saved;
     }
 
     private void copyModifierLinks(Score from, Score to) {

@@ -72,4 +72,10 @@ public class AdminUserDuplicateController {
                 userDetails.getStaffUser().getId(),
                 request.getReason()));
     }
+
+    @Operation(summary = "Unmerge a previously merged duplicate link", description = "Reverses score reassignments and reactivates the secondary user")
+    @PostMapping("/unmerge/{linkId}")
+    public ResponseEntity<DuplicateLinkResponse> unmergeUsers(@PathVariable UUID linkId) {
+        return ResponseEntity.ok(duplicateUserService.unmerge(linkId));
+    }
 }

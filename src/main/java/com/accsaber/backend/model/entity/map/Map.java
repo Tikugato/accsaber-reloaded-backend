@@ -37,6 +37,9 @@ public class Map {
     @Column(name = "song_name", nullable = false)
     private String songName;
 
+    @Column(name = "song_subname")
+    private String songSubName;
+
     @Column(name = "song_author", nullable = false)
     private String songAuthor;
 

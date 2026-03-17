@@ -31,12 +31,15 @@ import com.accsaber.backend.model.entity.Modifier;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.score.ScoreModifierLink;
+import com.accsaber.backend.model.entity.user.MergeScoreAction;
+import com.accsaber.backend.model.entity.user.MergeScoreAction.ActionType;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.model.entity.user.UserDuplicateLink;
 import com.accsaber.backend.repository.CategoryRepository;
 import com.accsaber.backend.repository.score.ScoreModifierLinkRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.staff.StaffUserRepository;
+import com.accsaber.backend.repository.user.MergeScoreActionRepository;
 import com.accsaber.backend.repository.user.UserDuplicateLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.stats.OverallStatisticsService;
@@ -54,6 +57,8 @@ class DuplicateUserServiceTest {
 
         @Mock
         private UserDuplicateLinkRepository linkRepository;
+        @Mock
+        private MergeScoreActionRepository mergeScoreActionRepository;
         @Mock
         private UserRepository userRepository;
         @Mock
@@ -81,9 +86,9 @@ class DuplicateUserServiceTest {
         void setUp() {
                 TransactionSynchronizationManager.initSynchronization();
                 service = new DuplicateUserService(
-                                linkRepository, userRepository, scoreRepository, modifierLinkRepository,
-                                staffUserRepository, categoryRepository, statisticsService,
-                                overallStatisticsService, rankingService, entityManager);
+                                linkRepository, mergeScoreActionRepository, userRepository, scoreRepository,
+                                modifierLinkRepository, staffUserRepository, categoryRepository,
+                                statisticsService, overallStatisticsService, rankingService, entityManager);
                 service.setSelf(service);
 
                 primaryUser = User.builder()
@@ -103,6 +108,12 @@ class DuplicateUserServiceTest {
                                 .build();
 
                 lenient().when(linkRepository.findAll()).thenReturn(List.of());
+                lenient().when(mergeScoreActionRepository.save(any())).thenAnswer(inv -> {
+                        MergeScoreAction a = inv.getArgument(0);
+                        if (a.getId() == null)
+                                a.setId(UUID.randomUUID());
+                        return a;
+                });
         }
 
         @AfterEach
@@ -452,6 +463,138 @@ class DuplicateUserServiceTest {
 
                         assertThatThrownBy(() -> service.deleteUnmergedLink(linkId))
                                         .isInstanceOf(ResourceNotFoundException.class);
+                }
+        }
+
+        @Nested
+        class Unmerge {
+
+                @Test
+                void reversesActions_reactivatesSecondary() {
+                        UUID linkId = UUID.randomUUID();
+                        UUID diffId = UUID.randomUUID();
+                        MapDifficulty diff = MapDifficulty.builder().id(diffId).build();
+
+                        Score deactivatedSecondary = Score.builder()
+                                        .id(UUID.randomUUID()).user(secondaryUser).mapDifficulty(diff)
+                                        .score(900000).scoreNoMods(900000).rank(5).rankWhenSet(5)
+                                        .ap(new BigDecimal("400")).weightedAp(new BigDecimal("400"))
+                                        .active(false).build();
+                        Score createdMerged = Score.builder()
+                                        .id(UUID.randomUUID()).user(primaryUser).mapDifficulty(diff)
+                                        .score(900000).scoreNoMods(900000).rank(5).rankWhenSet(5)
+                                        .ap(new BigDecimal("400")).weightedAp(new BigDecimal("400"))
+                                        .supersedesReason("User merge").active(true).build();
+
+                        UserDuplicateLink link = UserDuplicateLink.builder()
+                                        .id(linkId)
+                                        .primaryUser(primaryUser)
+                                        .secondaryUser(secondaryUser)
+                                        .merged(true)
+                                        .mergedAt(Instant.now())
+                                        .createdAt(Instant.now())
+                                        .build();
+
+                        MergeScoreAction action1 = MergeScoreAction.builder()
+                                        .id(UUID.randomUUID()).link(link)
+                                        .actionType(ActionType.DEACTIVATED_SECONDARY)
+                                        .score(deactivatedSecondary).build();
+                        MergeScoreAction action2 = MergeScoreAction.builder()
+                                        .id(UUID.randomUUID()).link(link)
+                                        .actionType(ActionType.CREATED_MERGED)
+                                        .score(createdMerged).build();
+
+                        when(linkRepository.findById(linkId)).thenReturn(Optional.of(link));
+                        when(mergeScoreActionRepository.findByLink_Id(linkId))
+                                        .thenReturn(List.of(action1, action2));
+                        when(scoreRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
+                        when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+                        when(linkRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+                        lenient().when(categoryRepository.findByActiveTrue()).thenReturn(List.of());
+
+                        DuplicateLinkResponse response = service.unmerge(linkId);
+
+                        assertThat(response.isMerged()).isFalse();
+                        assertThat(deactivatedSecondary.isActive()).isTrue();
+                        assertThat(createdMerged.isActive()).isFalse();
+                        assertThat(secondaryUser.isActive()).isTrue();
+                        verify(mergeScoreActionRepository).deleteByLink_Id(linkId);
+                }
+
+                @Test
+                void throwsWhenNotMerged() {
+                        UUID linkId = UUID.randomUUID();
+                        UserDuplicateLink link = UserDuplicateLink.builder()
+                                        .id(linkId)
+                                        .primaryUser(primaryUser)
+                                        .secondaryUser(secondaryUser)
+                                        .merged(false)
+                                        .build();
+                        when(linkRepository.findById(linkId)).thenReturn(Optional.of(link));
+
+                        assertThatThrownBy(() -> service.unmerge(linkId))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("not been merged");
+                }
+
+                @Test
+                void throwsWhenLinkNotFound() {
+                        UUID linkId = UUID.randomUUID();
+                        when(linkRepository.findById(linkId)).thenReturn(Optional.empty());
+
+                        assertThatThrownBy(() -> service.unmerge(linkId))
+                                        .isInstanceOf(ResourceNotFoundException.class);
+                }
+
+                @Test
+                void reactivatesDisplacedPrimaryScore() {
+                        UUID linkId = UUID.randomUUID();
+                        UUID diffId = UUID.randomUUID();
+                        MapDifficulty diff = MapDifficulty.builder().id(diffId).build();
+
+                        Score deactivatedSecondary = Score.builder()
+                                        .id(UUID.randomUUID()).user(secondaryUser).mapDifficulty(diff)
+                                        .score(950000).ap(new BigDecimal("500")).active(false).build();
+                        Score deactivatedPrimary = Score.builder()
+                                        .id(UUID.randomUUID()).user(primaryUser).mapDifficulty(diff)
+                                        .score(900000).ap(new BigDecimal("400")).active(false).build();
+                        Score createdMerged = Score.builder()
+                                        .id(UUID.randomUUID()).user(primaryUser).mapDifficulty(diff)
+                                        .score(950000).ap(new BigDecimal("500"))
+                                        .supersedesReason("User merge").active(true).build();
+
+                        UserDuplicateLink link = UserDuplicateLink.builder()
+                                        .id(linkId)
+                                        .primaryUser(primaryUser)
+                                        .secondaryUser(secondaryUser)
+                                        .merged(true)
+                                        .mergedAt(Instant.now())
+                                        .createdAt(Instant.now())
+                                        .build();
+
+                        List<MergeScoreAction> actions = List.of(
+                                        MergeScoreAction.builder().id(UUID.randomUUID()).link(link)
+                                                        .actionType(ActionType.DEACTIVATED_SECONDARY)
+                                                        .score(deactivatedSecondary).build(),
+                                        MergeScoreAction.builder().id(UUID.randomUUID()).link(link)
+                                                        .actionType(ActionType.DEACTIVATED_PRIMARY)
+                                                        .score(deactivatedPrimary).build(),
+                                        MergeScoreAction.builder().id(UUID.randomUUID()).link(link)
+                                                        .actionType(ActionType.CREATED_MERGED)
+                                                        .score(createdMerged).build());
+
+                        when(linkRepository.findById(linkId)).thenReturn(Optional.of(link));
+                        when(mergeScoreActionRepository.findByLink_Id(linkId)).thenReturn(actions);
+                        when(scoreRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
+                        when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+                        when(linkRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+                        lenient().when(categoryRepository.findByActiveTrue()).thenReturn(List.of());
+
+                        service.unmerge(linkId);
+
+                        assertThat(deactivatedSecondary.isActive()).isTrue();
+                        assertThat(deactivatedPrimary.isActive()).isTrue();
+                        assertThat(createdMerged.isActive()).isFalse();
                 }
         }
 }

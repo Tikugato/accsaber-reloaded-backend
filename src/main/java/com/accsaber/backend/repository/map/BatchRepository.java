@@ -15,10 +15,10 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
 
         @Query(value = """
                         SELECT b FROM Batch b
-                        WHERE (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', :search, '%')))
+                        WHERE (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
                         """, countQuery = """
                         SELECT COUNT(b) FROM Batch b
-                        WHERE (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', :search, '%')))
+                        WHERE (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
                         """)
         Page<Batch> findAllWithSearch(
                         @Param("search") String search, Pageable pageable);
@@ -26,11 +26,11 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
         @Query(value = """
                         SELECT b FROM Batch b
                         WHERE b.status = :status
-                        AND (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', :search, '%')))
+                        AND (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
                         """, countQuery = """
                         SELECT COUNT(b) FROM Batch b
                         WHERE b.status = :status
-                        AND (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', :search, '%')))
+                        AND (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
                         """)
         Page<Batch> findByStatusWithSearch(
                         @Param("status") BatchStatus status,
@@ -40,11 +40,11 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
         @Query(value = """
                         SELECT b FROM Batch b
                         LEFT JOIN b.difficulties d ON d.active = true
-                        WHERE (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', :search, '%')))
+                        WHERE (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
                         GROUP BY b
                         """, countQuery = """
                         SELECT COUNT(b) FROM Batch b
-                        WHERE (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', :search, '%')))
+                        WHERE (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
                         """)
         Page<Batch> findAllWithDifficultyCount(
                         @Param("search") String search, Pageable pageable);
@@ -53,12 +53,12 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
                         SELECT b FROM Batch b
                         LEFT JOIN b.difficulties d ON d.active = true
                         WHERE b.status = :status
-                        AND (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', :search, '%')))
+                        AND (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
                         GROUP BY b
                         """, countQuery = """
                         SELECT COUNT(b) FROM Batch b
                         WHERE b.status = :status
-                        AND (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', :search, '%')))
+                        AND (CAST(:search AS string) IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
                         """)
         Page<Batch> findByStatusWithDifficultyCount(
                         @Param("status") BatchStatus status,

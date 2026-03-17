@@ -89,7 +89,7 @@ public class OverallStatisticsService {
                 statisticsRepository.saveAndFlush(newStats);
 
                 if (triggerRanking) {
-                        rankingService.updateRankings(overallCategory.getId());
+                        rankingService.updateRankingsAsync(overallCategory.getId());
                 }
         }
 

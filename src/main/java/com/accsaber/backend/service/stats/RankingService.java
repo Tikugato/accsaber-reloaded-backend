@@ -21,7 +21,6 @@ public class RankingService {
 
     private final ConcurrentHashMap<UUID, ReentrantLock> categoryLocks = new ConcurrentHashMap<>();
 
-    @Async("rankingExecutor")
     public void updateRankings(UUID categoryId) {
         ReentrantLock lock = categoryLocks.computeIfAbsent(categoryId, k -> new ReentrantLock());
         lock.lock();
@@ -33,5 +32,10 @@ public class RankingService {
         } finally {
             lock.unlock();
         }
+    }
+
+    @Async("rankingExecutor")
+    public void updateRankingsAsync(UUID categoryId) {
+        updateRankings(categoryId);
     }
 }

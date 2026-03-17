@@ -227,7 +227,7 @@ class ScoreServiceTest {
                         verify(scoreRepository).saveAndFlush(existing);
                         verify(statisticsService).recalculate(activeUser.getId(),
                                         rankedDifficulty.getCategory().getId());
-                        verify(rankingService).updateRankings(rankedDifficulty.getCategory().getId());
+                        verify(rankingService).updateRankingsAsync(rankedDifficulty.getCategory().getId());
                 }
 
                 @Test

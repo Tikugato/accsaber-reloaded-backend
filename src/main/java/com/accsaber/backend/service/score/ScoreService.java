@@ -131,7 +131,7 @@ public class ScoreService {
                 updateUserXp(user, xpGained);
 
                 statisticsService.recalculate(user.getId(), difficulty.getCategory().getId());
-                rankingService.updateRankings(difficulty.getCategory().getId());
+                rankingService.updateRankingsAsync(difficulty.getCategory().getId());
                 mapDifficultyStatisticsService.recalculate(difficulty, user.getId());
 
                 var evaluation = milestoneEvaluationService.evaluateAfterScore(user.getId(), saved);
@@ -210,7 +210,7 @@ public class ScoreService {
                         return;
                 scoreRankingService.reassignRanks(result.difficultyId());
                 statisticsService.recalculate(result.userId(), result.categoryId());
-                rankingService.updateRankings(result.categoryId());
+                rankingService.updateRankingsAsync(result.categoryId());
         }
 
         @Transactional

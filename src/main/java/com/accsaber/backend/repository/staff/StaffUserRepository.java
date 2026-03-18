@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.accsaber.backend.model.entity.staff.StaffUser;
+import com.accsaber.backend.model.entity.staff.StaffUserStatus;
 
 public interface StaffUserRepository extends JpaRepository<StaffUser, UUID> {
 
@@ -25,4 +26,8 @@ public interface StaffUserRepository extends JpaRepository<StaffUser, UUID> {
     Page<StaffUser> findAllByActiveTrue(Pageable pageable);
 
     Page<StaffUser> findAllByActiveFalse(Pageable pageable);
+
+    Page<StaffUser> findAllByActiveTrueAndStatus(StaffUserStatus status, Pageable pageable);
+
+    Optional<StaffUser> findByIdAndActiveTrueAndStatus(UUID id, StaffUserStatus status);
 }

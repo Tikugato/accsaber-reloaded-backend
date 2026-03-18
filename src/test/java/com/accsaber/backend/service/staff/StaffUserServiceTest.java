@@ -12,19 +12,23 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.accsaber.backend.exception.ConflictException;
+import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.request.staff.CreateStaffUserRequest;
 import com.accsaber.backend.model.dto.request.staff.OAuthLinkRequest;
+import com.accsaber.backend.model.dto.request.staff.StaffAccessRequest;
 import com.accsaber.backend.model.dto.response.staff.StaffOAuthLinkResponse;
 import com.accsaber.backend.model.dto.response.staff.StaffUserResponse;
 import com.accsaber.backend.model.entity.staff.StaffOAuthLink;
 import com.accsaber.backend.model.entity.staff.StaffRole;
 import com.accsaber.backend.model.entity.staff.StaffUser;
+import com.accsaber.backend.model.entity.staff.StaffUserStatus;
 import com.accsaber.backend.repository.staff.StaffOAuthLinkRepository;
 import com.accsaber.backend.repository.staff.StaffUserRepository;
 import com.accsaber.backend.repository.user.UserRepository;
@@ -173,6 +177,83 @@ class StaffUserServiceTest {
         staffUserService.unlinkOAuth(linkId);
 
         verify(staffOAuthLinkRepository).delete(link);
+    }
+
+    @Test
+    void requestAccess_withUsername_savesWithRequestedStatus() {
+        StaffAccessRequest request = new StaffAccessRequest();
+        request.setUsername("newranker");
+        request.setPassword("password123");
+
+        when(staffUserRepository.findByUsernameAndActiveTrue("newranker")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("password123")).thenReturn("hashed-password");
+        when(staffUserRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        staffUserService.requestAccess(request);
+
+        ArgumentCaptor<StaffUser> captor = ArgumentCaptor.forClass(StaffUser.class);
+        verify(staffUserRepository).save(captor.capture());
+        StaffUser saved = captor.getValue();
+        assertThat(saved.getStatus()).isEqualTo(StaffUserStatus.REQUESTED);
+        assertThat(saved.getRole()).isEqualTo(StaffRole.RANKING);
+        assertThat(saved.getUsername()).isEqualTo("newranker");
+        assertThat(saved.getPassword()).isEqualTo("hashed-password");
+    }
+
+    @Test
+    void requestAccess_withEmailOnly_derivesUsername() {
+        StaffAccessRequest request = new StaffAccessRequest();
+        request.setEmail("ranker@example.com");
+        request.setPassword("password123");
+
+        when(staffUserRepository.findByEmailAndActiveTrue("ranker@example.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("password123")).thenReturn("hashed-password");
+        when(staffUserRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        staffUserService.requestAccess(request);
+
+        ArgumentCaptor<StaffUser> captor = ArgumentCaptor.forClass(StaffUser.class);
+        verify(staffUserRepository).save(captor.capture());
+        StaffUser saved = captor.getValue();
+        assertThat(saved.getUsername()).isEqualTo("ranker");
+        assertThat(saved.getEmail()).isEqualTo("ranker@example.com");
+        assertThat(saved.getStatus()).isEqualTo(StaffUserStatus.REQUESTED);
+    }
+
+    @Test
+    void requestAccess_noUsernameOrEmail_throwsValidation() {
+        StaffAccessRequest request = new StaffAccessRequest();
+        request.setPassword("password123");
+
+        assertThatThrownBy(() -> staffUserService.requestAccess(request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("username or email");
+    }
+
+    @Test
+    void requestAccess_duplicateUsername_throwsConflict() {
+        StaffAccessRequest request = new StaffAccessRequest();
+        request.setUsername("existing");
+        request.setPassword("password123");
+
+        when(staffUserRepository.findByUsernameAndActiveTrue("existing"))
+                .thenReturn(Optional.of(buildStaffUser(StaffRole.RANKING)));
+
+        assertThatThrownBy(() -> staffUserService.requestAccess(request))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void requestAccess_duplicateEmail_throwsConflict() {
+        StaffAccessRequest request = new StaffAccessRequest();
+        request.setEmail("taken@example.com");
+        request.setPassword("password123");
+
+        when(staffUserRepository.findByEmailAndActiveTrue("taken@example.com"))
+                .thenReturn(Optional.of(buildStaffUser(StaffRole.RANKING)));
+
+        assertThatThrownBy(() -> staffUserService.requestAccess(request))
+                .isInstanceOf(ConflictException.class);
     }
 
     private StaffUser buildStaffUser(StaffRole role) {

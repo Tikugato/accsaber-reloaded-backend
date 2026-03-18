@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.accsaber.backend.exception.ForbiddenException;
 import com.accsaber.backend.exception.UnauthorizedException;
 import com.accsaber.backend.model.dto.request.staff.LoginRequest;
 import com.accsaber.backend.model.dto.request.staff.RefreshTokenRequest;
@@ -127,7 +128,56 @@ class StaffAuthServiceTest {
     }
 
     @Test
-    void refresh_nonAcceptedStatus_throwsUnauthorized() {
+    void login_requestedStatus_throwsForbiddenWithPendingMessage() {
+        StaffUser staffUser = buildStaffUser();
+        staffUser.setStatus(StaffUserStatus.REQUESTED);
+        LoginRequest request = new LoginRequest();
+        request.setIdentifier("admin");
+        request.setPassword("password");
+
+        when(staffUserRepository.findByUsernameAndActiveTrue("admin")).thenReturn(Optional.of(staffUser));
+        when(passwordEncoder.matches("password", "hashed")).thenReturn(true);
+
+        assertThatThrownBy(() -> staffAuthService.login(request))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("pending approval");
+    }
+
+    @Test
+    void login_deniedStatus_throwsForbiddenWithDeniedMessage() {
+        StaffUser staffUser = buildStaffUser();
+        staffUser.setStatus(StaffUserStatus.DENIED);
+        LoginRequest request = new LoginRequest();
+        request.setIdentifier("admin");
+        request.setPassword("password");
+
+        when(staffUserRepository.findByUsernameAndActiveTrue("admin")).thenReturn(Optional.of(staffUser));
+        when(passwordEncoder.matches("password", "hashed")).thenReturn(true);
+
+        assertThatThrownBy(() -> staffAuthService.login(request))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("denied");
+    }
+
+    @Test
+    void refresh_requestedStatus_throwsForbidden() {
+        StaffUser staffUser = buildStaffUser();
+        staffUser.setStatus(StaffUserStatus.REQUESTED);
+        staffUser.setRefreshToken("valid-refresh");
+        staffUser.setTokenExpiresAt(Instant.now().plusSeconds(3600));
+
+        RefreshTokenRequest request = new RefreshTokenRequest();
+        request.setRefreshToken("valid-refresh");
+
+        when(staffUserRepository.findByRefreshToken("valid-refresh")).thenReturn(Optional.of(staffUser));
+
+        assertThatThrownBy(() -> staffAuthService.refresh(request))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("pending approval");
+    }
+
+    @Test
+    void refresh_deniedStatus_throwsForbidden() {
         StaffUser staffUser = buildStaffUser();
         staffUser.setStatus(StaffUserStatus.DENIED);
         staffUser.setRefreshToken("valid-refresh");
@@ -139,7 +189,8 @@ class StaffAuthServiceTest {
         when(staffUserRepository.findByRefreshToken("valid-refresh")).thenReturn(Optional.of(staffUser));
 
         assertThatThrownBy(() -> staffAuthService.refresh(request))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("denied");
     }
 
     @Test

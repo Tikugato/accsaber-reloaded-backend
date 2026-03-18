@@ -14,6 +14,7 @@ import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.request.staff.CreateStaffUserRequest;
 import com.accsaber.backend.model.dto.request.staff.OAuthLinkRequest;
+import com.accsaber.backend.model.dto.request.staff.StaffAccessRequest;
 import com.accsaber.backend.model.dto.request.staff.UpdateStaffProfileRequest;
 import com.accsaber.backend.model.dto.response.staff.PublicStaffUserResponse;
 import com.accsaber.backend.model.dto.response.staff.StaffOAuthLinkResponse;
@@ -39,13 +40,39 @@ public class StaffUserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Transactional
+    public void requestAccess(StaffAccessRequest request) {
+        if (request.getUsername() == null && request.getEmail() == null) {
+            throw new ValidationException("At least one of username or email is required");
+        }
+        if (request.getUsername() != null
+                && staffUserRepository.findByUsernameAndActiveTrue(request.getUsername()).isPresent()) {
+            throw new ConflictException("Username already taken: " + request.getUsername());
+        }
+        if (request.getEmail() != null
+                && staffUserRepository.findByEmailAndActiveTrue(request.getEmail()).isPresent()) {
+            throw new ConflictException("Email already in use: " + request.getEmail());
+        }
+
+        StaffUser staffUser = StaffUser.builder()
+                .username(request.getUsername() != null ? request.getUsername()
+                        : request.getEmail().split("@")[0])
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(StaffRole.RANKING)
+                .status(StaffUserStatus.REQUESTED)
+                .build();
+
+        staffUserRepository.save(staffUser);
+    }
+
     public Page<PublicStaffUserResponse> getAllPublic(Pageable pageable, Boolean active) {
         if (active == null) {
-            return staffUserRepository.findAll(pageable)
+            return staffUserRepository.findAllByActiveTrueAndStatus(StaffUserStatus.ACCEPTED, pageable)
                     .map(this::toPublicResponse);
         }
         if (active) {
-            return staffUserRepository.findAllByActiveTrue(pageable)
+            return staffUserRepository.findAllByActiveTrueAndStatus(StaffUserStatus.ACCEPTED, pageable)
                     .map(this::toPublicResponse);
         }
         return staffUserRepository.findAllByActiveFalse(pageable)
@@ -53,7 +80,7 @@ public class StaffUserService {
     }
 
     public PublicStaffUserResponse getByIdPublic(UUID id) {
-        return staffUserRepository.findByIdAndActiveTrue(id)
+        return staffUserRepository.findByIdAndActiveTrueAndStatus(id, StaffUserStatus.ACCEPTED)
                 .map(this::toPublicResponse)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff user not found: " + id));
     }
@@ -167,6 +194,16 @@ public class StaffUserService {
                 .orElseThrow(() -> new ResourceNotFoundException("Staff user not found: " + id));
         staffUser.setRole(role);
         return toResponse(staffUserRepository.save(staffUser));
+    }
+
+    @Transactional
+    public void forceChangePassword(UUID id, String newPassword) {
+        StaffUser staffUser = staffUserRepository.findByIdAndActiveTrue(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff user not found: " + id));
+        staffUser.setPassword(passwordEncoder.encode(newPassword));
+        staffUser.setRefreshToken(null);
+        staffUser.setTokenExpiresAt(null);
+        staffUserRepository.save(staffUser);
     }
 
     @Transactional

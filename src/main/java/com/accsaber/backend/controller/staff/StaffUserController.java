@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.accsaber.backend.model.dto.request.staff.CreateStaffUserRequest;
+import com.accsaber.backend.model.dto.request.staff.ForceChangePasswordRequest;
 import com.accsaber.backend.model.dto.request.staff.LinkUserRequest;
 import com.accsaber.backend.model.dto.request.staff.OAuthLinkRequest;
 import com.accsaber.backend.model.dto.request.staff.UpdateStaffProfileRequest;
@@ -80,6 +81,15 @@ public class StaffUserController {
             @PathVariable UUID id,
             @Valid @RequestBody LinkUserRequest request) {
         return ResponseEntity.ok(staffUserService.linkUser(id, request.getUserId()));
+    }
+
+    @Operation(summary = "Force change a staff user's password")
+    @PatchMapping("/{id}/password")
+    public ResponseEntity<Void> forceChangePassword(
+            @PathVariable UUID id,
+            @Valid @RequestBody ForceChangePasswordRequest request) {
+        staffUserService.forceChangePassword(id, request.getNewPassword());
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Deactivate a staff user")

@@ -8,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.accsaber.backend.exception.ForbiddenException;
 import com.accsaber.backend.exception.UnauthorizedException;
 import com.accsaber.backend.model.dto.request.staff.LoginRequest;
 import com.accsaber.backend.model.dto.request.staff.RefreshTokenRequest;
@@ -45,9 +46,7 @@ public class StaffAuthService {
             throw new UnauthorizedException("Invalid credentials");
         }
 
-        if (staffUser.getStatus() != StaffUserStatus.ACCEPTED) {
-            throw new UnauthorizedException("Invalid credentials");
-        }
+        validateStatus(staffUser);
 
         return generateAndStoreTokens(staffUser);
     }
@@ -61,9 +60,7 @@ public class StaffAuthService {
             throw new UnauthorizedException("Invalid or expired refresh token");
         }
 
-        if (staffUser.getStatus() != StaffUserStatus.ACCEPTED) {
-            throw new UnauthorizedException("Invalid or expired refresh token");
-        }
+        validateStatus(staffUser);
 
         return generateAndStoreTokens(staffUser);
     }
@@ -75,6 +72,15 @@ public class StaffAuthService {
             staffUser.setTokenExpiresAt(null);
             staffUserRepository.save(staffUser);
         });
+    }
+
+    private void validateStatus(StaffUser staffUser) {
+        if (staffUser.getStatus() == StaffUserStatus.REQUESTED) {
+            throw new ForbiddenException("Your staff access request is still pending approval");
+        }
+        if (staffUser.getStatus() == StaffUserStatus.DENIED) {
+            throw new ForbiddenException("Your staff access request has been denied");
+        }
     }
 
     private AuthResponse generateAndStoreTokens(StaffUser staffUser) {

@@ -2,9 +2,11 @@ package com.accsaber.backend.controller.staff;
 
 import com.accsaber.backend.model.dto.request.staff.LoginRequest;
 import com.accsaber.backend.model.dto.request.staff.RefreshTokenRequest;
+import com.accsaber.backend.model.dto.request.staff.StaffAccessRequest;
 import com.accsaber.backend.model.dto.response.staff.AuthResponse;
 import com.accsaber.backend.security.StaffUserDetails;
 import com.accsaber.backend.service.staff.StaffAuthService;
+import com.accsaber.backend.service.staff.StaffUserService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,6 +27,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class StaffAuthController {
 
     private final StaffAuthService staffAuthService;
+    private final StaffUserService staffUserService;
+
+    @Operation(summary = "Request staff access")
+    @PostMapping("/request")
+    public ResponseEntity<Void> requestAccess(@Valid @RequestBody StaffAccessRequest request) {
+        staffUserService.requestAccess(request);
+        return ResponseEntity.accepted().build();
+    }
 
     @Operation(summary = "Log in as staff")
     @PostMapping("/login")

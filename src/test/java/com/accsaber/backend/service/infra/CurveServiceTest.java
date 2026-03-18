@@ -19,6 +19,7 @@ import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.model.dto.response.CurveResponse;
 import com.accsaber.backend.model.entity.Curve;
 import com.accsaber.backend.model.entity.CurveType;
+import com.accsaber.backend.repository.CurvePointRepository;
 import com.accsaber.backend.repository.CurveRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -26,6 +27,9 @@ class CurveServiceTest {
 
     @Mock
     private CurveRepository curveRepository;
+
+    @Mock
+    private CurvePointRepository curvePointRepository;
 
     @InjectMocks
     private CurveService curveService;

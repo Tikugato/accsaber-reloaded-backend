@@ -91,6 +91,15 @@ public class StaffUserService {
                 .map(this::toResponse);
     }
 
+    public Page<StaffUserResponse> getAllUnfiltered(StaffUserStatus status, Pageable pageable) {
+        if (status != null) {
+            return staffUserRepository.findAllByStatus(status, pageable)
+                    .map(this::toResponse);
+        }
+        return staffUserRepository.findAll(pageable)
+                .map(this::toResponse);
+    }
+
     public StaffUserResponse getById(UUID id) {
         return staffUserRepository.findByIdAndActiveTrue(id)
                 .map(this::toResponse)

@@ -95,3 +95,8 @@ src/main/resources/
 | `SERVICE_API_KEY`         | Yes      | API key for authenticated score submission |
 | `SPRING_PROFILES_ACTIVE`  | No       | `dev` or `prod` (prod compose hardcodes this) |
 | `GRAFANA_ADMIN_PASSWORD`  | No       | Grafana admin password (default: `admin`)  |
+
+### Important Note on AI Usage
+> *AccSaber Reloaded's infrastructure, flow and core features are human-made. Tedious tasks were automated with the help of AI (tests, DTOs, some methods). The codebase is manually reviewed and edited, and all creative input is human-generated. I firmly believe that human creativity and intuition are irreplaceable in software development.*
+> *If you do not agree with this approach and you are a vibe-coder OR you take a firm No-AI stance, please refrain from using or contributing to this project.*
+> 

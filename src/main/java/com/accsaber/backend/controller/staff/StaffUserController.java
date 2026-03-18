@@ -4,6 +4,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.accsaber.backend.model.dto.request.staff.CreateStaffUserRequest;
@@ -25,6 +28,7 @@ import com.accsaber.backend.model.dto.request.staff.UpdateStaffRoleRequest;
 import com.accsaber.backend.model.dto.request.staff.UpdateStaffStatusRequest;
 import com.accsaber.backend.model.dto.response.staff.StaffOAuthLinkResponse;
 import com.accsaber.backend.model.dto.response.staff.StaffUserResponse;
+import com.accsaber.backend.model.entity.staff.StaffUserStatus;
 import com.accsaber.backend.security.StaffUserDetails;
 import com.accsaber.backend.service.staff.StaffUserService;
 
@@ -41,6 +45,14 @@ import lombok.RequiredArgsConstructor;
 public class StaffUserController {
 
     private final StaffUserService staffUserService;
+
+    @Operation(summary = "List all staff users (active, inactive, any status)")
+    @GetMapping
+    public ResponseEntity<Page<StaffUserResponse>> getAll(
+            @RequestParam(required = false) StaffUserStatus status,
+            Pageable pageable) {
+        return ResponseEntity.ok(staffUserService.getAllUnfiltered(status, pageable));
+    }
 
     @Operation(summary = "Update own username or email")
     @PatchMapping("/me")

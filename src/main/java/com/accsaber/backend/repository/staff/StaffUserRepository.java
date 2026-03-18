@@ -33,4 +33,6 @@ public interface StaffUserRepository extends JpaRepository<StaffUser, UUID> {
     Page<StaffUser> findAllByActiveTrueAndStatus(StaffUserStatus status, Pageable pageable);
 
     Optional<StaffUser> findByIdAndActiveTrueAndStatus(UUID id, StaffUserStatus status);
+
+    Page<StaffUser> findAllByStatus(StaffUserStatus status, Pageable pageable);
 }

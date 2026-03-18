@@ -1,14 +1,13 @@
-package com.accsaber.backend.model.entity.campaign;
+package com.accsaber.backend.model.entity.badge;
 
-import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import com.accsaber.backend.model.entity.map.MapDifficulty;
+import com.accsaber.backend.model.entity.staff.StaffUser;
+import com.accsaber.backend.model.entity.user.User;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -18,8 +17,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,43 +26,35 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "campaign_maps")
+@Table(name = "user_badge_links", uniqueConstraints = @UniqueConstraint(columnNames = { "user_id", "badge_id" }))
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CampaignMap {
+public class UserBadgeLink {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "campaign_id", nullable = false)
-    private Campaign campaign;
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "map_difficulty_id", nullable = false)
-    private MapDifficulty mapDifficulty;
+    @JoinColumn(name = "badge_id", nullable = false)
+    private Badge badge;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "milestone_for_id")
-    private CampaignMilestone milestoneFor;
+    @JoinColumn(name = "awarded_by")
+    private StaffUser awardedBy;
 
-    @Column(name = "accuracy_requirement", nullable = false, precision = 20, scale = 6)
-    private BigDecimal accuracyRequirement;
-
-    @Column(nullable = false, precision = 20, scale = 6)
+    @Column(name = "awarded_at", nullable = false)
     @Builder.Default
-    private BigDecimal xp = BigDecimal.ZERO;
+    private Instant awardedAt = Instant.now();
 
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean active = true;
-
-    @OneToMany(mappedBy = "campaignMap", fetch = FetchType.LAZY)
-    private List<CampaignMapPath> prerequisites;
+    private String reason;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

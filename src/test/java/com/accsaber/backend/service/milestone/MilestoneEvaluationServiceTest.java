@@ -36,6 +36,7 @@ import com.accsaber.backend.repository.milestone.MilestoneRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneSetBonusRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.badge.BadgeService;
 
 @ExtendWith(MockitoExtension.class)
 class MilestoneEvaluationServiceTest {
@@ -50,6 +51,8 @@ class MilestoneEvaluationServiceTest {
         private UserRepository userRepository;
         @Mock
         private MilestoneQueryBuilderService queryBuilderService;
+        @Mock
+        private BadgeService badgeService;
 
         @InjectMocks
         private MilestoneEvaluationService service;
@@ -655,6 +658,117 @@ class MilestoneEvaluationServiceTest {
                         verify(userMilestoneSetBonusRepository).existsByUser_IdAndMilestoneSet_Id(USER_ID,
                                         milestoneSet.getId());
                         verify(userMilestoneSetBonusRepository).save(any(UserMilestoneSetBonus.class));
+                }
+
+                @Test
+                void badgeAwarded_whenSetCompletedAndHasBadge() {
+                        UUID badgeId = UUID.randomUUID();
+                        com.accsaber.backend.model.entity.badge.Badge badge = com.accsaber.backend.model.entity.badge.Badge
+                                        .builder().id(badgeId).name("Set Complete Badge").build();
+                        MilestoneSet setWithBadge = MilestoneSet.builder()
+                                        .id(UUID.randomUUID())
+                                        .title("Badge Set")
+                                        .awardsBadge(badge)
+                                        .build();
+                        Milestone milestone = Milestone.builder()
+                                        .id(UUID.randomUUID())
+                                        .milestoneSet(setWithBadge)
+                                        .title("Test")
+                                        .type("milestone")
+                                        .tier(MilestoneTier.gold)
+                                        .xp(BigDecimal.valueOf(100))
+                                        .querySpec(querySpec)
+                                        .targetValue(BigDecimal.valueOf(50))
+                                        .comparison("GTE")
+                                        .active(true)
+                                        .build();
+                        Score newScore = buildScoreWithMapDifficulty();
+                        User user = User.builder().id(USER_ID).build();
+
+                        mockScopedQuery(List.of(milestone));
+                        when(queryBuilderService.evaluate(querySpec, USER_ID, null))
+                                        .thenReturn(BigDecimal.valueOf(100));
+                        when(userMilestoneLinkRepository.findByUser_IdAndMilestone_Id(USER_ID, milestone.getId()))
+                                        .thenReturn(Optional.empty());
+                        when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
+                        when(userMilestoneLinkRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+                        when(userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(USER_ID,
+                                        setWithBadge.getId())).thenReturn(false);
+                        when(milestoneRepository.countActiveBySetId(setWithBadge.getId())).thenReturn(1L);
+                        when(userMilestoneLinkRepository.countCompletedByUserAndSet(USER_ID, setWithBadge.getId()))
+                                        .thenReturn(1L);
+
+                        service.evaluateAfterScore(USER_ID, newScore);
+
+                        verify(badgeService).awardBadgeSystem(eq(USER_ID), eq(badgeId),
+                                        eq("Completed milestone set: Badge Set"));
+                }
+
+                @Test
+                void badgeNotAwarded_whenSetCompletedButNoBadge() {
+                        Milestone milestone = buildMilestone(BigDecimal.valueOf(50), "GTE");
+                        Score newScore = buildScoreWithMapDifficulty();
+                        User user = User.builder().id(USER_ID).build();
+
+                        mockScopedQuery(List.of(milestone));
+                        when(queryBuilderService.evaluate(querySpec, USER_ID, null))
+                                        .thenReturn(BigDecimal.valueOf(100));
+                        when(userMilestoneLinkRepository.findByUser_IdAndMilestone_Id(USER_ID, milestone.getId()))
+                                        .thenReturn(Optional.empty());
+                        when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
+                        when(userMilestoneLinkRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+                        when(userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(USER_ID,
+                                        milestoneSet.getId())).thenReturn(false);
+                        when(milestoneRepository.countActiveBySetId(milestoneSet.getId())).thenReturn(1L);
+                        when(userMilestoneLinkRepository.countCompletedByUserAndSet(USER_ID, milestoneSet.getId()))
+                                        .thenReturn(1L);
+
+                        service.evaluateAfterScore(USER_ID, newScore);
+
+                        verify(badgeService, never()).awardBadgeSystem(any(), any(), any());
+                }
+
+                @Test
+                void badgeNotAwarded_whenSetIncomplete() {
+                        UUID badgeId = UUID.randomUUID();
+                        com.accsaber.backend.model.entity.badge.Badge badge = com.accsaber.backend.model.entity.badge.Badge
+                                        .builder().id(badgeId).name("Unreachable Badge").build();
+                        MilestoneSet setWithBadge = MilestoneSet.builder()
+                                        .id(UUID.randomUUID())
+                                        .title("Incomplete Set")
+                                        .awardsBadge(badge)
+                                        .build();
+                        Milestone milestone = Milestone.builder()
+                                        .id(UUID.randomUUID())
+                                        .milestoneSet(setWithBadge)
+                                        .title("Hard")
+                                        .type("milestone")
+                                        .tier(MilestoneTier.gold)
+                                        .xp(BigDecimal.valueOf(100))
+                                        .querySpec(querySpec)
+                                        .targetValue(BigDecimal.valueOf(50))
+                                        .comparison("GTE")
+                                        .active(true)
+                                        .build();
+                        Score newScore = buildScoreWithMapDifficulty();
+                        User user = User.builder().id(USER_ID).build();
+
+                        mockScopedQuery(List.of(milestone));
+                        when(queryBuilderService.evaluate(querySpec, USER_ID, null))
+                                        .thenReturn(BigDecimal.valueOf(100));
+                        when(userMilestoneLinkRepository.findByUser_IdAndMilestone_Id(USER_ID, milestone.getId()))
+                                        .thenReturn(Optional.empty());
+                        when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
+                        when(userMilestoneLinkRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+                        when(userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(USER_ID,
+                                        setWithBadge.getId())).thenReturn(false);
+                        when(milestoneRepository.countActiveBySetId(setWithBadge.getId())).thenReturn(3L);
+                        when(userMilestoneLinkRepository.countCompletedByUserAndSet(USER_ID, setWithBadge.getId()))
+                                        .thenReturn(1L);
+
+                        service.evaluateAfterScore(USER_ID, newScore);
+
+                        verify(badgeService, never()).awardBadgeSystem(any(), any(), any());
                 }
         }
 

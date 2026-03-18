@@ -21,6 +21,7 @@ import com.accsaber.backend.repository.milestone.MilestoneRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneSetBonusRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.badge.BadgeService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -33,6 +34,7 @@ public class MilestoneEvaluationService {
     private final UserMilestoneSetBonusRepository userMilestoneSetBonusRepository;
     private final UserRepository userRepository;
     private final MilestoneQueryBuilderService queryBuilderService;
+    private final BadgeService badgeService;
 
     public record EvaluationResult(List<Milestone> completedMilestones, List<MilestoneSet> completedSets) {
     }
@@ -151,6 +153,12 @@ public class MilestoneEvaluationService {
                     .milestoneSet(set)
                     .claimedAt(Instant.now())
                     .build());
+
+            if (set.getAwardsBadge() != null) {
+                badgeService.awardBadgeSystem(userId, set.getAwardsBadge().getId(),
+                        "Completed milestone set: " + set.getTitle());
+            }
+
             earned.add(set);
         }
 

@@ -9,8 +9,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.model.dto.request.curve.CreateCurveRequest;
 import com.accsaber.backend.model.dto.request.curve.UpdateCurveRequest;
+import com.accsaber.backend.model.dto.response.CurvePointResponse;
 import com.accsaber.backend.model.dto.response.CurveResponse;
 import com.accsaber.backend.model.entity.Curve;
+import com.accsaber.backend.model.entity.CurveType;
+import com.accsaber.backend.repository.CurvePointRepository;
 import com.accsaber.backend.repository.CurveRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -21,17 +24,18 @@ import lombok.RequiredArgsConstructor;
 public class CurveService {
 
     private final CurveRepository curveRepository;
+    private final CurvePointRepository curvePointRepository;
 
     public List<CurveResponse> findAllActive() {
         return curveRepository.findByActiveTrue().stream()
-                .map(CurveService::toResponse)
+                .map(this::toResponseWithPoints)
                 .toList();
     }
 
     public CurveResponse findById(UUID id) {
         Curve curve = curveRepository.findByIdAndActiveTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Curve", id));
-        return toResponse(curve);
+        return toResponseWithPoints(curve);
     }
 
     @Transactional
@@ -79,6 +83,38 @@ public class CurveService {
             curve.setShift(request.getShift());
 
         return toResponse(curveRepository.save(curve));
+    }
+
+    private CurveResponse toResponseWithPoints(Curve curve) {
+        if (curve == null) {
+            return null;
+        }
+        CurveResponse.CurveResponseBuilder builder = CurveResponse.builder()
+                .id(curve.getId())
+                .name(curve.getName())
+                .type(curve.getType().name())
+                .formula(curve.getFormula())
+                .xParameterName(curve.getXParameterName())
+                .xParameterValue(curve.getXParameterValue())
+                .yParameterName(curve.getYParameterName())
+                .yParameterValue(curve.getYParameterValue())
+                .zParameterName(curve.getZParameterName())
+                .zParameterValue(curve.getZParameterValue())
+                .scale(curve.getScale())
+                .shift(curve.getShift());
+
+        if (curve.getType() == CurveType.POINT_LOOKUP) {
+            List<CurvePointResponse> points = curvePointRepository
+                    .findByCurveIdOrderByXAsc(curve.getId()).stream()
+                    .map(p -> CurvePointResponse.builder()
+                            .x(p.getX())
+                            .y(p.getY())
+                            .build())
+                    .toList();
+            builder.points(points);
+        }
+
+        return builder.build();
     }
 
     public static CurveResponse toResponse(Curve curve) {

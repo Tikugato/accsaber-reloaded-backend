@@ -25,7 +25,7 @@ public class OpenApiConfig {
                                 .info(new Info()
                                                 .title("AccSaber Reloaded API")
                                                 .description("""
-                                                                REST API for the AccSaber Reloaded platform — an accuracy-based \
+                                                                REST API for the AccSaber Reloaded platform - an accuracy-based \
                                                                 leaderboard system for Beat Saber.
                                                                 """)
                                                 .version("0.4.0")
@@ -42,7 +42,7 @@ public class OpenApiConfig {
                                                 new Tag().name("Maps")
                                                                 .description("Ranked maps, difficulties, complexity history, and per-difficulty leaderboards"),
                                                 new Tag().name("Batches")
-                                                                .description("Ranking batches — curated groups of qualified maps released together (public reads)"),
+                                                                .description("Ranking batches - curated groups of qualified maps released together (public reads)"),
                                                 new Tag().name("Players")
                                                                 .description("Player profiles, score history, milestones, level, and campaign progress"),
                                                 new Tag().name("Leaderboards")
@@ -51,6 +51,8 @@ public class OpenApiConfig {
                                                                 .description("Milestone sets, individual milestones/achievements, and level thresholds"),
                                                 new Tag().name("Campaigns")
                                                                 .description("Campaign progressions with curated map sequences and XP rewards"),
+                                                new Tag().name("Curves")
+                                                                .description("Scoring curves - point-lookup and formula curves used for AP and weight calculations"),
                                                 new Tag().name("Discord Links")
                                                                 .description("Discord-to-player account linking and lookup"),
 
@@ -73,13 +75,15 @@ public class OpenApiConfig {
                                                                 .description("Create, update, deactivate campaigns and manage campaign maps (Admin role)"),
                                                 new Tag().name("Admin User Duplicates")
                                                                 .description("Detect, link, and merge duplicate user accounts across platforms (Admin role)"),
+                                                new Tag().name("Admin Curves")
+                                                                .description("Create and update scoring curves (Admin role)"),
                                                 new Tag().name("Admin WebSocket")
                                                                 .description("Monitor and reconnect BeatLeader/ScoreSaber WebSocket feeds (Admin role)"),
 
                                                 new Tag().name("Staff Auth")
                                                                 .description("Staff login, token refresh, and logout"),
                                                 new Tag().name("Staff Users")
-                                                                .description("Staff account management — profiles, roles, status, and OAuth links (Admin role)")))
+                                                                .description("Staff account management - profiles, roles, status, and OAuth links (Admin role)")))
                                 .addSecurityItem(new SecurityRequirement().addList("Bearer Token"))
                                 .schemaRequirement("Bearer Token", new SecurityScheme()
                                                 .type(SecurityScheme.Type.HTTP)

@@ -1,6 +1,7 @@
 package com.accsaber.backend.model.dto.response;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import lombok.Builder;
@@ -22,4 +23,5 @@ public class CurveResponse {
     BigDecimal zParameterValue;
     BigDecimal scale;
     BigDecimal shift;
+    List<CurvePointResponse> points;
 }

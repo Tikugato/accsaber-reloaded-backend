@@ -73,6 +73,14 @@ public class AdminUserDuplicateController {
                 request.getReason()));
     }
 
+    @Operation(summary = "Merge all unmerged duplicate links", description = "Merges all curated links that haven't been merged yet. Recalculation runs once after all merges complete.")
+    @PostMapping("/merge-all")
+    public ResponseEntity<List<DuplicateLinkResponse>> mergeAll(
+            @AuthenticationPrincipal StaffUserDetails userDetails) {
+        return ResponseEntity.ok(duplicateUserService.mergeAllUnmerged(
+                userDetails.getStaffUser().getId()));
+    }
+
     @Operation(summary = "Unmerge a previously merged duplicate link", description = "Reverses score reassignments and reactivates the secondary user")
     @PostMapping("/unmerge/{linkId}")
     public ResponseEntity<DuplicateLinkResponse> unmergeUsers(@PathVariable UUID linkId) {

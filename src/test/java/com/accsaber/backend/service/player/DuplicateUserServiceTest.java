@@ -597,4 +597,48 @@ class DuplicateUserServiceTest {
                         assertThat(createdMerged.isActive()).isFalse();
                 }
         }
+
+        @Nested
+        class MergeAllUnmerged {
+
+                private static final Long THIRD_ID = 76561198000000003L;
+
+                @Test
+                void mergesAllUnmergedLinks() {
+                        User thirdUser = User.builder()
+                                        .id(THIRD_ID).name("Third").country("US")
+                                        .totalXp(new BigDecimal("200")).active(true).build();
+
+                        UserDuplicateLink link1 = UserDuplicateLink.builder()
+                                        .id(UUID.randomUUID())
+                                        .primaryUser(primaryUser).secondaryUser(secondaryUser)
+                                        .merged(false).reason("dup1").createdAt(Instant.now()).build();
+                        UserDuplicateLink link2 = UserDuplicateLink.builder()
+                                        .id(UUID.randomUUID())
+                                        .primaryUser(primaryUser).secondaryUser(thirdUser)
+                                        .merged(false).reason("dup2").createdAt(Instant.now()).build();
+
+                        when(linkRepository.findByMergedFalse()).thenReturn(List.of(link1, link2));
+                        when(scoreRepository.findByUser_IdAndActiveTrue(SECONDARY_ID)).thenReturn(List.of());
+                        when(scoreRepository.findByUser_IdAndActiveTrue(THIRD_ID)).thenReturn(List.of());
+                        when(linkRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+                        List<DuplicateLinkResponse> results = service.mergeAllUnmerged(STAFF_ID);
+
+                        assertThat(results).hasSize(2);
+                        assertThat(results).allMatch(DuplicateLinkResponse::isMerged);
+                        assertThat(secondaryUser.isActive()).isFalse();
+                        assertThat(thirdUser.isActive()).isFalse();
+                }
+
+                @Test
+                void returnsEmptyList_whenNoUnmergedLinks() {
+                        when(linkRepository.findByMergedFalse()).thenReturn(List.of());
+
+                        List<DuplicateLinkResponse> results = service.mergeAllUnmerged(STAFF_ID);
+
+                        assertThat(results).isEmpty();
+                        verify(linkRepository, never()).save(any());
+                }
+        }
 }

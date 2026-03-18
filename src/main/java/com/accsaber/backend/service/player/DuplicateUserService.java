@@ -1,7 +1,9 @@
 package com.accsaber.backend.service.player;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -196,6 +198,47 @@ public class DuplicateUserService {
                             .build());
                 });
 
+        executeMerge(link, primary, secondary, staffUserId, reason);
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                self.recalculateAfterMerge(primaryUserId);
+            }
+        });
+
+        return toLinkResponse(link);
+    }
+
+    @Transactional
+    public List<DuplicateLinkResponse> mergeAllUnmerged(UUID staffUserId) {
+        List<UserDuplicateLink> unmerged = linkRepository.findByMergedFalse();
+        if (unmerged.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> affectedPrimaryIds = new HashSet<>();
+        List<DuplicateLinkResponse> results = unmerged.stream()
+                .map(link -> {
+                    executeMerge(link, link.getPrimaryUser(), link.getSecondaryUser(),
+                            staffUserId, link.getReason());
+                    affectedPrimaryIds.add(link.getPrimaryUser().getId());
+                    return toLinkResponse(link);
+                })
+                .toList();
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                self.recalculateAfterBulkMerge(affectedPrimaryIds);
+            }
+        });
+
+        return results;
+    }
+
+    private void executeMerge(UserDuplicateLink link, User primary, User secondary,
+            UUID staffUserId, String reason) {
         if (link.isMerged()) {
             throw new ValidationException("This duplicate link has already been merged");
         }
@@ -211,17 +254,8 @@ public class DuplicateUserService {
         link.setReason(reason);
         linkRepository.save(link);
 
-        duplicateCache.put(secondaryUserId, primaryUserId);
-        log.info("Merged user {} into {}: {} scores reassigned", secondaryUserId, primaryUserId, reassigned);
-
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                self.recalculateAfterMerge(primaryUserId);
-            }
-        });
-
-        return toLinkResponse(link);
+        duplicateCache.put(secondary.getId(), primary.getId());
+        log.info("Merged user {} into {}: {} scores reassigned", secondary.getId(), primary.getId(), reassigned);
     }
 
     @Transactional
@@ -385,13 +419,23 @@ public class DuplicateUserService {
 
     @Async("taskExecutor")
     public void recalculateAfterMerge(Long primaryUserId) {
+        recalculateAfterBulkMerge(Set.of(primaryUserId));
+    }
+
+    @Async("taskExecutor")
+    public void recalculateAfterBulkMerge(Set<Long> primaryUserIds) {
         var categories = categoryRepository.findByActiveTrueAndCountForOverallTrue();
         for (var category : categories) {
-            statisticsService.recalculate(primaryUserId, category.getId(), false, false);
+            for (Long userId : primaryUserIds) {
+                statisticsService.recalculate(userId, category.getId(), false, false);
+            }
             rankingService.updateRankings(category.getId());
         }
-        overallStatisticsService.recalculate(primaryUserId, false);
+        for (Long userId : primaryUserIds) {
+            overallStatisticsService.recalculate(userId, false);
+        }
         overallStatisticsService.updateOverallRankings();
+        log.info("Bulk merge recalculation complete for {} users", primaryUserIds.size());
     }
 
     private void validateLinkRequest(Long primaryUserId, Long secondaryUserId) {

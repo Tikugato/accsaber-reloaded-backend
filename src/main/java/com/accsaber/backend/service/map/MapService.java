@@ -149,7 +149,7 @@ public class MapService {
     }
 
     public MapResponse findBySongHash(String songHash, Difficulty difficulty) {
-        Map map = mapRepository.findBySongHashAndActiveTrue(songHash)
+        Map map = mapRepository.findBySongHashAndActiveTrue(songHash.toLowerCase())
                 .orElseThrow(() -> new ResourceNotFoundException("Map", songHash));
         List<MapDifficulty> difficulties = mapDifficultyRepository.findByMapIdAndActiveTrue(map.getId());
         if (difficulty != null) {

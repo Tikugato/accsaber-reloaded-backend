@@ -1,23 +1,9 @@
 package com.accsaber.backend.controller.staff;
 
-import com.accsaber.backend.model.dto.request.staff.CreateStaffUserRequest;
-import com.accsaber.backend.model.dto.request.staff.OAuthLinkRequest;
-import com.accsaber.backend.model.dto.request.staff.UpdateStaffProfileRequest;
-import com.accsaber.backend.model.dto.request.staff.UpdateStaffRoleRequest;
-import com.accsaber.backend.model.dto.request.staff.UpdateStaffStatusRequest;
-import com.accsaber.backend.model.dto.response.staff.PublicStaffUserResponse;
-import com.accsaber.backend.model.dto.response.staff.StaffOAuthLinkResponse;
-import com.accsaber.backend.model.dto.response.staff.StaffUserResponse;
-import com.accsaber.backend.security.StaffUserDetails;
-import com.accsaber.backend.service.staff.StaffUserService;
+import java.net.URI;
+import java.util.List;
+import java.util.UUID;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,9 +16,20 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URI;
-import java.util.List;
-import java.util.UUID;
+import com.accsaber.backend.model.dto.request.staff.CreateStaffUserRequest;
+import com.accsaber.backend.model.dto.request.staff.OAuthLinkRequest;
+import com.accsaber.backend.model.dto.request.staff.UpdateStaffProfileRequest;
+import com.accsaber.backend.model.dto.request.staff.UpdateStaffRoleRequest;
+import com.accsaber.backend.model.dto.request.staff.UpdateStaffStatusRequest;
+import com.accsaber.backend.model.dto.response.staff.StaffOAuthLinkResponse;
+import com.accsaber.backend.model.dto.response.staff.StaffUserResponse;
+import com.accsaber.backend.security.StaffUserDetails;
+import com.accsaber.backend.service.staff.StaffUserService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/v1/staff/users")
@@ -51,21 +48,6 @@ public class StaffUserController {
             @AuthenticationPrincipal StaffUserDetails userDetails) {
         return ResponseEntity.ok(staffUserService.updateProfile(
                 userDetails.getStaffUser().getId(), request));
-    }
-
-    @Operation(summary = "List all active staff users (public)")
-    @GetMapping
-    @PreAuthorize("permitAll()")
-    public ResponseEntity<Page<PublicStaffUserResponse>> listStaffUsers(
-            @PageableDefault(size = 20, sort = "username") Pageable pageable) {
-        return ResponseEntity.ok(staffUserService.getAllPublic(pageable));
-    }
-
-    @Operation(summary = "Get staff user by ID (public)")
-    @GetMapping("/{id}")
-    @PreAuthorize("permitAll()")
-    public ResponseEntity<PublicStaffUserResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(staffUserService.getByIdPublic(id));
     }
 
     @Operation(summary = "Create a staff user")

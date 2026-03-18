@@ -47,10 +47,16 @@ public class UserController {
     private final LevelService levelService;
     private final CampaignService campaignService;
 
-    @Operation(summary = "Get user profile", description = "Returns a player profile by Steam ID")
+    @Operation(summary = "Get user profile", description = "Returns a player profile by Steam ID. Optionally include all category statistics.")
     @GetMapping("/{steamId}")
-    public ResponseEntity<UserResponse> getUser(@PathVariable Long steamId) {
-        return ResponseEntity.ok(userService.findBySteamId(steamId));
+    public ResponseEntity<UserResponse> getUser(
+            @PathVariable Long steamId,
+            @RequestParam(defaultValue = "false") boolean statistics) {
+        UserResponse user = userService.findBySteamId(steamId);
+        if (statistics) {
+            user = user.withStatistics(statisticsService.findAllByUser(steamId));
+        }
+        return ResponseEntity.ok(user);
     }
 
     @Operation(summary = "Get user name history", description = "Returns a player's previous names, most recent first")

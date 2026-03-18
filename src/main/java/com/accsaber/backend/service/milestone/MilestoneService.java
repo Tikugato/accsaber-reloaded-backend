@@ -21,12 +21,16 @@ import com.accsaber.backend.model.dto.response.milestone.MilestoneResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSetResponse;
 import com.accsaber.backend.model.dto.response.milestone.UserMilestoneProgressResponse;
 import com.accsaber.backend.model.entity.Category;
+import com.accsaber.backend.model.entity.map.MapDifficulty;
+import com.accsaber.backend.model.entity.map.MapDifficultyMilestoneLink;
 import com.accsaber.backend.model.entity.milestone.Milestone;
 import com.accsaber.backend.model.entity.milestone.MilestoneCompletionStats;
 import com.accsaber.backend.model.entity.milestone.MilestoneSet;
 import com.accsaber.backend.model.entity.milestone.UserMilestoneLink;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.CategoryRepository;
+import com.accsaber.backend.repository.map.MapDifficultyMilestoneLinkRepository;
+import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.milestone.MilestoneCompletionStatsRepository;
 import com.accsaber.backend.repository.milestone.MilestoneRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetRepository;
@@ -46,6 +50,8 @@ public class MilestoneService {
     private final MilestoneCompletionStatsRepository completionStatsRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final MapDifficultyRepository mapDifficultyRepository;
+    private final MapDifficultyMilestoneLinkRepository mapDifficultyMilestoneLinkRepository;
     private final MilestoneEvaluationService milestoneEvaluationService;
     private final MilestoneQueryBuilderService queryBuilderService;
 
@@ -135,7 +141,11 @@ public class MilestoneService {
                 .targetValue(request.getTargetValue())
                 .comparison(request.getComparison() != null ? request.getComparison() : "GTE")
                 .build();
-        return toResponse(milestoneRepository.save(milestone), null);
+        Milestone saved = milestoneRepository.save(milestone);
+
+        createMapDifficultyLinks(saved, request.getMapDifficultyIds());
+
+        return toResponse(saved, null);
     }
 
     @Transactional
@@ -162,6 +172,28 @@ public class MilestoneService {
     @Transactional
     public void refreshCompletionStats() {
         completionStatsRepository.refresh();
+    }
+
+    @Transactional
+    public void addMapDifficultyLinks(UUID milestoneId, List<UUID> mapDifficultyIds) {
+        Milestone milestone = milestoneRepository.findByIdAndActiveTrue(milestoneId)
+                .orElseThrow(() -> new ResourceNotFoundException("Milestone", milestoneId));
+        createMapDifficultyLinks(milestone, mapDifficultyIds);
+    }
+
+    private void createMapDifficultyLinks(Milestone milestone, List<UUID> mapDifficultyIds) {
+        if (mapDifficultyIds == null || mapDifficultyIds.isEmpty()) {
+            return;
+        }
+        for (UUID mdId : mapDifficultyIds) {
+            MapDifficulty md = mapDifficultyRepository.findByIdAndActiveTrue(mdId)
+                    .orElseThrow(() -> new ResourceNotFoundException("MapDifficulty", mdId));
+            MapDifficultyMilestoneLink link = MapDifficultyMilestoneLink.builder()
+                    .milestone(milestone)
+                    .mapDifficulty(md)
+                    .build();
+            mapDifficultyMilestoneLinkRepository.save(link);
+        }
     }
 
     private MilestoneResponse toResponse(Milestone m, MilestoneCompletionStats stats) {

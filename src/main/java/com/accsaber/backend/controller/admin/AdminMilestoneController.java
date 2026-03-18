@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.accsaber.backend.model.dto.request.milestone.AddMapDifficultyLinksRequest;
 import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneRequest;
 import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneSetRequest;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneResponse;
@@ -52,6 +53,15 @@ public class AdminMilestoneController {
     @PostMapping
     public ResponseEntity<MilestoneResponse> createMilestone(@Valid @RequestBody CreateMilestoneRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(milestoneService.createMilestone(request));
+    }
+
+    @Operation(summary = "Add map difficulty links to a milestone")
+    @PostMapping("/{id}/map-links")
+    public ResponseEntity<Void> addMapDifficultyLinks(@PathVariable UUID id,
+            @Valid @RequestBody AddMapDifficultyLinksRequest request) {
+        milestoneService.addMapDifficultyLinks(id, request.getMapDifficultyIds());
+        milestoneService.backfillMilestone(id);
+        return ResponseEntity.accepted().build();
     }
 
     @Operation(summary = "Deactivate a milestone")

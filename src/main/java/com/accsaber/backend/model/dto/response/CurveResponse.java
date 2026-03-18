@@ -18,6 +18,8 @@ public class CurveResponse {
     BigDecimal xParameterValue;
     String yParameterName;
     BigDecimal yParameterValue;
+    String zParameterName;
+    BigDecimal zParameterValue;
     BigDecimal scale;
     BigDecimal shift;
 }

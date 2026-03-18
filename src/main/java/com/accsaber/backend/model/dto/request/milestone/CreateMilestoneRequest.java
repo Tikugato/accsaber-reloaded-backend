@@ -1,6 +1,7 @@
 package com.accsaber.backend.model.dto.request.milestone;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import com.accsaber.backend.model.dto.MilestoneQuerySpec;
@@ -42,4 +43,6 @@ public class CreateMilestoneRequest {
 
     @NotNull
     private String comparison = "GTE";
+
+    private List<UUID> mapDifficultyIds;
 }

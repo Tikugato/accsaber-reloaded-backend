@@ -329,5 +329,46 @@ class MilestoneServiceMapLinkTest {
                         assertThatThrownBy(() -> service.addMapDifficultyLinks(milestone.getId(), List.of(missingMdId)))
                                         .isInstanceOf(ResourceNotFoundException.class);
                 }
+
+                @Test
+                void duplicateLink_isSkipped() {
+                        UUID mdId = UUID.randomUUID();
+
+                        when(milestoneRepository.findByIdAndActiveTrue(milestone.getId()))
+                                        .thenReturn(Optional.of(milestone));
+                        when(mapDifficultyMilestoneLinkRepository
+                                        .existsByMapDifficulty_IdAndMilestone_Id(mdId, milestone.getId()))
+                                        .thenReturn(true);
+
+                        service.addMapDifficultyLinks(milestone.getId(), List.of(mdId));
+
+                        verify(mapDifficultyMilestoneLinkRepository, never()).save(any());
+                        verify(mapDifficultyRepository, never()).findByIdAndActiveTrue(any());
+                }
+
+                @Test
+                void mixOfNewAndDuplicate_onlyCreatesNewLinks() {
+                        UUID existingMdId = UUID.randomUUID();
+                        UUID newMdId = UUID.randomUUID();
+                        MapDifficulty newMd = MapDifficulty.builder().id(newMdId).build();
+
+                        when(milestoneRepository.findByIdAndActiveTrue(milestone.getId()))
+                                        .thenReturn(Optional.of(milestone));
+                        when(mapDifficultyMilestoneLinkRepository
+                                        .existsByMapDifficulty_IdAndMilestone_Id(existingMdId, milestone.getId()))
+                                        .thenReturn(true);
+                        when(mapDifficultyMilestoneLinkRepository
+                                        .existsByMapDifficulty_IdAndMilestone_Id(newMdId, milestone.getId()))
+                                        .thenReturn(false);
+                        when(mapDifficultyRepository.findByIdAndActiveTrue(newMdId)).thenReturn(Optional.of(newMd));
+                        when(mapDifficultyMilestoneLinkRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+                        service.addMapDifficultyLinks(milestone.getId(), List.of(existingMdId, newMdId));
+
+                        verify(mapDifficultyMilestoneLinkRepository, times(1))
+                                        .save(any(MapDifficultyMilestoneLink.class));
+                        verify(mapDifficultyRepository, never()).findByIdAndActiveTrue(existingMdId);
+                        verify(mapDifficultyRepository).findByIdAndActiveTrue(newMdId);
+                }
         }
 }

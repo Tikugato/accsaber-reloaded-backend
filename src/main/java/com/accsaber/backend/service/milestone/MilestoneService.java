@@ -186,6 +186,9 @@ public class MilestoneService {
             return;
         }
         for (UUID mdId : mapDifficultyIds) {
+            if (mapDifficultyMilestoneLinkRepository.existsByMapDifficulty_IdAndMilestone_Id(mdId, milestone.getId())) {
+                continue;
+            }
             MapDifficulty md = mapDifficultyRepository.findByIdAndActiveTrue(mdId)
                     .orElseThrow(() -> new ResourceNotFoundException("MapDifficulty", mdId));
             MapDifficultyMilestoneLink link = MapDifficultyMilestoneLink.builder()

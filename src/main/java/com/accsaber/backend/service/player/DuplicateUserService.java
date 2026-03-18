@@ -279,7 +279,7 @@ public class DuplicateUserService {
 
     @Async("taskExecutor")
     public void recalculateAfterUnmerge(Long primaryUserId, Long secondaryUserId) {
-        var categories = categoryRepository.findByActiveTrue();
+        var categories = categoryRepository.findByActiveTrueAndCountForOverallTrue();
         for (var category : categories) {
             statisticsService.recalculate(primaryUserId, category.getId(), false, false);
             statisticsService.recalculate(secondaryUserId, category.getId(), false, false);
@@ -385,7 +385,7 @@ public class DuplicateUserService {
 
     @Async("taskExecutor")
     public void recalculateAfterMerge(Long primaryUserId) {
-        var categories = categoryRepository.findByActiveTrue();
+        var categories = categoryRepository.findByActiveTrueAndCountForOverallTrue();
         for (var category : categories) {
             statisticsService.recalculate(primaryUserId, category.getId(), false, false);
             rankingService.updateRankings(category.getId());

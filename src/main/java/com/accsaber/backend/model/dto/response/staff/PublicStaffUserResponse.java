@@ -16,4 +16,5 @@ public class PublicStaffUserResponse {
     StaffRole role;
     String userId;
     String avatarUrl;
+    boolean active;
 }

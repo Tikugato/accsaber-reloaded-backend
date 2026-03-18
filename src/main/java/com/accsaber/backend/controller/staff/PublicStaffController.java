@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.accsaber.backend.model.dto.response.staff.PublicStaffUserResponse;
@@ -26,11 +27,12 @@ public class PublicStaffController {
 
     private final StaffUserService staffUserService;
 
-    @Operation(summary = "List all active staff users")
+    @Operation(summary = "List staff users, optionally filtered by active status")
     @GetMapping
     public ResponseEntity<Page<PublicStaffUserResponse>> listStaffUsers(
-            @PageableDefault(size = 20, sort = "username") Pageable pageable) {
-        return ResponseEntity.ok(staffUserService.getAllPublic(pageable));
+            @PageableDefault(size = 20, sort = "username") Pageable pageable,
+            @RequestParam(required = false) Boolean active) {
+        return ResponseEntity.ok(staffUserService.getAllPublic(pageable, active));
     }
 
     @Operation(summary = "Get staff user by ID")

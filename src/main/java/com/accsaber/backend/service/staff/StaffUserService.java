@@ -39,8 +39,16 @@ public class StaffUserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public Page<PublicStaffUserResponse> getAllPublic(Pageable pageable) {
-        return staffUserRepository.findAllByActiveTrue(pageable)
+    public Page<PublicStaffUserResponse> getAllPublic(Pageable pageable, Boolean active) {
+        if (active == null) {
+            return staffUserRepository.findAll(pageable)
+                    .map(this::toPublicResponse);
+        }
+        if (active) {
+            return staffUserRepository.findAllByActiveTrue(pageable)
+                    .map(this::toPublicResponse);
+        }
+        return staffUserRepository.findAllByActiveFalse(pageable)
                 .map(this::toPublicResponse);
     }
 
@@ -205,6 +213,7 @@ public class StaffUserService {
                 .role(staffUser.getRole())
                 .userId(staffUser.getUser() != null ? String.valueOf(staffUser.getUser().getId()) : null)
                 .avatarUrl(staffUser.getUser() != null ? staffUser.getUser().getAvatarUrl() : null)
+                .active(staffUser.isActive())
                 .build();
     }
 

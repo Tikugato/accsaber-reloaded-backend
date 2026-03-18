@@ -23,4 +23,6 @@ public interface StaffUserRepository extends JpaRepository<StaffUser, UUID> {
     List<StaffUser> findAllByActiveTrue();
 
     Page<StaffUser> findAllByActiveTrue(Pageable pageable);
+
+    Page<StaffUser> findAllByActiveFalse(Pageable pageable);
 }

@@ -70,7 +70,7 @@ public class MapController {
         return ResponseEntity.ok(mapService.findById(mapId));
     }
 
-    @Operation(summary = "Get map by song hash", description = "Returns a map by its song hash with active difficulties, optionally filtered by difficulty level")
+    @Operation(summary = "Get map by song hash", description = "Returns a map by its song hash with active difficulties, optionally filtered by difficulty level (EASY, NORMAL, HARD, EXPERT, EXPERT_PLUS)")
     @GetMapping("/hash/{songHash}")
     public ResponseEntity<MapResponse> getMapBySongHash(
             @PathVariable String songHash,

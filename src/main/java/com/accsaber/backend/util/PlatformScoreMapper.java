@@ -46,7 +46,7 @@ public final class PlatformScoreMapper {
         request.setPauses(bl.getPauses());
         request.setStreak115(bl.getMaxStreak());
         request.setPlayCount(bl.getPlayCount() != null && bl.getPlayCount() > 0 ? bl.getPlayCount() : null);
-        request.setHmd(bl.getHmd() != null && bl.getHmd() != 0 ? String.valueOf(bl.getHmd()) : null);
+        request.setHmd(HmdMapper.fromBeatLeaderId(bl.getHmd()));
         request.setTimeSet(bl.getTimepost() != null && bl.getTimepost() > 0
                 ? Instant.ofEpochSecond(bl.getTimepost())
                 : null);

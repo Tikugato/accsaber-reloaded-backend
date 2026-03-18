@@ -30,28 +30,28 @@ import lombok.RequiredArgsConstructor;
 @Tag(name = "Ranking - Map Import")
 public class RankingMapImportController {
 
-    private final MapImportService mapImportService;
-    private final MapService mapService;
+        private final MapImportService mapImportService;
+        private final MapService mapService;
 
-    @Operation(summary = "Import a map difficulty (Queue)", description = "Auto-fetches metadata from BeatLeader and BeatSaver, then creates the map difficulty in queue status")
-    @PostMapping("/import")
-    public ResponseEntity<MapDifficultyResponse> importMapDifficulty(
-            @Valid @RequestBody ImportMapFromLeaderboardIdsRequest request,
-            @AuthenticationPrincipal StaffUserDetails userDetails) {
-        MapDifficultyResponse response = mapImportService.importByLeaderboardIds(
-                request, userDetails.getStaffUser().getId(), MapDifficultyStatus.QUEUE);
-        return ResponseEntity.created(URI.create("/v1/maps/difficulties/" + response.getId()))
-                .body(response);
-    }
+        @Operation(summary = "Import a map difficulty (Queue)", description = "Auto-fetches metadata from BeatLeader and BeatSaver, then creates the map difficulty in queue status")
+        @PostMapping("/import")
+        public ResponseEntity<MapDifficultyResponse> importMapDifficulty(
+                        @Valid @RequestBody ImportMapFromLeaderboardIdsRequest request,
+                        @AuthenticationPrincipal StaffUserDetails userDetails) {
+                MapDifficultyResponse response = mapImportService.importByLeaderboardIds(
+                                request, userDetails.getStaffUser().getId(), MapDifficultyStatus.QUEUE);
+                return ResponseEntity.created(URI.create("/v1/maps/difficulties/" + response.getId()))
+                                .body(response);
+        }
 
-    @Operation(summary = "Manual import a map difficulty", description = "Import with all fields provided manually (fallback when external APIs are unavailable)")
-    @PostMapping("/import/manual")
-    public ResponseEntity<MapDifficultyResponse> importMapDifficultyManual(
-            @Valid @RequestBody CreateMapDifficultyRequest request,
-            @AuthenticationPrincipal StaffUserDetails userDetails) {
-        MapDifficultyResponse response = mapService.importMapDifficulty(request,
-                userDetails.getStaffUser().getId());
-        return ResponseEntity.created(URI.create("/v1/maps/difficulties/" + response.getId()))
-                .body(response);
-    }
+        @Operation(summary = "Manual import a map difficulty", description = "Import with all fields provided manually (fallback when external APIs are unavailable)")
+        @PostMapping("/import/manual")
+        public ResponseEntity<MapDifficultyResponse> importMapDifficultyManual(
+                        @Valid @RequestBody CreateMapDifficultyRequest request,
+                        @AuthenticationPrincipal StaffUserDetails userDetails) {
+                MapDifficultyResponse response = mapService.importMapDifficulty(request,
+                                userDetails.getStaffUser().getId());
+                return ResponseEntity.created(URI.create("/v1/maps/difficulties/" + response.getId()))
+                                .body(response);
+        }
 }

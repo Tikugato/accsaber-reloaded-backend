@@ -44,6 +44,7 @@ import com.accsaber.backend.service.map.MapDifficultyStatisticsService;
 import com.accsaber.backend.service.milestone.MilestoneEvaluationService;
 import com.accsaber.backend.service.stats.RankingService;
 import com.accsaber.backend.service.stats.StatisticsService;
+import com.accsaber.backend.util.HmdMapper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -608,7 +609,7 @@ public class ScoreService {
                                 .pauses(s.getPauses())
                                 .streak115(s.getStreak115())
                                 .playCount(s.getPlayCount())
-                                .hmd(s.getHmd())
+                                .hmd(HmdMapper.normalize(s.getHmd()))
                                 .timeSet(s.getTimeSet())
                                 .reweightDerivative(s.isReweightDerivative())
                                 .xpGained(s.getXpGained())

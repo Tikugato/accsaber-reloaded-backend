@@ -38,96 +38,96 @@ import lombok.RequiredArgsConstructor;
 @Tag(name = "Ranking - Map Difficulty Management")
 public class RankingMapDifficultyController {
 
-    private final MapService mapService;
-    private final ReweightService reweightService;
-    private final UnrankService unrankService;
-    private final CriteriaService criteriaService;
+        private final MapService mapService;
+        private final ReweightService reweightService;
+        private final UnrankService unrankService;
+        private final CriteriaService criteriaService;
 
-    @Operation(summary = "Update difficulty status", description = "Manually transition a map difficulty status (ranking_head/admin only)")
-    @PatchMapping("/{difficultyId}/status")
-    @PreAuthorize("hasRole('RANKING_HEAD')")
-    public ResponseEntity<MapDifficultyResponse> updateStatus(
-            @PathVariable UUID difficultyId,
-            @Valid @RequestBody UpdateMapStatusRequest request,
-            @AuthenticationPrincipal StaffUserDetails userDetails) {
-        return ResponseEntity.ok(mapService.updateStatus(difficultyId, request,
-                userDetails.getStaffUser().getId()));
-    }
+        @Operation(summary = "Update difficulty status", description = "Manually transition a map difficulty status (ranking_head/admin only)")
+        @PatchMapping("/{difficultyId}/status")
+        @PreAuthorize("hasRole('RANKING_HEAD')")
+        public ResponseEntity<MapDifficultyResponse> updateStatus(
+                        @PathVariable UUID difficultyId,
+                        @Valid @RequestBody UpdateMapStatusRequest request,
+                        @AuthenticationPrincipal StaffUserDetails userDetails) {
+                return ResponseEntity.ok(mapService.updateStatus(difficultyId, request,
+                                userDetails.getStaffUser().getId()));
+        }
 
-    @Operation(summary = "Set difficulty complexity", description = "Versioned complexity update - deactivates current and inserts new version")
-    @PostMapping("/{difficultyId}/complexity")
-    @PreAuthorize("hasRole('RANKING_HEAD')")
-    public ResponseEntity<MapDifficultyResponse> updateComplexity(
-            @PathVariable UUID difficultyId,
-            @Valid @RequestBody UpdateMapComplexityRequest request,
-            @AuthenticationPrincipal StaffUserDetails userDetails) {
-        return ResponseEntity.ok(mapService.updateComplexity(difficultyId, request,
-                getLinkedUserId(userDetails), userDetails.getStaffUser().getId()));
-    }
+        @Operation(summary = "Set difficulty complexity", description = "Versioned complexity update - deactivates current and inserts new version")
+        @PostMapping("/{difficultyId}/complexity")
+        @PreAuthorize("hasRole('RANKING_HEAD')")
+        public ResponseEntity<MapDifficultyResponse> updateComplexity(
+                        @PathVariable UUID difficultyId,
+                        @Valid @RequestBody UpdateMapComplexityRequest request,
+                        @AuthenticationPrincipal StaffUserDetails userDetails) {
+                return ResponseEntity.ok(mapService.updateComplexity(difficultyId, request,
+                                getLinkedUserId(userDetails), userDetails.getStaffUser().getId()));
+        }
 
-    @Operation(summary = "Deactivate a map difficulty", description = "Soft-removes a map difficulty from the ranking system (ranking_head/admin only)")
-    @PatchMapping("/{difficultyId}/deactivate")
-    @PreAuthorize("hasRole('RANKING_HEAD')")
-    public ResponseEntity<Void> deactivate(
-            @PathVariable UUID difficultyId,
-            @AuthenticationPrincipal StaffUserDetails userDetails) {
-        mapService.deactivate(difficultyId, userDetails.getStaffUser().getId());
-        return ResponseEntity.noContent().build();
-    }
+        @Operation(summary = "Deactivate a map difficulty", description = "Soft-removes a map difficulty from the ranking system (ranking_head/admin only)")
+        @PatchMapping("/{difficultyId}/deactivate")
+        @PreAuthorize("hasRole('RANKING_HEAD')")
+        public ResponseEntity<Void> deactivate(
+                        @PathVariable UUID difficultyId,
+                        @AuthenticationPrincipal StaffUserDetails userDetails) {
+                mapService.deactivate(difficultyId, userDetails.getStaffUser().getId());
+                return ResponseEntity.noContent().build();
+        }
 
-    @Operation(summary = "Approve and apply a reweight", description = "Sets new complexity on a RANKED difficulty and recalculates scores asynchronously")
-    @PostMapping("/{difficultyId}/reweight")
-    @PreAuthorize("hasRole('RANKING_HEAD')")
-    public ResponseEntity<MapDifficultyResponse> reweight(
-            @PathVariable UUID difficultyId,
-            @Valid @RequestBody ApproveReweightRequest request,
-            @AuthenticationPrincipal StaffUserDetails userDetails) {
-        return ResponseEntity.ok(reweightService.reweight(difficultyId, request.getComplexity(),
-                request.getReason(), getLinkedUserId(userDetails), userDetails.getStaffUser().getId()));
-    }
+        @Operation(summary = "Approve and apply a reweight", description = "Sets new complexity on a RANKED difficulty and recalculates scores asynchronously")
+        @PostMapping("/{difficultyId}/reweight")
+        @PreAuthorize("hasRole('RANKING_HEAD')")
+        public ResponseEntity<MapDifficultyResponse> reweight(
+                        @PathVariable UUID difficultyId,
+                        @Valid @RequestBody ApproveReweightRequest request,
+                        @AuthenticationPrincipal StaffUserDetails userDetails) {
+                return ResponseEntity.ok(reweightService.reweight(difficultyId, request.getComplexity(),
+                                request.getReason(), getLinkedUserId(userDetails), userDetails.getStaffUser().getId()));
+        }
 
-    @Operation(summary = "Bulk reweight", description = "Apply reweights to multiple RANKED difficulties in one request")
-    @PostMapping("/bulk-reweight")
-    @PreAuthorize("hasRole('RANKING_HEAD')")
-    public ResponseEntity<List<MapDifficultyResponse>> bulkReweight(
-            @Valid @RequestBody BulkReweightRequest request,
-            @AuthenticationPrincipal StaffUserDetails userDetails) {
-        return ResponseEntity.ok(reweightService.reweightBatch(request.getItems(),
-                getLinkedUserId(userDetails), userDetails.getStaffUser().getId()));
-    }
+        @Operation(summary = "Bulk reweight", description = "Apply reweights to multiple RANKED difficulties in one request")
+        @PostMapping("/bulk-reweight")
+        @PreAuthorize("hasRole('RANKING_HEAD')")
+        public ResponseEntity<List<MapDifficultyResponse>> bulkReweight(
+                        @Valid @RequestBody BulkReweightRequest request,
+                        @AuthenticationPrincipal StaffUserDetails userDetails) {
+                return ResponseEntity.ok(reweightService.reweightBatch(request.getItems(),
+                                getLinkedUserId(userDetails), userDetails.getStaffUser().getId()));
+        }
 
-    @Operation(summary = "Approve and apply an unrank", description = "Moves a RANKED difficulty back to QUEUE status")
-    @PostMapping("/{difficultyId}/unrank")
-    @PreAuthorize("hasRole('RANKING_HEAD')")
-    public ResponseEntity<MapDifficultyResponse> unrank(
-            @PathVariable UUID difficultyId,
-            @Valid @RequestBody ApproveUnrankRequest request,
-            @AuthenticationPrincipal StaffUserDetails userDetails) {
-        return ResponseEntity.ok(unrankService.unrank(difficultyId, request.getReason(),
-                userDetails.getStaffUser().getId()));
-    }
+        @Operation(summary = "Approve and apply an unrank", description = "Moves a RANKED difficulty back to QUEUE status")
+        @PostMapping("/{difficultyId}/unrank")
+        @PreAuthorize("hasRole('RANKING_HEAD')")
+        public ResponseEntity<MapDifficultyResponse> unrank(
+                        @PathVariable UUID difficultyId,
+                        @Valid @RequestBody ApproveUnrankRequest request,
+                        @AuthenticationPrincipal StaffUserDetails userDetails) {
+                return ResponseEntity.ok(unrankService.unrank(difficultyId, request.getReason(),
+                                userDetails.getStaffUser().getId()));
+        }
 
-    @Operation(summary = "Bulk unrank", description = "Move multiple RANKED difficulties back to QUEUE in one request")
-    @PostMapping("/bulk-unrank")
-    @PreAuthorize("hasRole('RANKING_HEAD')")
-    public ResponseEntity<List<MapDifficultyResponse>> bulkUnrank(
-            @Valid @RequestBody BulkUnrankRequest request,
-            @AuthenticationPrincipal StaffUserDetails userDetails) {
-        return ResponseEntity.ok(unrankService.unrankBatch(request.getItems(),
-                userDetails.getStaffUser().getId()));
-    }
+        @Operation(summary = "Bulk unrank", description = "Move multiple RANKED difficulties back to QUEUE in one request")
+        @PostMapping("/bulk-unrank")
+        @PreAuthorize("hasRole('RANKING_HEAD')")
+        public ResponseEntity<List<MapDifficultyResponse>> bulkUnrank(
+                        @Valid @RequestBody BulkUnrankRequest request,
+                        @AuthenticationPrincipal StaffUserDetails userDetails) {
+                return ResponseEntity.ok(unrankService.unrankBatch(request.getItems(),
+                                userDetails.getStaffUser().getId()));
+        }
 
-    @Operation(summary = "Criteria checker webhook", description = "External service endpoint to update criteria pass/fail status on a difficulty")
-    @PostMapping("/criteria")
-    @PreAuthorize("hasRole('SERVICE')")
-    public ResponseEntity<Void> updateCriteria(@Valid @RequestBody CriteriaWebhookRequest request) {
-        criteriaService.updateCriteriaStatus(request.getMapDifficultyId(), request.getStatus());
-        return ResponseEntity.noContent().build();
-    }
+        @Operation(summary = "Criteria checker webhook", description = "External service endpoint to update criteria pass/fail status on a difficulty")
+        @PostMapping("/criteria")
+        @PreAuthorize("hasRole('SERVICE')")
+        public ResponseEntity<Void> updateCriteria(@Valid @RequestBody CriteriaWebhookRequest request) {
+                criteriaService.updateCriteriaStatus(request.getMapDifficultyId(), request.getStatus());
+                return ResponseEntity.noContent().build();
+        }
 
-    private Long getLinkedUserId(StaffUserDetails userDetails) {
-        return userDetails.getStaffUser().getUser() != null
-                ? userDetails.getStaffUser().getUser().getId()
-                : null;
-    }
+        private Long getLinkedUserId(StaffUserDetails userDetails) {
+                return userDetails.getStaffUser().getUser() != null
+                                ? userDetails.getStaffUser().getUser().getId()
+                                : null;
+        }
 }

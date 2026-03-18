@@ -45,7 +45,7 @@ class PlatformScoreMapperTest {
             assertThat(result.getPauses()).isEqualTo(1);
             assertThat(result.getStreak115()).isEqualTo(200);
             assertThat(result.getPlayCount()).isEqualTo(10);
-            assertThat(result.getHmd()).isEqualTo("64");
+            assertThat(result.getHmd()).isEqualTo("Index");
             assertThat(result.getTimeSet()).isEqualTo(Instant.ofEpochSecond(1700000000L));
         }
 

@@ -38,6 +38,7 @@ import com.accsaber.backend.repository.campaign.CampaignRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.player.DuplicateUserService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -52,6 +53,7 @@ public class CampaignService {
         private final ScoreRepository scoreRepository;
         private final UserRepository userRepository;
         private final MapDifficultyRepository mapDifficultyRepository;
+        private final DuplicateUserService duplicateUserService;
 
         public Page<CampaignResponse> findAllActiveCampaigns(Pageable pageable) {
                 return campaignRepository.findByActiveTrue(pageable)
@@ -92,6 +94,7 @@ public class CampaignService {
         }
 
         public CampaignProgressResponse getUserProgress(Long steamId, UUID campaignId) {
+                Long resolvedSteamId = duplicateUserService.resolvePrimaryUserId(steamId);
                 Campaign campaign = campaignRepository.findByIdAndActiveTrue(campaignId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
 
@@ -109,7 +112,7 @@ public class CampaignService {
                                 .map(cm -> cm.getMapDifficulty().getId())
                                 .toList();
                 Map<UUID, Score> scoreByMapDifficultyId = scoreRepository
-                                .findByUser_IdAndMapDifficulty_IdInAndActiveTrue(steamId, mapDifficultyIds)
+                                .findByUser_IdAndMapDifficulty_IdInAndActiveTrue(resolvedSteamId, mapDifficultyIds)
                                 .stream()
                                 .collect(Collectors.toMap(s -> s.getMapDifficulty().getId(), s -> s));
 

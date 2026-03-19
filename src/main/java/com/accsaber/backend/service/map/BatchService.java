@@ -17,8 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.accsaber.backend.exception.ConflictException;
 import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.exception.ValidationException;
+import com.accsaber.backend.model.dto.request.map.ApproveReweightRequest;
 import com.accsaber.backend.model.dto.request.map.CreateBatchRequest;
 import com.accsaber.backend.model.dto.request.map.UpdateBatchStatusRequest;
+import com.accsaber.backend.model.dto.request.map.UpdateMapComplexityRequest;
 import com.accsaber.backend.model.dto.response.map.BatchResponse;
 import com.accsaber.backend.model.dto.response.map.MapDifficultyResponse;
 import com.accsaber.backend.model.dto.response.map.MapDifficultyStatisticsResponse;
@@ -47,6 +49,7 @@ public class BatchService {
     private final MapDifficultyStatisticsService statisticsService;
     private final ScoreImportService scoreImportService;
     private final ScoreRecalculationService scoreRecalculationService;
+    private final MapService mapService;
 
     public Page<BatchResponse> findAll(String search, Pageable pageable) {
         Pageable effective = resolveBatchSort(pageable);
@@ -167,7 +170,9 @@ public class BatchService {
         return toResponse(batch, enrich(difficulties));
     }
 
-    public void reweightBatch(UUID batchId) {
+    @Transactional
+    public List<MapDifficultyResponse> reweightBatch(UUID batchId, List<ApproveReweightRequest> items,
+            Long staffUserId, UUID staffId) {
         Batch batch = batchRepository.findById(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Batch", batchId));
 
@@ -175,12 +180,37 @@ public class BatchService {
             throw new ValidationException("Can only reweight a released batch");
         }
 
-        List<MapDifficulty> difficulties = mapDifficultyRepository.findByBatchIdAndActiveTrueWithCategory(batchId);
-        if (difficulties.isEmpty()) {
+        List<MapDifficulty> batchDifficulties = mapDifficultyRepository
+                .findByBatchIdAndActiveTrueWithCategory(batchId);
+
+        if (batchDifficulties.isEmpty()) {
             throw new ValidationException("Batch has no active difficulties to reweight");
         }
 
-        scoreRecalculationService.recalculateBatchAsync(difficulties);
+        List<UUID> batchDifficultyIds = batchDifficulties.stream().map(MapDifficulty::getId).toList();
+        List<UUID> requestedIds = items.stream().map(ApproveReweightRequest::getMapDifficultyId).toList();
+        List<UUID> invalid = requestedIds.stream()
+                .filter(id -> !batchDifficultyIds.contains(id))
+                .toList();
+        if (!invalid.isEmpty()) {
+            throw new ValidationException("Difficulties not in this batch: " + invalid);
+        }
+
+        UpdateMapComplexityRequest req = new UpdateMapComplexityRequest();
+        for (ApproveReweightRequest item : items) {
+            req.setComplexity(item.getComplexity());
+            req.setReason(item.getReason());
+            mapService.updateComplexity(item.getMapDifficultyId(), req, staffUserId, staffId);
+        }
+
+        List<MapDifficulty> affectedDifficulties = batchDifficulties.stream()
+                .filter(d -> requestedIds.contains(d.getId()))
+                .toList();
+        scoreRecalculationService.recalculateBatchAsync(affectedDifficulties);
+
+        return enrich(batchDifficulties).stream()
+                .filter(r -> requestedIds.contains(r.getId()))
+                .toList();
     }
 
     private static boolean hasDifficultyCountSort(Pageable pageable) {

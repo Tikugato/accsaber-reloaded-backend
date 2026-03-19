@@ -16,6 +16,7 @@ import com.accsaber.backend.model.entity.staff.StaffUser;
 import com.accsaber.backend.repository.badge.BadgeRepository;
 import com.accsaber.backend.repository.badge.UserBadgeLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.player.DuplicateUserService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,6 +28,7 @@ public class BadgeService {
     private final BadgeRepository badgeRepository;
     private final UserBadgeLinkRepository userBadgeLinkRepository;
     private final UserRepository userRepository;
+    private final DuplicateUserService duplicateUserService;
 
     public List<BadgeResponse> findAllActive() {
         return badgeRepository.findByActiveTrue().stream()
@@ -41,7 +43,8 @@ public class BadgeService {
     }
 
     public List<UserBadgeResponse> findUserBadges(Long userId) {
-        return userBadgeLinkRepository.findByUser_Id(userId).stream()
+        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
+        return userBadgeLinkRepository.findByUser_Id(resolved).stream()
                 .map(BadgeService::toUserBadgeResponse)
                 .toList();
     }
@@ -66,18 +69,19 @@ public class BadgeService {
 
     @Transactional
     public UserBadgeResponse awardBadge(Long userId, UUID badgeId, StaffUser awardedBy, String reason) {
-        if (!userRepository.existsById(userId)) {
-            throw new ResourceNotFoundException("User", userId);
+        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
+        if (!userRepository.existsById(resolved)) {
+            throw new ResourceNotFoundException("User", resolved);
         }
         Badge badge = badgeRepository.findByIdAndActiveTrue(badgeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Badge", badgeId));
 
-        if (userBadgeLinkRepository.existsByUser_IdAndBadge_Id(userId, badgeId)) {
+        if (userBadgeLinkRepository.existsByUser_IdAndBadge_Id(resolved, badgeId)) {
             return null;
         }
 
         UserBadgeLink link = UserBadgeLink.builder()
-                .user(userRepository.getReferenceById(userId))
+                .user(userRepository.getReferenceById(resolved))
                 .badge(badge)
                 .awardedBy(awardedBy)
                 .awardedAt(Instant.now())

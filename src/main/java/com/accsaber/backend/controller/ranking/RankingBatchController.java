@@ -1,6 +1,7 @@
 package com.accsaber.backend.controller.ranking;
 
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
@@ -14,9 +15,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.accsaber.backend.model.dto.request.map.BatchReweightRequest;
 import com.accsaber.backend.model.dto.request.map.CreateBatchRequest;
 import com.accsaber.backend.model.dto.request.map.UpdateBatchStatusRequest;
 import com.accsaber.backend.model.dto.response.map.BatchResponse;
+import com.accsaber.backend.model.dto.response.map.MapDifficultyResponse;
 import com.accsaber.backend.security.StaffUserDetails;
 import com.accsaber.backend.service.map.BatchService;
 
@@ -73,10 +76,13 @@ public class RankingBatchController {
         return ResponseEntity.ok(batchService.release(id));
     }
 
-    @Operation(summary = "Reweight a batch", description = "Recalculates AP for all difficulties in a released batch. No score import from BL/SS.")
+    @Operation(summary = "Reweight a batch", description = "Sets new complexities on RANKED difficulties in a released batch and recalculates scores asynchronously")
     @PostMapping("/{id}/reweight")
-    public ResponseEntity<Void> reweightBatch(@PathVariable UUID id) {
-        batchService.reweightBatch(id);
-        return ResponseEntity.accepted().build();
+    public ResponseEntity<List<MapDifficultyResponse>> reweightBatch(
+            @PathVariable UUID id,
+            @Valid @RequestBody BatchReweightRequest request,
+            @AuthenticationPrincipal StaffUserDetails userDetails) {
+        return ResponseEntity.ok(batchService.reweightBatch(id, request.getItems(),
+                userDetails.getLinkedUserId(), userDetails.getStaffUser().getId()));
     }
 }

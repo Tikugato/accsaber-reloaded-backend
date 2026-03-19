@@ -24,15 +24,18 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserNameHistoryRepository userNameHistoryRepository;
+    private final DuplicateUserService duplicateUserService;
 
     public UserResponse findBySteamId(Long steamId) {
-        User user = userRepository.findByIdAndActiveTrue(steamId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", steamId));
+        Long resolved = duplicateUserService.resolvePrimaryUserId(steamId);
+        User user = userRepository.findByIdAndActiveTrue(resolved)
+                .orElseThrow(() -> new ResourceNotFoundException("User", resolved));
         return toResponse(user);
     }
 
     public Optional<User> findOptionalBySteamId(Long steamId) {
-        return userRepository.findByIdAndActiveTrue(steamId);
+        Long resolved = duplicateUserService.resolvePrimaryUserId(steamId);
+        return userRepository.findByIdAndActiveTrue(resolved);
     }
 
     @Transactional
@@ -49,8 +52,9 @@ public class UserService {
     }
 
     public BigDecimal getTotalXp(Long steamId) {
-        User user = userRepository.findByIdAndActiveTrue(steamId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", steamId));
+        Long resolved = duplicateUserService.resolvePrimaryUserId(steamId);
+        User user = userRepository.findByIdAndActiveTrue(resolved)
+                .orElseThrow(() -> new ResourceNotFoundException("User", resolved));
         return user.getTotalXp();
     }
 
@@ -73,7 +77,8 @@ public class UserService {
     }
 
     public List<UserNameHistory> getNameHistory(Long steamId) {
-        return userNameHistoryRepository.findByUser_IdOrderByChangedAtDesc(steamId);
+        Long resolved = duplicateUserService.resolvePrimaryUserId(steamId);
+        return userNameHistoryRepository.findByUser_IdOrderByChangedAtDesc(resolved);
     }
 
     private static UserResponse toResponse(User user) {

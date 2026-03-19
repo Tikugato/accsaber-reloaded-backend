@@ -43,6 +43,7 @@ import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.map.MapDifficultyComplexityService;
 import com.accsaber.backend.service.map.MapDifficultyStatisticsService;
 import com.accsaber.backend.service.milestone.MilestoneEvaluationService;
+import com.accsaber.backend.service.player.DuplicateUserService;
 import com.accsaber.backend.service.stats.RankingService;
 import com.accsaber.backend.service.stats.StatisticsService;
 import com.accsaber.backend.util.HmdMapper;
@@ -69,6 +70,7 @@ public class ScoreService {
         private final MilestoneEvaluationService milestoneEvaluationService;
         private final MapDifficultyStatisticsService mapDifficultyStatisticsService;
         private final ScoreRankingService scoreRankingService;
+        private final DuplicateUserService duplicateUserService;
         private final ApplicationEventPublisher eventPublisher;
 
         @Transactional
@@ -363,20 +365,21 @@ public class ScoreService {
         }
 
         public Page<ScoreResponse> findByUser(Long userId, UUID categoryId, String search, Pageable pageable) {
+                Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(userId);
                 boolean hasSearch = search != null && !search.isBlank();
                 Pageable effective = resolveSort(pageable, Sort.by(Sort.Direction.DESC, "ap"));
                 Page<Score> scores;
 
                 if (categoryId != null && hasSearch) {
                         scores = scoreRepository.findActiveByUserAndCategoryAndSongNameSearch(
-                                        userId, categoryId, search.trim(), effective);
+                                        resolvedUserId, categoryId, search.trim(), effective);
                 } else if (categoryId != null) {
-                        scores = scoreRepository.findActiveByUserAndCategory(userId, categoryId, effective);
+                        scores = scoreRepository.findActiveByUserAndCategory(resolvedUserId, categoryId, effective);
                 } else if (hasSearch) {
                         scores = scoreRepository.findActiveByUserAndSongNameSearch(
-                                        userId, search.trim(), effective);
+                                        resolvedUserId, search.trim(), effective);
                 } else {
-                        scores = scoreRepository.findActiveByUser(userId, effective);
+                        scores = scoreRepository.findActiveByUser(resolvedUserId, effective);
                 }
 
                 return scores.map(s -> toResponse(s, computeAccuracy(s.getScore(), s.getMapDifficulty().getMaxScore()),
@@ -425,11 +428,12 @@ public class ScoreService {
         }
 
         public ScoresAroundResponse findScoresAround(UUID mapDifficultyId, Long userId, int above, int below) {
+                Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(userId);
                 MapDifficulty difficulty = mapDifficultyRepository.findByIdAndActiveTrue(mapDifficultyId)
                                 .orElseThrow(() -> new ResourceNotFoundException("MapDifficulty", mapDifficultyId));
                 Score playerScore = scoreRepository
-                                .findByUser_IdAndMapDifficulty_IdAndActiveTrue(userId, mapDifficultyId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Score for user", userId));
+                                .findByUser_IdAndMapDifficulty_IdAndActiveTrue(resolvedUserId, mapDifficultyId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Score for user", resolvedUserId));
 
                 int rank = playerScore.getRank();
                 int total = above + below + 1;
@@ -448,14 +452,14 @@ public class ScoreService {
 
                 int playerIndex = -1;
                 for (int i = 0; i < scores.size(); i++) {
-                        if (scores.get(i).getUser().getId().equals(userId)) {
+                        if (scores.get(i).getUser().getId().equals(resolvedUserId)) {
                                 playerIndex = i;
                                 break;
                         }
                 }
 
                 if (playerIndex == -1) {
-                        throw new ResourceNotFoundException("Score for user", userId);
+                        throw new ResourceNotFoundException("Score for user", resolvedUserId);
                 }
 
                 Integer maxScore = difficulty.getMaxScore();
@@ -479,8 +483,9 @@ public class ScoreService {
         }
 
         public List<ScoreResponse> findHistoric(Long userId, UUID mapDifficultyId, int amount, String unit) {
+                Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(userId);
                 Instant since = ZonedDateTime.now(ZoneOffset.UTC).minus(amount, parseUnit(unit)).toInstant();
-                List<Score> scores = scoreRepository.findHistoricDownsampled(userId, mapDifficultyId, since);
+                List<Score> scores = scoreRepository.findHistoricDownsampled(resolvedUserId, mapDifficultyId, since);
 
                 return scores.stream()
                                 .map(s -> toResponse(s,

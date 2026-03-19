@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.accsaber.backend.model.dto.request.map.ApproveReweightRequest;
 import com.accsaber.backend.model.dto.request.map.ApproveUnrankRequest;
-import com.accsaber.backend.model.dto.request.map.BulkReweightRequest;
 import com.accsaber.backend.model.dto.request.map.BulkUnrankRequest;
 import com.accsaber.backend.model.dto.request.map.CriteriaWebhookRequest;
 import com.accsaber.backend.model.dto.request.map.UpdateMapComplexityRequest;
@@ -62,7 +61,7 @@ public class RankingMapDifficultyController {
                         @Valid @RequestBody UpdateMapComplexityRequest request,
                         @AuthenticationPrincipal StaffUserDetails userDetails) {
                 return ResponseEntity.ok(mapService.updateComplexity(difficultyId, request,
-                                getLinkedUserId(userDetails), userDetails.getStaffUser().getId()));
+                                userDetails.getLinkedUserId(), userDetails.getStaffUser().getId()));
         }
 
         @Operation(summary = "Deactivate a map difficulty", description = "Soft-removes a map difficulty from the ranking system (ranking_head/admin only)")
@@ -83,17 +82,7 @@ public class RankingMapDifficultyController {
                         @Valid @RequestBody ApproveReweightRequest request,
                         @AuthenticationPrincipal StaffUserDetails userDetails) {
                 return ResponseEntity.ok(reweightService.reweight(difficultyId, request.getComplexity(),
-                                request.getReason(), getLinkedUserId(userDetails), userDetails.getStaffUser().getId()));
-        }
-
-        @Operation(summary = "Bulk reweight", description = "Apply reweights to multiple RANKED difficulties in one request")
-        @PostMapping("/bulk-reweight")
-        @PreAuthorize("hasRole('RANKING_HEAD')")
-        public ResponseEntity<List<MapDifficultyResponse>> bulkReweight(
-                        @Valid @RequestBody BulkReweightRequest request,
-                        @AuthenticationPrincipal StaffUserDetails userDetails) {
-                return ResponseEntity.ok(reweightService.reweightBatch(request.getItems(),
-                                getLinkedUserId(userDetails), userDetails.getStaffUser().getId()));
+                                request.getReason(), userDetails.getLinkedUserId(), userDetails.getStaffUser().getId()));
         }
 
         @Operation(summary = "Approve and apply an unrank", description = "Moves a RANKED difficulty back to QUEUE status")
@@ -123,11 +112,5 @@ public class RankingMapDifficultyController {
         public ResponseEntity<Void> updateCriteria(@Valid @RequestBody CriteriaWebhookRequest request) {
                 criteriaService.updateCriteriaStatus(request.getMapDifficultyId(), request.getStatus());
                 return ResponseEntity.noContent().build();
-        }
-
-        private Long getLinkedUserId(StaffUserDetails userDetails) {
-                return userDetails.getStaffUser().getUser() != null
-                                ? userDetails.getStaffUser().getUser().getId()
-                                : null;
         }
 }

@@ -46,6 +46,7 @@ import com.accsaber.backend.repository.milestone.MilestoneRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.player.DuplicateUserService;
 
 @ExtendWith(MockitoExtension.class)
 class MilestoneServiceTest {
@@ -66,6 +67,8 @@ class MilestoneServiceTest {
     private MilestoneEvaluationService milestoneEvaluationService;
     @Mock
     private MilestoneQueryBuilderService queryBuilderService;
+    @Mock
+    private DuplicateUserService duplicateUserService;
 
     @InjectMocks
     private MilestoneService service;
@@ -76,6 +79,8 @@ class MilestoneServiceTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(duplicateUserService.resolvePrimaryUserId(any(Long.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
         set = MilestoneSet.builder()
                 .id(UUID.randomUUID())
                 .title("Accuracy Milestones")

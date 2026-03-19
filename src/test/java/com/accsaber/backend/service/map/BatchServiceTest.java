@@ -3,6 +3,7 @@ package com.accsaber.backend.service.map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,8 +24,10 @@ import org.springframework.data.domain.PageRequest;
 import com.accsaber.backend.exception.ConflictException;
 import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.exception.ValidationException;
+import com.accsaber.backend.model.dto.request.map.ApproveReweightRequest;
 import com.accsaber.backend.model.dto.request.map.CreateBatchRequest;
 import com.accsaber.backend.model.dto.request.map.UpdateBatchStatusRequest;
+import com.accsaber.backend.model.dto.request.map.UpdateMapComplexityRequest;
 import com.accsaber.backend.model.dto.response.map.BatchResponse;
 import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.map.Batch;
@@ -63,6 +66,9 @@ class BatchServiceTest {
 
         @Mock
         private ScoreRecalculationService scoreRecalculationService;
+
+        @Mock
+        private MapService mapService;
 
         @InjectMocks
         private BatchService batchService;
@@ -380,20 +386,42 @@ class BatchServiceTest {
         @Nested
         class ReweightBatch {
 
+                private final Long staffUserId = 12345L;
+                private final UUID staffId = UUID.randomUUID();
+
                 @Test
-                void triggersRecalculation_forReleasedBatch() {
+                void updatesComplexitiesAndTriggersRecalculateBatchAsync() {
                         Batch batch = buildBatch(BatchStatus.RELEASED);
                         MapDifficulty diff1 = buildDifficulty(batch);
                         MapDifficulty diff2 = buildDifficulty(batch);
-                        List<MapDifficulty> difficulties = List.of(diff1, diff2);
+
+                        ApproveReweightRequest item1 = new ApproveReweightRequest();
+                        item1.setMapDifficultyId(diff1.getId());
+                        item1.setComplexity(java.math.BigDecimal.valueOf(8.5));
+                        item1.setReason("reweight reason");
+
+                        ApproveReweightRequest item2 = new ApproveReweightRequest();
+                        item2.setMapDifficultyId(diff2.getId());
+                        item2.setComplexity(java.math.BigDecimal.valueOf(9.0));
+                        item2.setReason("reweight reason 2");
+
+                        List<ApproveReweightRequest> items = List.of(item1, item2);
 
                         when(batchRepository.findById(batch.getId())).thenReturn(Optional.of(batch));
                         when(mapDifficultyRepository.findByBatchIdAndActiveTrueWithCategory(batch.getId()))
-                                        .thenReturn(difficulties);
+                                        .thenReturn(List.of(diff1, diff2));
+                        when(complexityService.findActiveComplexitiesForDifficulties(any()))
+                                        .thenReturn(java.util.Map.of());
+                        when(statisticsService.findActiveForDifficulties(any()))
+                                        .thenReturn(java.util.Map.of());
 
-                        batchService.reweightBatch(batch.getId());
+                        batchService.reweightBatch(batch.getId(), items, staffUserId, staffId);
 
-                        verify(scoreRecalculationService).recalculateBatchAsync(difficulties);
+                        verify(mapService).updateComplexity(eq(diff1.getId()), any(UpdateMapComplexityRequest.class),
+                                        eq(staffUserId), eq(staffId));
+                        verify(mapService).updateComplexity(eq(diff2.getId()), any(UpdateMapComplexityRequest.class),
+                                        eq(staffUserId), eq(staffId));
+                        verify(scoreRecalculationService).recalculateBatchAsync(List.of(diff1, diff2));
                 }
 
                 @Test
@@ -401,7 +429,7 @@ class BatchServiceTest {
                         UUID id = UUID.randomUUID();
                         when(batchRepository.findById(id)).thenReturn(Optional.empty());
 
-                        assertThatThrownBy(() -> batchService.reweightBatch(id))
+                        assertThatThrownBy(() -> batchService.reweightBatch(id, List.of(), staffUserId, staffId))
                                         .isInstanceOf(ResourceNotFoundException.class);
                 }
 
@@ -410,7 +438,8 @@ class BatchServiceTest {
                         Batch batch = buildBatch(BatchStatus.DRAFT);
                         when(batchRepository.findById(batch.getId())).thenReturn(Optional.of(batch));
 
-                        assertThatThrownBy(() -> batchService.reweightBatch(batch.getId()))
+                        assertThatThrownBy(() -> batchService.reweightBatch(
+                                        batch.getId(), List.of(), staffUserId, staffId))
                                         .isInstanceOf(ValidationException.class)
                                         .hasMessageContaining("released");
                 }
@@ -420,7 +449,8 @@ class BatchServiceTest {
                         Batch batch = buildBatch(BatchStatus.RELEASE_READY);
                         when(batchRepository.findById(batch.getId())).thenReturn(Optional.of(batch));
 
-                        assertThatThrownBy(() -> batchService.reweightBatch(batch.getId()))
+                        assertThatThrownBy(() -> batchService.reweightBatch(
+                                        batch.getId(), List.of(), staffUserId, staffId))
                                         .isInstanceOf(ValidationException.class);
                 }
 
@@ -431,9 +461,33 @@ class BatchServiceTest {
                         when(mapDifficultyRepository.findByBatchIdAndActiveTrueWithCategory(batch.getId()))
                                         .thenReturn(List.of());
 
-                        assertThatThrownBy(() -> batchService.reweightBatch(batch.getId()))
+                        ApproveReweightRequest item = new ApproveReweightRequest();
+                        item.setMapDifficultyId(UUID.randomUUID());
+                        item.setComplexity(java.math.BigDecimal.valueOf(8.0));
+
+                        assertThatThrownBy(() -> batchService.reweightBatch(
+                                        batch.getId(), List.of(item), staffUserId, staffId))
                                         .isInstanceOf(ValidationException.class)
                                         .hasMessageContaining("no active difficulties");
+                }
+
+                @Test
+                void throwsValidation_whenDifficultyNotInBatch() {
+                        Batch batch = buildBatch(BatchStatus.RELEASED);
+                        MapDifficulty diff = buildDifficulty(batch);
+
+                        when(batchRepository.findById(batch.getId())).thenReturn(Optional.of(batch));
+                        when(mapDifficultyRepository.findByBatchIdAndActiveTrueWithCategory(batch.getId()))
+                                        .thenReturn(List.of(diff));
+
+                        ApproveReweightRequest item = new ApproveReweightRequest();
+                        item.setMapDifficultyId(UUID.randomUUID());
+                        item.setComplexity(java.math.BigDecimal.valueOf(8.0));
+
+                        assertThatThrownBy(() -> batchService.reweightBatch(
+                                        batch.getId(), List.of(item), staffUserId, staffId))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("not in this batch");
                 }
         }
 

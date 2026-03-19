@@ -36,6 +36,7 @@ import com.accsaber.backend.repository.milestone.MilestoneRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.player.DuplicateUserService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -54,6 +55,7 @@ public class MilestoneService {
     private final MapDifficultyMilestoneLinkRepository mapDifficultyMilestoneLinkRepository;
     private final MilestoneEvaluationService milestoneEvaluationService;
     private final MilestoneQueryBuilderService queryBuilderService;
+    private final DuplicateUserService duplicateUserService;
 
     public Page<MilestoneResponse> findAllActive(UUID setId, UUID categoryId, String type, Pageable pageable) {
         Page<Milestone> milestones = milestoneRepository.findAllActiveFiltered(setId, categoryId, type, pageable);
@@ -77,8 +79,9 @@ public class MilestoneService {
     }
 
     public Page<UserMilestoneProgressResponse> findUserProgress(Long userId, Pageable pageable) {
+        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
         Page<Milestone> allActive = milestoneRepository.findAllActiveFiltered(null, null, null, pageable);
-        List<UserMilestoneLink> userLinks = userMilestoneLinkRepository.findByUser_Id(userId);
+        List<UserMilestoneLink> userLinks = userMilestoneLinkRepository.findByUser_Id(resolved);
         Map<UUID, UserMilestoneLink> linkMap = userLinks.stream()
                 .collect(Collectors.toMap(l -> l.getMilestone().getId(), Function.identity()));
         Map<UUID, MilestoneCompletionStats> statsMap = completionStatsRepository.findAll().stream()

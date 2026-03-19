@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +27,7 @@ import com.accsaber.backend.repository.CategoryRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.player.DuplicateUserService;
 import com.accsaber.backend.service.score.APCalculationService;
 
 import lombok.RequiredArgsConstructor;
@@ -43,6 +46,14 @@ public class StatisticsService {
     private final UserRepository userRepository;
     private final APCalculationService apCalculationService;
     private final OverallStatisticsService overallStatisticsService;
+
+    private DuplicateUserService duplicateUserService;
+
+    @Autowired
+    @Lazy
+    public void setDuplicateUserService(DuplicateUserService duplicateUserService) {
+        this.duplicateUserService = duplicateUserService;
+    }
 
     @Transactional
     public UserCategoryStatisticsResponse recalculate(Long userId, UUID categoryId) {
@@ -105,37 +116,41 @@ public class StatisticsService {
     }
 
     public List<UserCategoryStatisticsResponse> findAllByUser(Long userId) {
-        return statisticsRepository.findByUser_IdAndActiveTrue(userId).stream()
+        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
+        return statisticsRepository.findByUser_IdAndActiveTrue(resolved).stream()
                 .map(StatisticsService::toResponse)
                 .toList();
     }
 
     public UserCategoryStatisticsResponse findByUserAndCategoryCode(Long userId, String categoryCode) {
+        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
         UserCategoryStatistics stats = statisticsRepository
-                .findByUser_IdAndCategory_CodeAndActiveTrue(userId, categoryCode)
-                .orElseThrow(() -> new ResourceNotFoundException("Statistics", userId + "/" + categoryCode));
+                .findByUser_IdAndCategory_CodeAndActiveTrue(resolved, categoryCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Statistics", resolved + "/" + categoryCode));
         return toResponse(stats);
     }
 
     public List<UserCategoryStatisticsResponse> findHistoric(Long userId, String categoryCode, int amount,
             String unit) {
+        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
         Instant since = ZonedDateTime.now(ZoneOffset.UTC).minus(amount, parseUnit(unit)).toInstant();
         return statisticsRepository
-                .findHistoricDownsampled(userId, categoryCode, since)
+                .findHistoricDownsampled(resolved, categoryCode, since)
                 .stream()
                 .map(StatisticsService::toResponse)
                 .toList();
     }
 
     public Optional<StatsDiffResponse> computeStatsDiff(Long userId, String categoryCode) {
+        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
         Optional<UserCategoryStatistics> baseOpt = statisticsRepository
-                .findLatestBeforeLastDay(userId, categoryCode);
+                .findLatestBeforeLastDay(resolved, categoryCode);
         if (baseOpt.isEmpty()) {
             return Optional.empty();
         }
 
         Optional<UserCategoryStatistics> latestOpt = statisticsRepository
-                .findMostRecent(userId, categoryCode);
+                .findMostRecent(resolved, categoryCode);
         if (latestOpt.isEmpty()) {
             return Optional.empty();
         }

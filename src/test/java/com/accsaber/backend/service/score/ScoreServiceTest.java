@@ -47,6 +47,7 @@ import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.map.MapDifficultyComplexityService;
 import com.accsaber.backend.service.map.MapDifficultyStatisticsService;
 import com.accsaber.backend.service.milestone.MilestoneEvaluationService;
+import com.accsaber.backend.service.player.DuplicateUserService;
 import com.accsaber.backend.service.stats.RankingService;
 import com.accsaber.backend.service.stats.StatisticsService;
 
@@ -80,6 +81,8 @@ class ScoreServiceTest {
         @Mock
         private ScoreRankingService scoreRankingService;
         @Mock
+        private DuplicateUserService duplicateUserService;
+        @Mock
         private ApplicationEventPublisher eventPublisher;
 
         @InjectMocks
@@ -91,6 +94,8 @@ class ScoreServiceTest {
 
         @BeforeEach
         void setUp() {
+                lenient().when(duplicateUserService.resolvePrimaryUserId(any(Long.class)))
+                                .thenAnswer(inv -> inv.getArgument(0));
                 scoreCurve = Curve.builder()
                                 .id(UUID.randomUUID())
                                 .name("Test Score Curve")

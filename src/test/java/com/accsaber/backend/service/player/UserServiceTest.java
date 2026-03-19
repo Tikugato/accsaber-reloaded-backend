@@ -38,8 +38,17 @@ class UserServiceTest {
     @Mock
     private UserNameHistoryRepository userNameHistoryRepository;
 
+    @Mock
+    private DuplicateUserService duplicateUserService;
+
     @InjectMocks
     private UserService userService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUpDuplicateResolution() {
+        org.mockito.Mockito.lenient().when(duplicateUserService.resolvePrimaryUserId(org.mockito.ArgumentMatchers.any(Long.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+    }
 
     @Nested
     class FindBySteamId {

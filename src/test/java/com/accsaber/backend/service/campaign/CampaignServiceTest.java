@@ -48,6 +48,7 @@ import com.accsaber.backend.repository.campaign.CampaignRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.player.DuplicateUserService;
 
 @ExtendWith(MockitoExtension.class)
 class CampaignServiceTest {
@@ -64,6 +65,8 @@ class CampaignServiceTest {
         private UserRepository userRepository;
         @Mock
         private MapDifficultyRepository mapDifficultyRepository;
+        @Mock
+        private DuplicateUserService duplicateUserService;
 
         @InjectMocks
         private CampaignService campaignService;
@@ -75,6 +78,8 @@ class CampaignServiceTest {
 
         @BeforeEach
         void setUp() {
+                org.mockito.Mockito.lenient().when(duplicateUserService.resolvePrimaryUserId(any(Long.class)))
+                                .thenAnswer(inv -> inv.getArgument(0));
                 creator = User.builder().id(12345L).name("TestPlayer").build();
                 map = com.accsaber.backend.model.entity.map.Map.builder()
                                 .id(UUID.randomUUID())

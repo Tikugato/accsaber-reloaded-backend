@@ -18,6 +18,7 @@ import com.accsaber.backend.model.entity.user.DiscordUserLink;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.user.DiscordUserLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.player.DuplicateUserService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +35,7 @@ public class DiscordLinkService {
 
     private final DiscordUserLinkRepository discordUserLinkRepository;
     private final UserRepository userRepository;
+    private final DuplicateUserService duplicateUserService;
     private final BeatLeaderClient beatLeaderClient;
     private final ScoreSaberClient scoreSaberClient;
 
@@ -44,7 +46,7 @@ public class DiscordLinkService {
         }
 
         String steamId = extractSteamId(request.getProfileUrl());
-        Long userId = Long.parseLong(steamId);
+        Long userId = duplicateUserService.resolvePrimaryUserId(Long.parseLong(steamId));
 
         if (discordUserLinkRepository.existsByUserId(userId)) {
             throw new ConflictException("Player is already linked to a Discord account", userId);
@@ -73,8 +75,9 @@ public class DiscordLinkService {
 
     @Transactional(readOnly = true)
     public DiscordLinkResponse findByUserId(Long userId) {
-        DiscordUserLink link = discordUserLinkRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Discord link for user", userId));
+        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
+        DiscordUserLink link = discordUserLinkRepository.findByUserId(resolved)
+                .orElseThrow(() -> new ResourceNotFoundException("Discord link for user", resolved));
         return toResponse(link);
     }
 
@@ -93,7 +96,7 @@ public class DiscordLinkService {
                 .orElseThrow(() -> new ResourceNotFoundException("Discord link", discordId));
 
         String steamId = extractSteamId(request.getProfileUrl());
-        Long newUserId = Long.parseLong(steamId);
+        Long newUserId = duplicateUserService.resolvePrimaryUserId(Long.parseLong(steamId));
 
         if (!newUserId.equals(link.getUser().getId())
                 && discordUserLinkRepository.existsByUserId(newUserId)) {

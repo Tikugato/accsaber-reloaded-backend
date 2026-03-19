@@ -41,6 +41,7 @@ import com.accsaber.backend.repository.milestone.MilestoneRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.player.DuplicateUserService;
 
 @ExtendWith(MockitoExtension.class)
 class MilestoneServiceMapLinkTest {
@@ -65,6 +66,8 @@ class MilestoneServiceMapLinkTest {
         private MilestoneEvaluationService milestoneEvaluationService;
         @Mock
         private MilestoneQueryBuilderService queryBuilderService;
+        @Mock
+        private DuplicateUserService duplicateUserService;
 
         @InjectMocks
         private MilestoneService service;

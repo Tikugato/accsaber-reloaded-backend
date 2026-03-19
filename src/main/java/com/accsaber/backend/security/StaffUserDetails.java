@@ -20,6 +20,10 @@ public class StaffUserDetails implements UserDetails {
         return staffUser;
     }
 
+    public Long getLinkedUserId() {
+        return staffUser.getUser() != null ? staffUser.getUser().getId() : null;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + staffUser.getRole().name()));

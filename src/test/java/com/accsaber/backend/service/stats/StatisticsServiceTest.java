@@ -39,6 +39,7 @@ import com.accsaber.backend.repository.CategoryRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.player.DuplicateUserService;
 import com.accsaber.backend.service.score.APCalculationService;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,6 +57,8 @@ class StatisticsServiceTest {
         private APCalculationService apCalculationService;
         @Mock
         private OverallStatisticsService overallStatisticsService;
+        @Mock
+        private DuplicateUserService duplicateUserService;
 
         @InjectMocks
         private StatisticsService statisticsService;
@@ -94,6 +97,9 @@ class StatisticsServiceTest {
                                 .active(true)
                                 .build();
 
+                statisticsService.setDuplicateUserService(duplicateUserService);
+                lenient().when(duplicateUserService.resolvePrimaryUserId(any(Long.class)))
+                                .thenAnswer(inv -> inv.getArgument(0));
                 lenient().when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
                 lenient().when(categoryRepository.findByIdAndActiveTrue(category.getId()))
                                 .thenReturn(Optional.of(category));

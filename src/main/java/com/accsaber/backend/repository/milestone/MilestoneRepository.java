@@ -37,6 +37,8 @@ public interface MilestoneRepository extends JpaRepository<Milestone, UUID> {
 
         List<Milestone> findByMilestoneSet_IdAndActiveTrueAndStatus(UUID setId, MilestoneStatus status);
 
+        List<Milestone> findByActiveTrueAndStatus(MilestoneStatus status);
+
         List<Milestone> findByCategory_IdAndActiveTrue(UUID categoryId);
 
         @Query("""
@@ -101,4 +103,12 @@ public interface MilestoneRepository extends JpaRepository<Milestone, UUID> {
                         WHERE m.active = true AND m.id IN :ids
                         """)
         List<Milestone> findAllActiveByIdIn(@Param("ids") List<UUID> ids);
+
+        @Query("""
+                        SELECT m.milestoneSet.id, COUNT(m)
+                        FROM Milestone m
+                        WHERE m.active = true AND m.status = 'ACTIVE'
+                        GROUP BY m.milestoneSet.id
+                        """)
+        List<Object[]> countActiveGroupedBySetId();
 }

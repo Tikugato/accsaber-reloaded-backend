@@ -18,6 +18,7 @@ import com.accsaber.backend.exception.ConflictException;
 import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneRequest;
 import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneSetRequest;
+import com.accsaber.backend.model.dto.response.milestone.MilestoneCompletionResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSetResponse;
 import com.accsaber.backend.model.dto.response.milestone.UserMilestoneProgressResponse;
@@ -29,6 +30,7 @@ import com.accsaber.backend.model.entity.milestone.MilestoneCompletionStats;
 import com.accsaber.backend.model.entity.milestone.MilestoneSet;
 import com.accsaber.backend.model.entity.milestone.MilestoneStatus;
 import com.accsaber.backend.model.entity.milestone.UserMilestoneLink;
+import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.CategoryRepository;
 import com.accsaber.backend.repository.map.MapDifficultyMilestoneLinkRepository;
@@ -119,9 +121,55 @@ public class MilestoneService {
         }).toList();
     }
 
-    public Page<MilestoneSetResponse> findAllSets(Pageable pageable) {
-        return milestoneSetRepository.findByActiveTrue(pageable)
-                .map(this::toSetResponse);
+    public List<MilestoneCompletionResponse> findAllCompletionStats(Long userId) {
+        List<Milestone> milestones = milestoneRepository.findByActiveTrueAndStatus(MilestoneStatus.ACTIVE);
+        Map<UUID, MilestoneCompletionStats> statsMap = completionStatsRepository.findAll().stream()
+                .collect(Collectors.toMap(MilestoneCompletionStats::getMilestoneId, Function.identity()));
+
+        Map<UUID, UserMilestoneLink> userLinkMap = Map.of();
+        if (userId != null) {
+            Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
+            List<UUID> milestoneIds = milestones.stream().map(Milestone::getId).toList();
+            userLinkMap = userMilestoneLinkRepository
+                    .findCompletedByUserWithScoreDetails(resolved, milestoneIds).stream()
+                    .collect(Collectors.toMap(l -> l.getMilestone().getId(), Function.identity()));
+        }
+
+        Map<UUID, UserMilestoneLink> finalUserLinkMap = userLinkMap;
+        return milestones.stream()
+                .map(m -> toCompletionResponse(m, statsMap.get(m.getId()), finalUserLinkMap.get(m.getId())))
+                .toList();
+    }
+
+    public Page<MilestoneSetResponse> findAllSets(Long userId, Pageable pageable) {
+        Page<MilestoneSet> sets = milestoneSetRepository.findByActiveTrue(pageable);
+
+        Map<UUID, BigDecimal> userPercentages = Map.of();
+        if (userId != null) {
+            Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
+            Map<UUID, Long> totalPerSet = milestoneRepository.countActiveGroupedBySetId().stream()
+                    .collect(Collectors.toMap(r -> (UUID) r[0], r -> (Long) r[1]));
+            Map<UUID, Long> completedPerSet = userMilestoneLinkRepository
+                    .countCompletedByUserGroupedBySet(resolved).stream()
+                    .collect(Collectors.toMap(r -> (UUID) r[0], r -> (Long) r[1]));
+
+            Map<UUID, BigDecimal> pcts = new java.util.HashMap<>();
+            for (var entry : totalPerSet.entrySet()) {
+                long total = entry.getValue();
+                long completed = completedPerSet.getOrDefault(entry.getKey(), 0L);
+                if (total > 0) {
+                    pcts.put(entry.getKey(),
+                            BigDecimal.valueOf(completed)
+                                    .divide(BigDecimal.valueOf(total), 4, java.math.RoundingMode.HALF_UP)
+                                    .multiply(BigDecimal.valueOf(100))
+                                    .setScale(2, java.math.RoundingMode.HALF_UP));
+                }
+            }
+            userPercentages = pcts;
+        }
+
+        Map<UUID, BigDecimal> finalPcts = userPercentages;
+        return sets.map(s -> toSetResponse(s, finalPcts.get(s.getId())));
     }
 
     public Page<UserMilestoneProgressResponse> findUserProgress(Long userId, Pageable pageable) {
@@ -163,7 +211,7 @@ public class MilestoneService {
                 .description(request.getDescription())
                 .setBonusXp(request.getSetBonusXp() != null ? request.getSetBonusXp() : BigDecimal.ZERO)
                 .build();
-        return toSetResponse(milestoneSetRepository.save(set));
+        return toSetResponse(milestoneSetRepository.save(set), null);
     }
 
     @Transactional
@@ -311,13 +359,55 @@ public class MilestoneService {
                 .build();
     }
 
-    private MilestoneSetResponse toSetResponse(MilestoneSet s) {
+    private MilestoneCompletionResponse toCompletionResponse(Milestone m, MilestoneCompletionStats stats,
+            UserMilestoneLink userLink) {
+        var builder = MilestoneCompletionResponse.builder()
+                .milestoneId(m.getId())
+                .title(m.getTitle())
+                .description(m.getDescription())
+                .type(m.getType())
+                .tier(m.getTier().name())
+                .xp(m.getXp())
+                .targetValue(m.getTargetValue())
+                .comparison(m.getComparison())
+                .setId(m.getMilestoneSet().getId())
+                .categoryId(m.getCategory() != null ? m.getCategory().getId() : null)
+                .completions(stats != null ? stats.getCompletions() : 0L)
+                .totalPlayers(stats != null ? stats.getTotalPlayers() : 0L)
+                .completionPercentage(stats != null ? stats.getCompletionPercentage() : BigDecimal.ZERO);
+
+        if (userLink != null) {
+            builder.userCompleted(true).userCompletedAt(userLink.getCompletedAt());
+            Score score = userLink.getAchievedWithScore();
+            if (score != null) {
+                builder.achievedWithScoreId(score.getId())
+                        .score(score.getScore());
+                MapDifficulty md = score.getMapDifficulty();
+                if (md != null) {
+                    builder.maxScore(md.getMaxScore())
+                            .difficulty(md.getDifficulty().name());
+                    com.accsaber.backend.model.entity.map.Map map = md.getMap();
+                    if (map != null) {
+                        builder.coverUrl(map.getCoverUrl())
+                                .songName(map.getSongName())
+                                .songAuthor(map.getSongAuthor())
+                                .mapAuthor(map.getMapAuthor());
+                    }
+                }
+            }
+        }
+
+        return builder.build();
+    }
+
+    private MilestoneSetResponse toSetResponse(MilestoneSet s, BigDecimal userCompletionPercentage) {
         return MilestoneSetResponse.builder()
                 .id(s.getId())
                 .title(s.getTitle())
                 .description(s.getDescription())
                 .setBonusXp(s.getSetBonusXp())
                 .createdAt(s.getCreatedAt())
+                .userCompletionPercentage(userCompletionPercentage)
                 .build();
     }
 }

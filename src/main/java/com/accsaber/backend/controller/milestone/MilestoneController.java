@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.accsaber.backend.model.dto.response.milestone.MilestoneCompletionResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSetResponse;
 import com.accsaber.backend.model.entity.milestone.LevelThreshold;
@@ -45,8 +46,9 @@ public class MilestoneController {
     @Operation(summary = "List active milestone sets")
     @GetMapping("/milestones/sets")
     public ResponseEntity<Page<MilestoneSetResponse>> listMilestoneSets(
+            @RequestParam(required = false) Long userId,
             @PageableDefault(size = 20, sort = "title") Pageable pageable) {
-        return ResponseEntity.ok(milestoneService.findAllSets(pageable));
+        return ResponseEntity.ok(milestoneService.findAllSets(userId, pageable));
     }
 
     @Operation(summary = "Get a milestone by ID")
@@ -59,6 +61,13 @@ public class MilestoneController {
     @GetMapping("/milestones/sets/{setId}/milestones")
     public ResponseEntity<List<MilestoneResponse>> getMilestonesBySet(@PathVariable UUID setId) {
         return ResponseEntity.ok(milestoneService.findBySet(setId));
+    }
+
+    @Operation(summary = "Get completion stats for all active milestones")
+    @GetMapping("/milestones/completion-stats")
+    public ResponseEntity<List<MilestoneCompletionResponse>> getCompletionStats(
+            @RequestParam(required = false) Long userId) {
+        return ResponseEntity.ok(milestoneService.findAllCompletionStats(userId));
     }
 
     @Operation(summary = "List all level thresholds")

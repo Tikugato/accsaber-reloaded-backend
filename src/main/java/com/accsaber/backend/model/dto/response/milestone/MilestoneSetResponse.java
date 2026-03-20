@@ -4,11 +4,14 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import lombok.Builder;
 import lombok.Getter;
 
 @Getter
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class MilestoneSetResponse {
 
     private UUID id;
@@ -16,4 +19,5 @@ public class MilestoneSetResponse {
     private String description;
     private BigDecimal setBonusXp;
     private Instant createdAt;
+    private BigDecimal userCompletionPercentage;
 }

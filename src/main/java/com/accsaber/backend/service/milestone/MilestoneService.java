@@ -34,6 +34,7 @@ import com.accsaber.backend.model.entity.milestone.MilestoneCompletionStats;
 import com.accsaber.backend.model.entity.milestone.MilestonePrerequisiteLink;
 import com.accsaber.backend.model.entity.milestone.MilestoneSet;
 import com.accsaber.backend.model.entity.milestone.MilestoneStatus;
+import com.accsaber.backend.model.entity.milestone.MilestoneTier;
 import com.accsaber.backend.model.entity.milestone.UserMilestoneLink;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.User;
@@ -130,7 +131,7 @@ public class MilestoneService {
         }).toList();
     }
 
-    public List<MilestoneCompletionResponse> findAllCompletionStats(Long userId) {
+    public List<MilestoneCompletionResponse> findAllCompletionStats(Long userId, String sort) {
         List<Milestone> milestones = milestoneRepository.findByActiveTrueAndStatus(MilestoneStatus.ACTIVE);
         Map<UUID, MilestoneCompletionStats> statsMap = completionStatsRepository.findAll().stream()
                 .collect(Collectors.toMap(MilestoneCompletionStats::getMilestoneId, Function.identity()));
@@ -145,14 +146,30 @@ public class MilestoneService {
         }
 
         Map<UUID, UserMilestoneLink> finalUserLinkMap = userLinkMap;
+
+        Comparator<MilestoneCompletionResponse> comparator = switch (sort) {
+            case "completions" -> Comparator.comparing(MilestoneCompletionResponse::getCompletions,
+                    Comparator.nullsLast(Comparator.reverseOrder()));
+            case "completedAt" -> Comparator.comparing(MilestoneCompletionResponse::getUserCompletedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder()));
+            default -> Comparator.comparing((MilestoneCompletionResponse r) -> r.getTier(),
+                    Comparator.comparingInt(t -> tierOrder(t)))
+                    .thenComparing(MilestoneCompletionResponse::getCompletionPercentage,
+                            Comparator.reverseOrder());
+        };
+
         return milestones.stream()
-                .sorted(Comparator.comparing(Milestone::getTier)
-                        .thenComparing(m -> {
-                            MilestoneCompletionStats s = statsMap.get(m.getId());
-                            return s != null ? s.getCompletionPercentage() : BigDecimal.ZERO;
-                        }, Comparator.reverseOrder()))
                 .map(m -> toCompletionResponse(m, statsMap.get(m.getId()), finalUserLinkMap.get(m.getId())))
+                .sorted(comparator)
                 .toList();
+    }
+
+    private static int tierOrder(String tier) {
+        try {
+            return MilestoneTier.valueOf(tier).ordinal();
+        } catch (IllegalArgumentException e) {
+            return Integer.MAX_VALUE;
+        }
     }
 
     public Page<MilestoneSetResponse> findAllSetsAdmin(Pageable pageable) {

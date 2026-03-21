@@ -48,7 +48,7 @@ public class MilestoneController {
     @GetMapping("/milestones/sets")
     public ResponseEntity<Page<MilestoneSetResponse>> listMilestoneSets(
             @RequestParam(required = false) Long userId,
-            @PageableDefault(size = 20, sort = "title") Pageable pageable) {
+            @PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(milestoneService.findAllSets(userId, pageable));
     }
 
@@ -73,8 +73,9 @@ public class MilestoneController {
     @Operation(summary = "Get completion stats for all active milestones")
     @GetMapping("/milestones/completion-stats")
     public ResponseEntity<List<MilestoneCompletionResponse>> getCompletionStats(
-            @RequestParam(required = false) Long userId) {
-        return ResponseEntity.ok(milestoneService.findAllCompletionStats(userId));
+            @RequestParam(required = false) Long userId,
+            @RequestParam(defaultValue = "tier") String sort) {
+        return ResponseEntity.ok(milestoneService.findAllCompletionStats(userId, sort));
     }
 
     @Operation(summary = "List all level thresholds")

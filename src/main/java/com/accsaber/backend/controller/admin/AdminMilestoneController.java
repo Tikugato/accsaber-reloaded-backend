@@ -135,6 +135,13 @@ public class AdminMilestoneController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Remove a milestone (deactivate + recalculate all user XP)")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> removeMilestone(@PathVariable UUID id) {
+        milestoneService.removeMilestone(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "Refresh milestone completion statistics")
     @PostMapping("/refresh-stats")
     public ResponseEntity<Void> refreshStats() {

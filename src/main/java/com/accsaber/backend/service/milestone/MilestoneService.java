@@ -322,6 +322,16 @@ public class MilestoneService {
         milestoneRepository.save(milestone);
     }
 
+    @Transactional
+    public void removeMilestone(UUID id) {
+        Milestone milestone = milestoneRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Milestone", id));
+        milestone.setActive(false);
+        milestone.setStatus(MilestoneStatus.DRAFT);
+        milestoneRepository.save(milestone);
+        userRepository.recalculateTotalXpForAllActiveUsers();
+    }
+
     @Async("taskExecutor")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void backfillMilestone(UUID milestoneId) {

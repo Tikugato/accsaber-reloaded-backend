@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.accsaber.backend.model.dto.response.player.LeaderboardResponse;
+import com.accsaber.backend.model.dto.response.player.XpLeaderboardResponse;
 import com.accsaber.backend.service.stats.LeaderboardService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,5 +46,14 @@ public class LeaderboardController {
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "ranking", direction = Sort.Direction.ASC) Pageable pageable) {
         return ResponseEntity.ok(leaderboardService.getByCountry(categoryId, country, search, pageable));
+    }
+
+    @Operation(summary = "XP leaderboard", description = "Paginated XP rankings, sorted by total XP descending. Optional country and name search filters")
+    @GetMapping("/xp")
+    public ResponseEntity<Page<XpLeaderboardResponse>> getXpLeaderboard(
+            @RequestParam(required = false) String country,
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(leaderboardService.getXpLeaderboard(country, search, pageable));
     }
 }

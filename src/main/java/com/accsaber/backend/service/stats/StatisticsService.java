@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.model.dto.response.player.StatsDiffResponse;
+import com.accsaber.backend.model.dto.response.player.UserAllStatisticsResponse;
 import com.accsaber.backend.model.dto.response.player.UserCategoryStatisticsResponse;
 import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.score.Score;
@@ -120,11 +121,24 @@ public class StatisticsService {
         return toResponse(newStats);
     }
 
-    public List<UserCategoryStatisticsResponse> findAllByUser(Long userId) {
+    public List<UserCategoryStatisticsResponse> findCategoryStatsByUser(Long userId) {
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
         return statisticsRepository.findByUser_IdAndActiveTrue(resolved).stream()
                 .map(StatisticsService::toResponse)
                 .toList();
+    }
+
+    public UserAllStatisticsResponse findAllByUser(Long userId) {
+        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
+        User user = userRepository.findByIdAndActiveTrue(resolved)
+                .orElseThrow(() -> new ResourceNotFoundException("User", resolved));
+        return UserAllStatisticsResponse.builder()
+                .totalXp(user.getTotalXp())
+                .totalScoreXp(scoreRepository.sumXpGainedByUserId(resolved))
+                .totalMilestoneXp(userMilestoneLinkRepository.sumCompletedMilestoneXpByUserId(resolved))
+                .totalMilestoneSetBonusXp(userMilestoneSetBonusRepository.sumSetBonusXpByUserId(resolved))
+                .categories(findCategoryStatsByUser(userId))
+                .build();
     }
 
     public UserCategoryStatisticsResponse findByUserAndCategoryCode(Long userId, String categoryCode) {

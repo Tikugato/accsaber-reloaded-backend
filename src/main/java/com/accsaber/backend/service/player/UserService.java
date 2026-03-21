@@ -87,6 +87,8 @@ public class UserService {
                 .name(user.getName())
                 .avatarUrl(user.getAvatarUrl())
                 .country(user.getCountry())
+                .xpRanking(user.getXpRanking())
+                .xpCountryRanking(user.getXpCountryRanking())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

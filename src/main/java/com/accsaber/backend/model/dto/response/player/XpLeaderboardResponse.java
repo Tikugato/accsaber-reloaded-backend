@@ -1,7 +1,6 @@
 package com.accsaber.backend.model.dto.response.player;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class LeaderboardResponse {
+public class XpLeaderboardResponse {
 
     private Integer ranking;
     private Integer countryRanking;
@@ -20,10 +19,6 @@ public class LeaderboardResponse {
     private String userName;
     private String country;
     private String avatarUrl;
-    private BigDecimal ap;
-    private BigDecimal averageAcc;
-    private BigDecimal averageAp;
-    private Integer rankedPlays;
-    private UUID topPlayId;
-    private Integer rankingLastWeek;
+    private BigDecimal totalXp;
+    private Integer level;
 }

@@ -36,7 +36,7 @@ public class UserLinkController {
         Long userId = duplicateUserService.resolvePrimaryUserId(Long.parseLong(platformId));
         UserResponse user = userService.findByUserId(userId);
         if (statistics) {
-            user = user.withStatistics(statisticsService.findAllByUser(userId));
+            user = user.withStatistics(statisticsService.findCategoryStatsByUser(userId));
         }
         return ResponseEntity.ok(user);
     }

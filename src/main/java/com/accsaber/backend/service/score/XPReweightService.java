@@ -2,7 +2,10 @@ package com.accsaber.backend.service.score;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -64,12 +67,12 @@ public class XPReweightService {
 
     @Transactional
     public int reweightScoresForDifficulty(UUID difficultyId) {
-        List<Score> scores = scoreRepository.findByMapDifficultyIdAndActiveTrueWithCategory(difficultyId);
-        if (scores.isEmpty()) {
+        List<Score> allScores = scoreRepository.findAllByDifficultyOrderedByUserAndTime(difficultyId);
+        if (allScores.isEmpty()) {
             return 0;
         }
 
-        Score sample = scores.get(0);
+        Score sample = allScores.get(0);
         if (sample.getMapDifficulty() == null
                 || sample.getMapDifficulty().getCategory() == null
                 || sample.getMapDifficulty().getCategory().getScoreCurve() == null
@@ -80,17 +83,39 @@ public class XPReweightService {
 
         BigDecimal complexity = mapComplexityService.findActiveComplexity(difficultyId)
                 .orElse(BigDecimal.ONE);
-
         int maxScore = sample.getMapDifficulty().getMaxScore();
 
-        for (Score score : scores) {
-            BigDecimal accuracy = BigDecimal.valueOf(score.getScore())
-                    .divide(BigDecimal.valueOf(maxScore), 10, RoundingMode.HALF_UP);
-            score.setXpGained(xpCalculationService.calculateXpForNewMap(accuracy, complexity));
+        Map<Long, List<Score>> scoresByUser = new LinkedHashMap<>();
+        for (Score score : allScores) {
+            scoresByUser.computeIfAbsent(score.getUser().getId(), k -> new ArrayList<>()).add(score);
         }
 
-        scoreRepository.saveAll(scores);
-        return scores.size();
+        int updated = 0;
+        for (List<Score> userScores : scoresByUser.values()) {
+            BigDecimal currentBestXp = null;
+            for (Score score : userScores) {
+                BigDecimal accuracy = BigDecimal.valueOf(score.getScore())
+                        .divide(BigDecimal.valueOf(maxScore), 10, RoundingMode.HALF_UP);
+                BigDecimal newXp;
+                if (currentBestXp == null) {
+                    newXp = xpCalculationService.calculateXpForNewMap(accuracy, complexity);
+                    currentBestXp = newXp;
+                } else if ("Worse score".equals(score.getSupersedesReason())) {
+                    newXp = xpCalculationService.calculateXpForWorseScore();
+                } else {
+                    newXp = xpCalculationService.calculateXpForImprovement(accuracy, complexity, currentBestXp);
+                    currentBestXp = newXp;
+                }
+                BigDecimal oldXp = score.getXpGained();
+                if (oldXp == null || oldXp.compareTo(newXp) != 0) {
+                    score.setXpGained(newXp);
+                    updated++;
+                }
+            }
+        }
+
+        scoreRepository.saveAll(allScores);
+        return updated;
     }
 
     @Async("taskExecutor")

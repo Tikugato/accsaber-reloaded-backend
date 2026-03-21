@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +21,39 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByIdAndActiveTrue(Long id);
 
     List<User> findByActiveTrue();
+
+    @Query("""
+            SELECT u FROM User u
+            WHERE u.active = true AND u.totalXp > 0
+            ORDER BY u.totalXp DESC
+            """)
+    Page<User> findXpLeaderboard(Pageable pageable);
+
+    @Query("""
+            SELECT u FROM User u
+            WHERE u.active = true AND u.totalXp > 0
+            AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+            ORDER BY u.totalXp DESC
+            """)
+    Page<User> findXpLeaderboardWithSearch(@Param("search") String search, Pageable pageable);
+
+    @Query("""
+            SELECT u FROM User u
+            WHERE u.active = true AND u.totalXp > 0
+            AND LOWER(u.country) = LOWER(:country)
+            ORDER BY u.totalXp DESC
+            """)
+    Page<User> findXpLeaderboardByCountry(@Param("country") String country, Pageable pageable);
+
+    @Query("""
+            SELECT u FROM User u
+            WHERE u.active = true AND u.totalXp > 0
+            AND LOWER(u.country) = LOWER(:country)
+            AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+            ORDER BY u.totalXp DESC
+            """)
+    Page<User> findXpLeaderboardByCountryWithSearch(@Param("country") String country,
+            @Param("search") String search, Pageable pageable);
 
     @Modifying
     @Transactional
@@ -70,4 +105,36 @@ public interface UserRepository extends JpaRepository<User, Long> {
             AND u.active = true
             """, nativeQuery = true)
     void recalculateTotalXpForAllActiveUsers();
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+            WITH ranked AS (
+                SELECT id, ROW_NUMBER() OVER (ORDER BY total_xp DESC) AS new_rank
+                FROM users
+                WHERE active = true AND total_xp > 0
+            )
+            UPDATE users u
+            SET xp_ranking = r.new_rank, updated_at = NOW()
+            FROM ranked r
+            WHERE u.id = r.id AND u.xp_ranking IS DISTINCT FROM r.new_rank
+            """, nativeQuery = true)
+    void assignXpRankings();
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+            WITH ranked AS (
+                SELECT id, ROW_NUMBER() OVER (
+                    PARTITION BY country ORDER BY total_xp DESC
+                ) AS new_country_rank
+                FROM users
+                WHERE active = true AND total_xp > 0 AND country IS NOT NULL
+            )
+            UPDATE users u
+            SET xp_country_ranking = r.new_country_rank, updated_at = NOW()
+            FROM ranked r
+            WHERE u.id = r.id AND u.xp_country_ranking IS DISTINCT FROM r.new_country_rank
+            """, nativeQuery = true)
+    void assignXpCountryRankings();
 }

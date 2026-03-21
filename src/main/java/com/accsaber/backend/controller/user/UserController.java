@@ -20,6 +20,7 @@ import com.accsaber.backend.model.dto.response.milestone.LevelResponse;
 import com.accsaber.backend.model.dto.response.milestone.UserMilestoneProgressResponse;
 import com.accsaber.backend.model.dto.response.player.NameHistoryResponse;
 import com.accsaber.backend.model.dto.response.player.StatsDiffResponse;
+import com.accsaber.backend.model.dto.response.player.UserAllStatisticsResponse;
 import com.accsaber.backend.model.dto.response.player.UserCategoryStatisticsResponse;
 import com.accsaber.backend.model.dto.response.player.UserResponse;
 import com.accsaber.backend.model.dto.response.score.ScoreResponse;
@@ -54,7 +55,7 @@ public class UserController {
             @RequestParam(defaultValue = "false") boolean statistics) {
         UserResponse user = userService.findByUserId(userId);
         if (statistics) {
-            user = user.withStatistics(statisticsService.findAllByUser(userId));
+            user = user.withStatistics(statisticsService.findCategoryStatsByUser(userId));
         }
         return ResponseEntity.ok(user);
     }
@@ -68,9 +69,9 @@ public class UserController {
         return ResponseEntity.ok(history);
     }
 
-    @Operation(summary = "Get all user category statistics", description = "Returns all active category statistics for a player")
+    @Operation(summary = "Get all user statistics", description = "Returns all active category statistics plus XP breakdown for a player")
     @GetMapping("/{userId}/statistics/all")
-    public ResponseEntity<List<UserCategoryStatisticsResponse>> getAllUserStatistics(@PathVariable Long userId) {
+    public ResponseEntity<UserAllStatisticsResponse> getAllUserStatistics(@PathVariable Long userId) {
         return ResponseEntity.ok(statisticsService.findAllByUser(userId));
     }
 

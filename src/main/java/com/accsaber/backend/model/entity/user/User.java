@@ -40,6 +40,12 @@ public class User {
     @Builder.Default
     private BigDecimal totalXp = BigDecimal.ZERO;
 
+    @Column(name = "xp_ranking")
+    private Integer xpRanking;
+
+    @Column(name = "xp_country_ranking")
+    private Integer xpCountryRanking;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;

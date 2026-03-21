@@ -198,6 +198,16 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
 
         List<Score> findByMapDifficulty_Id(UUID mapDifficultyId);
 
+        @Query("""
+                        SELECT s FROM Score s
+                        JOIN FETCH s.mapDifficulty d
+                        JOIN FETCH d.category c
+                        LEFT JOIN FETCH c.scoreCurve
+                        WHERE d.id = :mapDifficultyId
+                        ORDER BY s.user.id, s.timeSet ASC NULLS LAST
+                        """)
+        List<Score> findAllByDifficultyOrderedByUserAndTime(@Param("mapDifficultyId") UUID mapDifficultyId);
+
         @Query("SELECT COALESCE(SUM(s.xpGained), 0) FROM Score s WHERE s.user.id = :userId")
         java.math.BigDecimal sumXpGainedByUserId(@Param("userId") Long userId);
 

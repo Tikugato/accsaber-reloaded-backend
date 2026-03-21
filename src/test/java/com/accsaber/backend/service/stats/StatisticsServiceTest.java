@@ -36,6 +36,8 @@ import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.model.entity.user.UserCategoryStatistics;
 import com.accsaber.backend.repository.CategoryRepository;
+import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
+import com.accsaber.backend.repository.milestone.UserMilestoneSetBonusRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserRepository;
@@ -57,6 +59,10 @@ class StatisticsServiceTest {
         private APCalculationService apCalculationService;
         @Mock
         private OverallStatisticsService overallStatisticsService;
+        @Mock
+        private UserMilestoneLinkRepository userMilestoneLinkRepository;
+        @Mock
+        private UserMilestoneSetBonusRepository userMilestoneSetBonusRepository;
         @Mock
         private DuplicateUserService duplicateUserService;
 
@@ -103,6 +109,10 @@ class StatisticsServiceTest {
                 lenient().when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
                 lenient().when(categoryRepository.findByIdAndActiveTrue(category.getId()))
                                 .thenReturn(Optional.of(category));
+                lenient().when(userMilestoneLinkRepository.sumMilestoneXpGainedLast24h(any()))
+                                .thenReturn(BigDecimal.ZERO);
+                lenient().when(userMilestoneSetBonusRepository.sumSetBonusXpGainedLast24h(any()))
+                                .thenReturn(BigDecimal.ZERO);
         }
 
         private Score buildScore(BigDecimal ap, int scoreValue) {

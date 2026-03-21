@@ -15,6 +15,7 @@ public class StatsDiffResponse {
     private BigDecimal apDiff;
     private BigDecimal scoreXpDiff;
     private BigDecimal milestoneXpDiff;
+    private BigDecimal milestoneSetBonusXpDiff;
     private BigDecimal averageAccDiff;
     private BigDecimal averageApDiff;
     private Integer rankingDiff;

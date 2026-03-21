@@ -70,7 +70,8 @@ public class StatisticsService {
     }
 
     @Transactional
-    public UserCategoryStatisticsResponse recalculate(Long userId, UUID categoryId, boolean triggerRanking, boolean triggerOverall) {
+    public UserCategoryStatisticsResponse recalculate(Long userId, UUID categoryId, boolean triggerRanking,
+            boolean triggerOverall) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
         Category category = categoryRepository.findByIdAndActiveTrue(categoryId)
@@ -148,9 +149,10 @@ public class StatisticsService {
     public Optional<StatsDiffResponse> computeStatsDiff(Long userId, String categoryCode) {
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
 
-        BigDecimal milestoneXp = userMilestoneLinkRepository.sumMilestoneXpGainedLast24h(resolved);
-        BigDecimal setBonusXp = userMilestoneSetBonusRepository.sumSetBonusXpGainedLast24h(resolved);
-        BigDecimal milestoneXpDiff = milestoneXp.add(setBonusXp);
+        BigDecimal milestoneXpDiff = userMilestoneLinkRepository.sumMilestoneXpGainedLast24h(resolved);
+        BigDecimal milestoneSetBonusXpDiff = userMilestoneSetBonusRepository.sumSetBonusXpGainedLast24h(resolved);
+        boolean hasMilestoneXp = milestoneXpDiff.compareTo(BigDecimal.ZERO) > 0
+                || milestoneSetBonusXpDiff.compareTo(BigDecimal.ZERO) > 0;
 
         Optional<UserCategoryStatistics> baseOpt = statisticsRepository
                 .findLatestBeforeLastDay(resolved, categoryCode);
@@ -158,9 +160,10 @@ public class StatisticsService {
                 .findMostRecent(resolved, categoryCode);
 
         if (baseOpt.isEmpty() || latestOpt.isEmpty()) {
-            if (milestoneXpDiff.compareTo(BigDecimal.ZERO) > 0) {
+            if (hasMilestoneXp) {
                 return Optional.of(StatsDiffResponse.builder()
                         .milestoneXpDiff(milestoneXpDiff)
+                        .milestoneSetBonusXpDiff(milestoneSetBonusXpDiff)
                         .from(Instant.now().minus(1, java.time.temporal.ChronoUnit.DAYS))
                         .to(Instant.now())
                         .build());
@@ -176,6 +179,7 @@ public class StatisticsService {
                 .apDiff(latest.getAp().subtract(base.getAp()))
                 .scoreXpDiff(latest.getScoreXp().subtract(base.getScoreXp()))
                 .milestoneXpDiff(milestoneXpDiff)
+                .milestoneSetBonusXpDiff(milestoneSetBonusXpDiff)
                 .averageAccDiff(diffNullable(latest.getAverageAcc(), base.getAverageAcc()))
                 .averageApDiff(diffNullable(latest.getAverageAp(), base.getAverageAp()))
                 .rankingDiff(diffNullableInt(latest.getRanking(), base.getRanking()))

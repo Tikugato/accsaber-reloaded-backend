@@ -142,7 +142,7 @@ public class MilestoneService {
     }
 
     public Page<MilestoneSetResponse> findAllSets(Long userId, Pageable pageable) {
-        Page<MilestoneSet> sets = milestoneSetRepository.findByActiveTrue(pageable);
+        Page<MilestoneSet> sets = milestoneSetRepository.findByActiveTrueWithActiveMilestones(pageable);
 
         Map<UUID, BigDecimal> userPercentages = Map.of();
         if (userId != null) {

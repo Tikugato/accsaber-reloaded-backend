@@ -49,7 +49,9 @@ import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.player.DuplicateUserService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -340,9 +342,20 @@ public class MilestoneService {
         List<Long> userIds = userRepository.findByActiveTrue().stream()
                 .map(User::getId)
                 .toList();
+        log.info("Backfill started for milestone '{}' ({}) — {} users", milestone.getTitle(), milestoneId, userIds.size());
+        int processed = 0;
         for (Long userId : userIds) {
-            milestoneEvaluationService.evaluateSingleMilestoneForUser(userId, milestone);
+            try {
+                milestoneEvaluationService.evaluateSingleMilestoneForUser(userId, milestone);
+            } catch (Exception e) {
+                log.error("Backfill failed for user {} on milestone {}: {}", userId, milestoneId, e.getMessage());
+            }
+            processed++;
+            if (processed % 10000 == 0) {
+                log.info("Backfill milestone '{}': {}/{} users processed", milestone.getTitle(), processed, userIds.size());
+            }
         }
+        log.info("Backfill complete for milestone '{}' ({}) — {} users processed", milestone.getTitle(), milestoneId, processed);
     }
 
     @Async("taskExecutor")
@@ -351,13 +364,23 @@ public class MilestoneService {
         List<Long> userIds = userRepository.findByActiveTrue().stream()
                 .map(User::getId)
                 .toList();
+        log.info("Bulk milestone backfill started — {} users", userIds.size());
+        int processed = 0;
+        int totalCompleted = 0;
         for (Long userId : userIds) {
             try {
                 var evaluation = milestoneEvaluationService.evaluateAllForUser(userId);
+                totalCompleted += evaluation.completedMilestones().size();
                 awardMilestoneXp(userId, evaluation);
             } catch (Exception e) {
+                log.error("Bulk backfill failed for user {}: {}", userId, e.getMessage());
+            }
+            processed++;
+            if (processed % 10000 == 0) {
+                log.info("Bulk backfill: {}/{} users processed, {} milestones completed so far", processed, userIds.size(), totalCompleted);
             }
         }
+        log.info("Bulk milestone backfill complete — {} users processed, {} milestones completed", processed, totalCompleted);
     }
 
     private void awardMilestoneXp(Long userId, MilestoneEvaluationService.EvaluationResult evaluation) {

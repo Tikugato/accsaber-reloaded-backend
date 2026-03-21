@@ -1,6 +1,7 @@
 package com.accsaber.backend.service.milestone;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -22,8 +23,8 @@ import com.accsaber.backend.model.dto.request.milestone.CreatePrerequisiteLinkRe
 import com.accsaber.backend.model.dto.request.milestone.UpdatePrerequisiteLinkRequest;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneCompletionResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneResponse;
-import com.accsaber.backend.model.dto.response.milestone.PrerequisiteLinkResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSetResponse;
+import com.accsaber.backend.model.dto.response.milestone.PrerequisiteLinkResponse;
 import com.accsaber.backend.model.dto.response.milestone.UserMilestoneProgressResponse;
 import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
@@ -143,6 +144,11 @@ public class MilestoneService {
 
         Map<UUID, UserMilestoneLink> finalUserLinkMap = userLinkMap;
         return milestones.stream()
+                .sorted(Comparator.comparing(Milestone::getTier)
+                        .thenComparing(m -> {
+                            MilestoneCompletionStats s = statsMap.get(m.getId());
+                            return s != null ? s.getCompletionPercentage() : BigDecimal.ZERO;
+                        }, Comparator.reverseOrder()))
                 .map(m -> toCompletionResponse(m, statsMap.get(m.getId()), finalUserLinkMap.get(m.getId())))
                 .toList();
     }

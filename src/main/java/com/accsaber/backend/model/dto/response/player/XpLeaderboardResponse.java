@@ -21,4 +21,5 @@ public class XpLeaderboardResponse {
     private String avatarUrl;
     private BigDecimal totalXp;
     private Integer level;
+    private Integer rankingLastWeek;
 }

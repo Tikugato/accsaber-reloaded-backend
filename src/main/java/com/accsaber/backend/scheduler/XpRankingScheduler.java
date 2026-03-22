@@ -2,8 +2,10 @@ package com.accsaber.backend.scheduler;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.repository.user.UserXpRankingHistoryRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,8 +16,9 @@ import lombok.extern.slf4j.Slf4j;
 public class XpRankingScheduler {
 
     private final UserRepository userRepository;
+    private final UserXpRankingHistoryRepository xpRankingHistoryRepository;
 
-    @Scheduled(fixedRate = 600_000)
+    @Scheduled(fixedRate = 300_000)
     public void refreshXpRankings() {
         log.debug("Refreshing XP rankings");
         try {
@@ -23,6 +26,17 @@ public class XpRankingScheduler {
             userRepository.assignXpCountryRankings();
         } catch (Exception e) {
             log.error("Failed to refresh XP rankings: {}", e.getMessage(), e);
+        }
+    }
+
+    @Scheduled(cron = "0 0 0 * * *")
+    @Transactional
+    public void snapshotXpRankings() {
+        log.debug("Snapshotting XP rankings");
+        try {
+            xpRankingHistoryRepository.snapshotChangedRankings();
+        } catch (Exception e) {
+            log.error("Failed to snapshot XP rankings: {}", e.getMessage(), e);
         }
     }
 }

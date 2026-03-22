@@ -20,6 +20,7 @@ import com.accsaber.backend.model.entity.user.UserCategoryStatistics;
 import com.accsaber.backend.repository.CategoryRepository;
 import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.repository.user.UserXpRankingHistoryRepository;
 import com.accsaber.backend.service.milestone.LevelService;
 
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class LeaderboardService {
     private final UserCategoryStatisticsRepository statisticsRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final UserXpRankingHistoryRepository xpRankingHistoryRepository;
     private final LevelService levelService;
 
     public Page<LeaderboardResponse> getGlobal(UUID categoryId, String search, Pageable pageable) {
@@ -68,7 +70,7 @@ public class LeaderboardService {
         } else {
             page = userRepository.findXpLeaderboard(pageable);
         }
-        return page.map(this::toXpResponse);
+        return enrichXpWithLastWeekRanking(page);
     }
 
     private Page<LeaderboardResponse> enrichWithLastWeekRanking(Page<UserCategoryStatistics> page, UUID categoryId) {
@@ -86,7 +88,22 @@ public class LeaderboardService {
         return page.map(stats -> toResponse(stats, finalRankings.get(stats.getUser().getId())));
     }
 
-    private XpLeaderboardResponse toXpResponse(User user) {
+    private Page<XpLeaderboardResponse> enrichXpWithLastWeekRanking(Page<User> page) {
+        List<Long> userIds = page.getContent().stream()
+                .map(User::getId)
+                .toList();
+        Map<Long, Integer> lastWeekRankings = Map.of();
+        if (!userIds.isEmpty()) {
+            lastWeekRankings = xpRankingHistoryRepository.findRankingsOneWeekAgo(userIds).stream()
+                    .collect(Collectors.toMap(
+                            row -> ((Number) row[0]).longValue(),
+                            row -> row[1] != null ? ((Number) row[1]).intValue() : null));
+        }
+        Map<Long, Integer> finalRankings = lastWeekRankings;
+        return page.map(user -> toXpResponse(user, finalRankings.get(user.getId())));
+    }
+
+    private XpLeaderboardResponse toXpResponse(User user, Integer rankingLastWeek) {
         return XpLeaderboardResponse.builder()
                 .ranking(user.getXpRanking())
                 .countryRanking(user.getXpCountryRanking())
@@ -96,6 +113,7 @@ public class LeaderboardService {
                 .avatarUrl(user.getAvatarUrl())
                 .totalXp(user.getTotalXp())
                 .level(levelService.calculateLevel(user.getTotalXp()).getLevel())
+                .rankingLastWeek(rankingLastWeek)
                 .build();
     }
 

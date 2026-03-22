@@ -116,4 +116,6 @@ desktop.ini
 *.md*
 !README.md
 #General I Set
-general_i_milestones.sql
+general_i_first_steps.sql
+general_ii_climbing.sql
+general_iii_elite.sql

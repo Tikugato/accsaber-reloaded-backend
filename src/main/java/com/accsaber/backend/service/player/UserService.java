@@ -94,7 +94,9 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
         user.setCountry(country);
         user.setCountryOverride(true);
-        return userRepository.save(user);
+        userRepository.save(user);
+        recalculateRankingsForUser(userId);
+        return user;
     }
 
     @Transactional

@@ -24,6 +24,12 @@ public class ScoreRankingService {
         scoreRepository.reassignScoreRanks(difficultyId);
     }
 
+    @Transactional
+    public void reassignRanksForBackfill(UUID difficultyId) {
+        scoreRepository.reassignScoreRanks(difficultyId);
+        scoreRepository.syncRankWhenSetFromRank(difficultyId);
+    }
+
     public int rankNewScore(UUID difficultyId, BigDecimal ap) {
         int rank = scoreRepository.countActiveScoresWithHigherAp(difficultyId, ap) + 1;
         scoreRepository.shiftScoreRanksDown(difficultyId, rank);

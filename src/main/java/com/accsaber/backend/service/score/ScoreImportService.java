@@ -308,7 +308,7 @@ public class ScoreImportService {
 
         futures.forEach(CompletableFuture::join);
 
-        scoreRankingService.reassignRanks(difficulty.getId());
+        scoreRankingService.reassignRanksForBackfill(difficulty.getId());
         mapDifficultyStatisticsService.recalculate(difficulty, null);
         rankingService.updateRankings(categoryId);
         if (difficulty.getCategory().isCountForOverall()) {

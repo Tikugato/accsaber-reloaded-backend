@@ -215,7 +215,6 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
         java.math.BigDecimal sumXpGainedByUserIdSince(@Param("userId") Long userId,
                         @Param("since") java.time.Instant since);
 
-
         @Query("SELECT DISTINCT s.mapDifficulty.id FROM Score s")
         List<UUID> findDistinctMapDifficultyIds();
 
@@ -234,6 +233,13 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         FROM ranked r WHERE s.id = r.id
                         """, nativeQuery = true)
         void reassignScoreRanks(@Param("difficultyId") UUID difficultyId);
+
+        @Modifying
+        @Query(value = """
+                        UPDATE scores SET rank_when_set = rank, updated_at = NOW()
+                        WHERE map_difficulty_id = :difficultyId AND active = true
+                        """, nativeQuery = true)
+        void syncRankWhenSetFromRank(@Param("difficultyId") UUID difficultyId);
 
         @Query(value = """
                         SELECT DISTINCT map_difficulty_id FROM scores WHERE active = true

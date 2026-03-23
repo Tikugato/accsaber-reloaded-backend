@@ -2,6 +2,7 @@ package com.accsaber.backend.service.score;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -10,7 +11,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -62,40 +62,67 @@ public class ScoreCorrectionService {
         List<Score> scores = scoreRepository.findActiveScoresWithModifiersAndBlScoreId();
         log.info("Found {} active scores with modifiers and BL score IDs to check", scores.size());
 
-        AtomicInteger corrected = new AtomicInteger();
-        AtomicInteger skipped = new AtomicInteger();
-        AtomicInteger failed = new AtomicInteger();
+        int corrected = 0;
+        int skipped = 0;
+        int failed = 0;
         ConcurrentHashMap<UUID, Set<Long>> affectedByCategory = new ConcurrentHashMap<>();
-        Set<UUID> affectedDifficulties = ConcurrentHashMap.newKeySet();
+        Set<UUID> affectedDifficulties = new HashSet<>();
 
-        List<CompletableFuture<Void>> futures = scores.stream()
-                .map(score -> CompletableFuture.runAsync(() -> {
-                    try {
-                        boolean wasCorrected = correctSingleScore(score);
-                        if (wasCorrected) {
-                            corrected.incrementAndGet();
-                            affectedByCategory.computeIfAbsent(
-                                    score.getMapDifficulty().getCategory().getId(),
-                                    k -> ConcurrentHashMap.newKeySet())
-                                    .add(score.getUser().getId());
-                            affectedDifficulties.add(score.getMapDifficulty().getId());
-                        } else {
-                            skipped.incrementAndGet();
+        int batchSize = 8;
+        long delayMs = 1000;
+
+        for (int i = 0; i < scores.size(); i += batchSize) {
+            List<Score> batch = scores.subList(i, Math.min(i + batchSize, scores.size()));
+
+            List<CompletableFuture<Boolean>> futures = batch.stream()
+                    .map(score -> CompletableFuture.supplyAsync(() -> {
+                        try {
+                            return correctSingleScore(score);
+                        } catch (Exception e) {
+                            log.error("Failed to correct score {} (BL {}): {}",
+                                    score.getId(), score.getBlScoreId(), e.getMessage());
+                            return null;
                         }
-                    } catch (Exception e) {
-                        failed.incrementAndGet();
-                        log.error("Failed to correct score {} (BL {}): {}",
-                                score.getId(), score.getBlScoreId(), e.getMessage());
-                    }
-                }, backfillExecutor))
-                .toList();
+                    }, backfillExecutor))
+                    .toList();
 
-        futures.forEach(CompletableFuture::join);
+            for (int j = 0; j < futures.size(); j++) {
+                Boolean result = futures.get(j).join();
+                Score score = batch.get(j);
+                if (result == null) {
+                    failed++;
+                } else if (result) {
+                    corrected++;
+                    affectedByCategory.computeIfAbsent(
+                            score.getMapDifficulty().getCategory().getId(),
+                            k -> ConcurrentHashMap.newKeySet())
+                            .add(score.getUser().getId());
+                    affectedDifficulties.add(score.getMapDifficulty().getId());
+                } else {
+                    skipped++;
+                }
+            }
+
+            if (i + batchSize < scores.size()) {
+                try {
+                    Thread.sleep(delayMs);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Score correction interrupted at {}/{}", i + batchSize, scores.size());
+                    break;
+                }
+            }
+
+            if ((i / batchSize + 1) % 50 == 0) {
+                log.info("Score correction progress: {}/{} checked, {} corrected so far",
+                        Math.min(i + batchSize, scores.size()), scores.size(), corrected);
+            }
+        }
 
         log.info("Score correction phase done: {} corrected, {} unchanged, {} failed",
-                corrected.get(), skipped.get(), failed.get());
+                corrected, skipped, failed);
 
-        if (corrected.get() == 0) {
+        if (corrected == 0) {
             log.info("No scores were corrected - skipping recalculations");
             return;
         }
@@ -113,7 +140,7 @@ public class ScoreCorrectionService {
         overallStatisticsService.updateOverallRankings();
 
         log.info("Modifier score correction complete: {} corrected, {} unchanged, {} failed",
-                corrected.get(), skipped.get(), failed.get());
+                corrected, skipped, failed);
     }
 
     @Transactional

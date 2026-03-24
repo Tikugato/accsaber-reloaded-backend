@@ -34,6 +34,7 @@ import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.staff.StaffUserRepository;
 import com.accsaber.backend.service.playlist.PlaylistService;
 import com.accsaber.backend.service.score.ScoreImportService;
+import com.accsaber.backend.service.score.ScoreIngestionService;
 import com.accsaber.backend.service.score.ScoreRecalculationService;
 
 import lombok.RequiredArgsConstructor;
@@ -49,6 +50,7 @@ public class BatchService {
     private final MapDifficultyComplexityService complexityService;
     private final MapDifficultyStatisticsService statisticsService;
     private final ScoreImportService scoreImportService;
+    private final ScoreIngestionService scoreIngestionService;
     private final ScoreRecalculationService scoreRecalculationService;
     private final MapService mapService;
     private final PlaylistService playlistService;
@@ -161,6 +163,7 @@ public class BatchService {
             d.setRankedAt(releasedAt);
         });
         mapDifficultyRepository.saveAll(difficulties);
+        scoreIngestionService.refreshRankedLeaderboardIds();
 
         batch.setStatus(BatchStatus.RELEASED);
         batch.setReleasedAt(releasedAt);

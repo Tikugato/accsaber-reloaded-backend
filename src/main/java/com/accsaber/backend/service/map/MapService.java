@@ -36,6 +36,7 @@ import com.accsaber.backend.repository.map.BatchRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.map.MapRepository;
 import com.accsaber.backend.repository.staff.StaffUserRepository;
+import com.accsaber.backend.service.score.ScoreIngestionService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -51,6 +52,7 @@ public class MapService {
     private final MapDifficultyComplexityService complexityService;
     private final MapDifficultyStatisticsService statisticsService;
     private final StaffUserRepository staffUserRepository;
+    private final ScoreIngestionService scoreIngestionService;
 
     public Page<MapResponse> findAll(UUID categoryId, MapDifficultyStatus status, String search, Pageable pageable) {
         boolean hasSearch = search != null && !search.isBlank();
@@ -278,6 +280,10 @@ public class MapService {
                 .active(true)
                 .build());
 
+        if (status == MapDifficultyStatus.RANKED) {
+            scoreIngestionService.refreshRankedLeaderboardIds();
+        }
+
         return toDifficultyResponse(difficulty, null, null, null);
     }
 
@@ -291,10 +297,16 @@ public class MapService {
         MapDifficulty difficulty = mapDifficultyRepository.findByIdAndActiveTrue(difficultyId)
                 .orElseThrow(() -> new ResourceNotFoundException("MapDifficulty", difficultyId));
 
+        MapDifficultyStatus oldStatus = difficulty.getStatus();
         difficulty.setStatus(request.getStatus());
         difficulty.setRankedAt(request.getStatus() == MapDifficultyStatus.RANKED ? Instant.now() : null);
         difficulty.setLastUpdatedBy(staffId);
         mapDifficultyRepository.save(difficulty);
+
+        if (oldStatus != request.getStatus()
+                && (oldStatus == MapDifficultyStatus.RANKED || request.getStatus() == MapDifficultyStatus.RANKED)) {
+            scoreIngestionService.refreshRankedLeaderboardIds();
+        }
 
         BigDecimal complexity = complexityService.findActiveComplexity(difficultyId).orElse(null);
         MapDifficultyStatisticsResponse stats = statisticsService.findActive(difficultyId).orElse(null);

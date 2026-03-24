@@ -26,6 +26,7 @@ public class BeatLeaderWebSocketListener extends WebSocketClient {
         super(serverUri);
         this.scoreIngestionService = scoreIngestionService;
         this.objectMapper = objectMapper;
+        setConnectionLostTimeout(30);
     }
 
     @Override

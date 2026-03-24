@@ -1,6 +1,7 @@
 package com.accsaber.backend.websocket;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -81,6 +82,9 @@ public class WebSocketConnectionManager implements SmartLifecycle {
                         "connected", ssListener != null && ssListener.isOpen(),
                         "lastDisconnectedAt", ssListener != null && ssListener.getLastDisconnectedAt() != null
                                 ? ssListener.getLastDisconnectedAt().toString()
+                                : "never",
+                        "lastMessageReceivedAt", ssListener != null && ssListener.getLastMessageReceivedAt() != null
+                                ? ssListener.getLastMessageReceivedAt().toString()
                                 : "never"));
     }
 
@@ -152,7 +156,14 @@ public class WebSocketConnectionManager implements SmartLifecycle {
             blReconnectMs.set(baseMs);
         }
 
-        if (!isScoreSaberConnected() && !isIntentionallyClosed(ssListener)) {
+        boolean ssStale = isScoreSaberConnected() && isScoreSaberStale();
+        if (ssStale) {
+            log.warn("ScoreSaber WebSocket connected but stale (no messages received recently) - forcing reconnect");
+            closeListener(ssListener);
+            ssListener.setIntentionalClose(false);
+        }
+
+        if ((!isScoreSaberConnected() || ssStale) && !isIntentionallyClosed(ssListener)) {
             int currentMs = ssReconnectMs.get();
             if (currentMs <= 0) {
                 log.info("ScoreSaber WebSocket disconnected - reconnecting");
@@ -164,6 +175,14 @@ public class WebSocketConnectionManager implements SmartLifecycle {
         } else if (isScoreSaberConnected()) {
             ssReconnectMs.set(baseMs);
         }
+    }
+
+    private boolean isScoreSaberStale() {
+        if (ssListener == null) return false;
+        Instant lastMsg = ssListener.getLastMessageReceivedAt();
+        if (lastMsg == null) return false;
+        long silenceMs = Instant.now().toEpochMilli() - lastMsg.toEpochMilli();
+        return silenceMs > properties.getSsStaleTimeoutMs();
     }
 
     private boolean isIntentionallyClosed(Object listener) {

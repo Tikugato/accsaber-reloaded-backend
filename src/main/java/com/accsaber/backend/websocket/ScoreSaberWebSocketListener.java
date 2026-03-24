@@ -18,6 +18,7 @@ public class ScoreSaberWebSocketListener extends WebSocketClient {
     private final ScoreIngestionService scoreIngestionService;
     private final ObjectMapper objectMapper;
     private volatile Instant lastDisconnectedAt;
+    private volatile Instant lastMessageReceivedAt;
     private volatile boolean intentionalClose = false;
 
     public ScoreSaberWebSocketListener(URI serverUri,
@@ -44,6 +45,7 @@ public class ScoreSaberWebSocketListener extends WebSocketClient {
 
     @Override
     public void onMessage(String message) {
+        lastMessageReceivedAt = Instant.now();
         if (message == null || !message.startsWith("{")) {
             return;
         }
@@ -78,6 +80,10 @@ public class ScoreSaberWebSocketListener extends WebSocketClient {
 
     public Instant getLastDisconnectedAt() {
         return lastDisconnectedAt;
+    }
+
+    public Instant getLastMessageReceivedAt() {
+        return lastMessageReceivedAt;
     }
 
     public void setIntentionalClose(boolean intentionalClose) {

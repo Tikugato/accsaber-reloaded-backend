@@ -18,6 +18,7 @@ public class PlatformProperties {
 
     private int wsReconnectIntervalMs = 10000;
     private int wsMaxReconnectIntervalMs = 60000;
+    private int ssStaleTimeoutMs = 120000;
 
     @Data
     public static class PlatformConfig {

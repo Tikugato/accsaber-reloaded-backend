@@ -373,16 +373,48 @@ public class ScoreImportService {
         return affected;
     }
 
+    private static final int SS_BACKFILL_MAX_PAGE_RETRIES = 3;
+
     private Set<Long> backfillFromScoreSaber(MapDifficulty difficulty, BigDecimal complexity,
             Map<String, UUID> modifiers) {
         Set<Long> affected = new HashSet<>();
         int page = 1;
+        int totalPages = Integer.MAX_VALUE;
+        int consecutiveFailures = 0;
 
-        while (true) {
+        while (page <= totalPages) {
             ScoreSaberScoresPage scoresPage = scoreSaberClient.getLeaderboardScores(
                     difficulty.getSsLeaderboardId(), page);
 
-            if (scoresPage == null || scoresPage.getScores() == null || scoresPage.getScores().isEmpty())
+            if (scoresPage == null || scoresPage.getScores() == null) {
+                consecutiveFailures++;
+                if (consecutiveFailures >= SS_BACKFILL_MAX_PAGE_RETRIES) {
+                    log.warn("SS backfill for difficulty {} stopped at page {} after {} consecutive failures",
+                            difficulty.getId(), page, SS_BACKFILL_MAX_PAGE_RETRIES);
+                    break;
+                }
+                log.warn("SS backfill page {} failed for difficulty {}, retrying ({}/{})",
+                        page, difficulty.getId(), consecutiveFailures, SS_BACKFILL_MAX_PAGE_RETRIES);
+                try {
+                    Thread.sleep(properties.getBackfillPageDelay() * 2L);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                continue;
+            }
+
+            consecutiveFailures = 0;
+
+            if (totalPages == Integer.MAX_VALUE && scoresPage.getMetadata() != null
+                    && scoresPage.getMetadata().getTotal() != null
+                    && scoresPage.getMetadata().getItemsPerPage() != null
+                    && scoresPage.getMetadata().getItemsPerPage() > 0) {
+                totalPages = (int) Math.ceil((double) scoresPage.getMetadata().getTotal()
+                        / scoresPage.getMetadata().getItemsPerPage());
+            }
+
+            if (scoresPage.getScores().isEmpty())
                 break;
 
             scoresPage.getScores().stream()
@@ -395,8 +427,6 @@ public class ScoreImportService {
                     .filter(Objects::nonNull)
                     .forEach(affected::add);
 
-            if (scoresPage.getScores().size() < 12)
-                break;
             page++;
 
             try {

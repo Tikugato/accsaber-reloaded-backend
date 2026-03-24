@@ -42,6 +42,7 @@ import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.staff.StaffUserRepository;
 import com.accsaber.backend.service.playlist.PlaylistService;
 import com.accsaber.backend.service.score.ScoreImportService;
+import com.accsaber.backend.service.score.ScoreIngestionService;
 import com.accsaber.backend.service.score.ScoreRecalculationService;
 
 @ExtendWith(MockitoExtension.class)
@@ -64,6 +65,9 @@ class BatchServiceTest {
 
         @Mock
         private ScoreImportService scoreImportService;
+
+        @Mock
+        private ScoreIngestionService scoreIngestionService;
 
         @Mock
         private ScoreRecalculationService scoreRecalculationService;

@@ -66,7 +66,7 @@ public class MilestoneEvaluationService {
         List<UserMilestoneLink> linksToSave = new ArrayList<>();
 
         for (Milestone milestone : toEvaluate) {
-            BigDecimal currentValue = batchResults.getOrDefault(milestone.getId(), BigDecimal.ZERO);
+            BigDecimal currentValue = batchResults.get(milestone.getId());
             UserMilestoneLink link = getOrCreateFromMap(linkMap, userId, milestone);
             link.setProgress(currentValue);
 
@@ -138,7 +138,7 @@ public class MilestoneEvaluationService {
         List<UserMilestoneLink> linksToSave = new ArrayList<>();
 
         for (Milestone milestone : uncompleted) {
-            BigDecimal currentValue = batchResults.getOrDefault(milestone.getId(), BigDecimal.ZERO);
+            BigDecimal currentValue = batchResults.get(milestone.getId());
             UserMilestoneLink link = getOrCreateFromMap(linkMap, userId, milestone);
             link.setProgress(currentValue);
 

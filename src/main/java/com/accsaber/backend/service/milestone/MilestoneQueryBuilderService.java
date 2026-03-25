@@ -508,7 +508,7 @@ public class MilestoneQueryBuilderService {
 
         Object result = query.getSingleResult();
         if (result == null)
-            return BigDecimal.ZERO;
+            return null;
         if (result instanceof BigDecimal bd)
             return bd;
         if (result instanceof Number n)
@@ -592,7 +592,9 @@ public class MilestoneQueryBuilderService {
             Milestone m = milestones.get(0);
             UUID catId = m.getCategory() != null ? m.getCategory().getId() : null;
             BigDecimal result = evaluate(m.getQuerySpec(), userId, catId);
-            return Map.of(m.getId(), result);
+            Map<UUID, BigDecimal> singleResult = new HashMap<>();
+            singleResult.put(m.getId(), result);
+            return singleResult;
         }
 
         Map<BatchKey, List<Milestone>> groups = new LinkedHashMap<>();
@@ -723,7 +725,7 @@ public class MilestoneQueryBuilderService {
 
     private BigDecimal toBigDecimal(Object value) {
         if (value == null)
-            return BigDecimal.ZERO;
+            return null;
         if (value instanceof BigDecimal bd)
             return bd;
         if (value instanceof Number n)

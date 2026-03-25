@@ -386,7 +386,7 @@ class MilestoneQueryBuilderServiceTest {
                 }
 
                 @Test
-                void nullResult_returnsBigDecimalZero() {
+                void nullResult_returnsNull() {
                         MilestoneQuerySpec spec = new MilestoneQuerySpec(
                                         new SelectSpec("MAX", "ap"),
                                         "scores",
@@ -396,7 +396,7 @@ class MilestoneQueryBuilderServiceTest {
 
                         BigDecimal result = service.evaluate(spec, 1L, null);
 
-                        assertThat(result).isEqualByComparingTo(BigDecimal.ZERO);
+                        assertThat(result).isNull();
                 }
 
                 @Test

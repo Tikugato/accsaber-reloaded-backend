@@ -46,6 +46,8 @@ Dev mode exposes all ports for local debugging:
 | Prometheus | http://localhost:9090       |
 | Grafana    | http://localhost:3000       |
 
+> Note: This project uses functions available only in PostgreSQL 18+, so don't try downgrading the image unless you know what you're doing!
+
 ### Test Data
 1. Create an administrator account via directly in the database.
 2. Manually insert some data via the ranking workflow (`/v1/ranking/maps/import`, `/v1/batches`, `/v1/batches/{id}/release`) & milestones (`/v1/admin/milestones`).

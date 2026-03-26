@@ -4,9 +4,6 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +29,7 @@ import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.player.DuplicateUserService;
 import com.accsaber.backend.service.score.APCalculationService;
+import com.accsaber.backend.util.TimeRangeUtil;
 
 import lombok.RequiredArgsConstructor;
 
@@ -152,7 +150,7 @@ public class StatisticsService {
     public List<UserCategoryStatisticsResponse> findHistoric(Long userId, String categoryCode, int amount,
             String unit) {
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
-        Instant since = ZonedDateTime.now(ZoneOffset.UTC).minus(amount, parseUnit(unit)).toInstant();
+        Instant since = TimeRangeUtil.computeSince(amount, unit);
         return statisticsRepository
                 .findHistoricDownsampled(resolved, categoryCode, since)
                 .stream()
@@ -218,16 +216,6 @@ public class StatisticsService {
         if (a == null || b == null)
             return null;
         return a - b;
-    }
-
-    private ChronoUnit parseUnit(String unit) {
-        return switch (unit.toLowerCase()) {
-            case "h" -> ChronoUnit.HOURS;
-            case "d" -> ChronoUnit.DAYS;
-            case "w" -> ChronoUnit.WEEKS;
-            case "mo" -> ChronoUnit.MONTHS;
-            default -> throw new IllegalArgumentException("Invalid time unit: " + unit + ". Use h, d, w, or mo");
-        };
     }
 
     private void recalculateWeightedAps(List<Score> scores, Category category) {

@@ -3,9 +3,7 @@ package com.accsaber.backend.service.score;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.temporal.ChronoUnit;
+import com.accsaber.backend.util.TimeRangeUtil;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -508,7 +506,7 @@ public class ScoreService {
 
         public List<ScoreResponse> findHistoric(Long userId, UUID mapDifficultyId, int amount, String unit) {
                 Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(userId);
-                Instant since = ZonedDateTime.now(ZoneOffset.UTC).minus(amount, parseUnit(unit)).toInstant();
+                Instant since = TimeRangeUtil.computeSince(amount, unit);
                 List<Score> scores = scoreRepository.findHistoricDownsampled(resolvedUserId, mapDifficultyId, since);
 
                 Map<UUID, BigDecimal> bucketXpByScoreId = scoreRepository
@@ -530,16 +528,6 @@ public class ScoreService {
                                 .toList();
         }
 
-        private ChronoUnit parseUnit(String unit) {
-                return switch (unit.toLowerCase()) {
-                        case "h" -> ChronoUnit.HOURS;
-                        case "d" -> ChronoUnit.DAYS;
-                        case "w" -> ChronoUnit.WEEKS;
-                        case "mo" -> ChronoUnit.MONTHS;
-                        default -> throw new IllegalArgumentException(
-                                        "Invalid time unit: " + unit + ". Use h, d, w, or mo");
-                };
-        }
 
         private void updateUserXp(Long userId, BigDecimal xpGained) {
                 userRepository.addXp(userId, xpGained);
@@ -685,6 +673,12 @@ public class ScoreService {
                         }
                 }
                 return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), resolved);
+        }
+
+        public ScoreResponse mapToResponse(Score s) {
+                BigDecimal accuracy = computeAccuracy(s.getScore(), s.getMapDifficulty().getMaxScore());
+                List<UUID> modifierIds = loadModifierIds(s.getId());
+                return toResponse(s, accuracy, modifierIds);
         }
 
         private ScoreResponse toResponse(Score s, BigDecimal accuracy, List<UUID> modifierIds) {

@@ -376,4 +376,78 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
         @Modifying
         @Query(value = "DELETE FROM scores WHERE id IN (:scoreIds)", nativeQuery = true)
         void hardDeleteByIds(@Param("scoreIds") List<UUID> scoreIds);
+        
+        @Query(value = """
+                        SELECT s FROM Score s
+                        JOIN FETCH s.user u
+                        JOIN FETCH s.mapDifficulty d
+                        JOIN FETCH d.map m
+                        JOIN FETCH d.category c
+                        WHERE s.streak115 IS NOT NULL
+                        AND (s.active = true OR s.supersedesReason = 'Score improved')
+                        AND u.active = true AND u.banned = false
+                        """, countQuery = """
+                        SELECT COUNT(s) FROM Score s
+                        JOIN s.user u
+                        WHERE s.streak115 IS NOT NULL
+                        AND (s.active = true OR s.supersedesReason = 'Score improved')
+                        AND u.active = true AND u.banned = false
+                        """)
+        Page<Score> findTopStreaks(Pageable pageable);
+
+        @Query(value = """
+                        SELECT s FROM Score s
+                        JOIN FETCH s.user u
+                        JOIN FETCH s.mapDifficulty d
+                        JOIN FETCH d.map m
+                        JOIN FETCH d.category c
+                        WHERE s.streak115 IS NOT NULL
+                        AND (s.active = true OR s.supersedesReason = 'Score improved')
+                        AND d.category.id = :categoryId
+                        AND u.active = true AND u.banned = false
+                        """, countQuery = """
+                        SELECT COUNT(s) FROM Score s
+                        JOIN s.user u
+                        JOIN s.mapDifficulty d
+                        WHERE s.streak115 IS NOT NULL
+                        AND (s.active = true OR s.supersedesReason = 'Score improved')
+                        AND d.category.id = :categoryId
+                        AND u.active = true AND u.banned = false
+                        """)
+        Page<Score> findTopStreaksByCategory(@Param("categoryId") UUID categoryId, Pageable pageable);
+
+        @Query(value = """
+                        SELECT s FROM Score s
+                        JOIN FETCH s.user u
+                        JOIN FETCH s.mapDifficulty d
+                        JOIN FETCH d.map m
+                        JOIN FETCH d.category c
+                        WHERE (s.active = true OR s.supersedesReason = 'Score improved')
+                        AND u.active = true AND u.banned = false
+                        """, countQuery = """
+                        SELECT COUNT(s) FROM Score s
+                        JOIN s.user u
+                        WHERE (s.active = true OR s.supersedesReason = 'Score improved')
+                        AND u.active = true AND u.banned = false
+                        """)
+        Page<Score> findTopByAp(Pageable pageable);
+
+        @Query(value = """
+                        SELECT s FROM Score s
+                        JOIN FETCH s.user u
+                        JOIN FETCH s.mapDifficulty d
+                        JOIN FETCH d.map m
+                        JOIN FETCH d.category c
+                        WHERE (s.active = true OR s.supersedesReason = 'Score improved')
+                        AND d.category.id = :categoryId
+                        AND u.active = true AND u.banned = false
+                        """, countQuery = """
+                        SELECT COUNT(s) FROM Score s
+                        JOIN s.user u
+                        JOIN s.mapDifficulty d
+                        WHERE (s.active = true OR s.supersedesReason = 'Score improved')
+                        AND d.category.id = :categoryId
+                        AND u.active = true AND u.banned = false
+                        """)
+        Page<Score> findTopByApAndCategory(@Param("categoryId") UUID categoryId, Pageable pageable);
 }

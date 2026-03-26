@@ -4,9 +4,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.temporal.ChronoUnit;
+import com.accsaber.backend.util.TimeRangeUtil;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -61,7 +59,7 @@ public class MapDifficultyStatisticsService {
     }
 
     public List<MapDifficultyStatisticsResponse> findHistoric(UUID mapDifficultyId, int amount, String unit) {
-        Instant since = ZonedDateTime.now(ZoneOffset.UTC).minus(amount, parseUnit(unit)).toInstant();
+        Instant since = TimeRangeUtil.computeSince(amount, unit);
 
         List<MapDifficultyStatistics> stats = statisticsRepository
                 .findHistoricDownsampled(mapDifficultyId, since);
@@ -146,16 +144,6 @@ public class MapDifficultyStatisticsService {
                 .ap(s.getAp())
                 .timeSet(s.getTimeSet())
                 .build();
-    }
-
-    private ChronoUnit parseUnit(String unit) {
-        return switch (unit.toLowerCase()) {
-            case "h" -> ChronoUnit.HOURS;
-            case "d" -> ChronoUnit.DAYS;
-            case "w" -> ChronoUnit.WEEKS;
-            case "mo" -> ChronoUnit.MONTHS;
-            default -> throw new IllegalArgumentException("Invalid time unit: " + unit + ". Use h, d, w, or mo");
-        };
     }
 
     static MapDifficultyStatisticsResponse toResponse(MapDifficultyStatistics s, TopScoreSnapshot topScore) {

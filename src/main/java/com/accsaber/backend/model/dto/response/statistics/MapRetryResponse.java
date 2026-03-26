@@ -1,5 +1,6 @@
 package com.accsaber.backend.model.dto.response.statistics;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import com.accsaber.backend.model.entity.map.Difficulty;
@@ -21,4 +22,6 @@ public class MapRetryResponse {
     private UUID categoryId;
     private String categoryName;
     private long supersededCount;
+    private UUID latestScoreId;
+    private Instant latestScoreTimeSet;
 }

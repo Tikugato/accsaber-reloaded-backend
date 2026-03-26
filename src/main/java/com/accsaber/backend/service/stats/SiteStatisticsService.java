@@ -71,8 +71,11 @@ public class SiteStatisticsService {
         public Page<MapAvgApResponse> getHighestAvgAp(UUID categoryId, int minScores, Pageable pageable) {
                 String sql = """
                                 SELECT d.id, d.map_id, m.song_name, m.song_author, m.map_author, m.cover_url,
-                                    d.difficulty, c.id AS cat_id, c.name AS cat_name,
-                                    AVG(s.ap) AS avg_ap, COUNT(*) AS score_count
+                                        d.difficulty, c.id AS cat_id, c.name AS cat_name,
+                                        AVG(s.ap) AS avg_ap, COUNT(*) AS score_count,
+                                        MAX(s.time_set) AS latest_time_set,
+                                        (SELECT s2.id FROM scores s2 WHERE s2.map_difficulty_id = d.id 
+                                        AND s2.active = true ORDER BY s2.time_set DESC NULLS LAST LIMIT 1) AS latest_score_id
                                 FROM scores s
                                 JOIN map_difficulties d ON d.id = s.map_difficulty_id
                                 JOIN maps m ON m.id = d.map_id
@@ -104,6 +107,8 @@ public class SiteStatisticsService {
                                 .categoryName((String) row[8])
                                 .averageAp((BigDecimal) row[9])
                                 .scoreCount(((Number) row[10]).longValue())
+                                .latestScoreTimeSet(row[11] != null ? (Instant) row[11] : null)
+                                .latestScoreId(row[12] != null ? (UUID) row[12] : null)
                                 .build());
         }
 
@@ -111,8 +116,11 @@ public class SiteStatisticsService {
         public Page<MapRetryResponse> getMostRetriedMaps(UUID categoryId, Pageable pageable) {
                 String sql = """
                                 SELECT d.id, d.map_id, m.song_name, m.song_author, m.map_author, m.cover_url,
-                                    d.difficulty, c.id AS cat_id, c.name AS cat_name,
-                                    COUNT(*) AS superseded_count
+                                        d.difficulty, c.id AS cat_id, c.name AS cat_name,
+                                        COUNT(*) AS superseded_count,
+                                        MAX(s.time_set) AS latest_time_set,
+                                        (SELECT s2.id FROM scores s2 WHERE s2.map_difficulty_id = d.id 
+                                        AND s2.active = true ORDER BY s2.time_set DESC NULLS LAST LIMIT 1) AS latest_score_id
                                 FROM scores s
                                 JOIN map_difficulties d ON d.id = s.map_difficulty_id
                                 JOIN maps m ON m.id = d.map_id
@@ -139,13 +147,18 @@ public class SiteStatisticsService {
                                 .categoryId((UUID) row[7])
                                 .categoryName((String) row[8])
                                 .supersededCount(((Number) row[9]).longValue())
+                                .latestScoreTimeSet(row[10] != null ? (Instant) row[10] : null)
+                                .latestScoreId(row[11] != null ? (UUID) row[11] : null)
                                 .build());
         }
 
         @Cacheable(value = "statistics", key = "'mostimprovements:' + #categoryId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<UserImprovementsResponse> getMostImprovements(UUID categoryId, Pageable pageable) {
                 String sql = """
-                                SELECT u.id, u.name, u.avatar_url, u.country, COUNT(*) AS improvement_count
+                                SELECT u.id, u.name, u.avatar_url, u.country, COUNT(*) AS improvement_count,
+                                        MAX(s.time_set) AS latest_time_set,
+                                        (SELECT s2.id FROM scores s2 WHERE s2.user_id = u.id AND s2.active = true 
+                                                ORDER BY s2.time_set DESC NULLS LAST LIMIT 1) AS latest_score_id
                                 FROM scores s
                                 JOIN users u ON u.id = s.user_id
                                 """;
@@ -166,6 +179,8 @@ public class SiteStatisticsService {
                                 .avatarUrl((String) row[2])
                                 .country((String) row[3])
                                 .improvementCount(((Number) row[4]).longValue())
+                                .latestScoreTimeSet(row[5] != null ? ((Instant) row[5]) : null)
+                                .latestScoreId(row[6] != null ? (UUID) row[6] : null)
                                 .build());
         }
 
@@ -175,14 +190,17 @@ public class SiteStatisticsService {
                                 SELECT u.id, u.name, u.avatar_url, u.country,
                                         d.id AS diff_id, d.map_id, m.song_name, m.song_author, m.map_author, m.cover_url,
                                         d.difficulty, c.id AS cat_id, c.name AS cat_name,
-                                        COUNT(*) AS improvement_count
+                                        COUNT(*) AS improvement_count,
+                                        MAX(s.time_set) AS latest_time_set,
+                                        (SELECT s2.id FROM scores s2 WHERE s2.user_id = u.id AND s2.map_difficulty_id = d.id 
+                                                AND s2.active = true LIMIT 1) AS latest_score_id
                                 FROM scores s
                                 JOIN users u ON u.id = s.user_id
                                 JOIN map_difficulties d ON d.id = s.map_difficulty_id
                                 JOIN maps m ON m.id = d.map_id
                                 JOIN categories c ON c.id = d.category_id
-                                WHERE s.active = false AND s.supersedes_reason = 'Score improved'
-                                    AND u.active = true AND u.banned = false
+                                WHERE s.active = false AND s.supersedes_reason = 'Score improved' 
+                                        AND u.active = true AND u.banned = false
                                 """;
                 if (categoryId != null) {
                         sql += " AND d.category_id = :categoryId";
@@ -208,6 +226,8 @@ public class SiteStatisticsService {
                                 .categoryId((UUID) row[11])
                                 .categoryName((String) row[12])
                                 .improvementCount(((Number) row[13]).longValue())
+                                .latestScoreTimeSet(row[14] != null ? ((Instant) row[14]) : null)
+                                .latestScoreId(row[15] != null ? (UUID) row[15] : null)
                                 .build());
         }
 
@@ -294,19 +314,15 @@ public class SiteStatisticsService {
         @Cacheable(value = "statistics", key = "'playersbyhmd'")
         public List<DistributionEntryResponse> getPlayersByHmd() {
                 String sql = """
-                                SELECT s.hmd, COUNT(DISTINCT s.user_id) AS cnt
-                                FROM scores s
-                                JOIN users u ON u.id = s.user_id
-                                WHERE s.active = true AND u.active = true AND u.banned = false
-                                    AND s.hmd IS NOT NULL AND s.hmd != '' AND s.hmd != '0'
-                                    AND s.id = (
-                                        SELECT s2.id FROM scores s2
-                                        WHERE s2.user_id = s.user_id AND s2.active = true
-                                        AND s2.hmd IS NOT NULL AND s2.hmd != '' AND s2.hmd != '0'
-                                        ORDER BY s2.time_set DESC NULLS LAST
-                                        LIMIT 1
-                                    )
-                                GROUP BY s.hmd
+                                SELECT hmd, COUNT(*) AS cnt FROM (
+                                        SELECT DISTINCT ON (s.user_id) s.hmd
+                                        FROM scores s
+                                        JOIN users u ON u.id = s.user_id
+                                        WHERE s.active = true AND u.active = true AND u.banned = false
+                                                AND s.hmd IS NOT NULL AND s.hmd != '' AND s.hmd != '0'
+                                        ORDER BY s.user_id, s.time_set DESC NULLS LAST
+                                ) latest
+                                GROUP BY hmd
                                 ORDER BY cnt DESC
                                 """;
                 @SuppressWarnings("unchecked")

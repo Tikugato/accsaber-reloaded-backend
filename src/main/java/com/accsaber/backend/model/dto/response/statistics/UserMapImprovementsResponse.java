@@ -1,5 +1,6 @@
 package com.accsaber.backend.model.dto.response.statistics;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import com.accsaber.backend.model.entity.map.Difficulty;
@@ -25,4 +26,6 @@ public class UserMapImprovementsResponse {
     private UUID categoryId;
     private String categoryName;
     private long improvementCount;
+    private UUID latestScoreId;
+    private Instant latestScoreTimeSet;
 }

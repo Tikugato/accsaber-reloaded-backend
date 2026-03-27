@@ -24,6 +24,8 @@ public class UserResponse {
     BigDecimal totalMilestoneSetBonusXp;
     Integer xpRanking;
     Integer xpCountryRanking;
+    int level;
+    String levelTitle;
     boolean banned;
     Instant createdAt;
 

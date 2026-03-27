@@ -17,6 +17,8 @@ import com.accsaber.backend.model.entity.user.UserNameHistory;
 import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserNameHistoryRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.model.dto.response.milestone.LevelResponse;
+import com.accsaber.backend.service.milestone.LevelService;
 import com.accsaber.backend.service.stats.OverallStatisticsService;
 import com.accsaber.backend.service.stats.RankingService;
 import com.accsaber.backend.service.stats.StatisticsService;
@@ -36,6 +38,7 @@ public class UserService {
     private final DuplicateUserService duplicateUserService;
     private final StatisticsService statisticsService;
     private final RankingService rankingService;
+    private final LevelService levelService;
     private final OverallStatisticsService overallStatisticsService;
 
     public UserResponse findByUserId(Long userId) {
@@ -158,7 +161,8 @@ public class UserService {
         return userNameHistoryRepository.findByUser_IdOrderByChangedAtDesc(resolved);
     }
 
-    private static UserResponse toResponse(User user) {
+    private UserResponse toResponse(User user) {
+        LevelResponse levelResponse = levelService.calculateLevel(user.getTotalXp());
         return UserResponse.builder()
                 .id(String.valueOf(user.getId()))
                 .name(user.getName())
@@ -166,6 +170,8 @@ public class UserService {
                 .country(user.getCountry())
                 .xpRanking(user.getXpRanking())
                 .xpCountryRanking(user.getXpCountryRanking())
+                .level(levelResponse.getLevel())
+                .levelTitle(levelResponse.getTitle())
                 .banned(user.isBanned())
                 .createdAt(user.getCreatedAt())
                 .build();

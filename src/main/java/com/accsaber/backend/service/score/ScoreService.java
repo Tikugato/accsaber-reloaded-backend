@@ -3,7 +3,6 @@ package com.accsaber.backend.service.score;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import com.accsaber.backend.util.TimeRangeUtil;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,6 +47,7 @@ import com.accsaber.backend.service.player.DuplicateUserService;
 import com.accsaber.backend.service.stats.RankingService;
 import com.accsaber.backend.service.stats.StatisticsService;
 import com.accsaber.backend.util.HmdMapper;
+import com.accsaber.backend.util.TimeRangeUtil;
 
 import lombok.RequiredArgsConstructor;
 
@@ -100,7 +100,8 @@ public class ScoreService {
                 BigDecimal rawAp = apResult.rawAP();
 
                 BigDecimal xpGained;
-                if (existing.isPresent() && rawAp.compareTo(existing.get().getAp()) <= 0) {
+                if (existing.isPresent()
+                                && request.getScoreNoMods().compareTo(existing.get().getScoreNoMods()) <= 0) {
                         xpGained = xpCalculationService.calculateXpForWorseScore();
                         Score history = buildScore(request, user, difficulty, modifiedScore, rawAp, null);
                         history.setActive(false);
@@ -199,7 +200,8 @@ public class ScoreService {
                 BigDecimal rawAp = apResult.rawAP();
 
                 BigDecimal xpGained;
-                if (existing.isPresent() && rawAp.compareTo(existing.get().getAp()) <= 0) {
+                if (existing.isPresent()
+                                && request.getScoreNoMods().compareTo(existing.get().getScoreNoMods()) <= 0) {
                         xpGained = xpCalculationService.calculateXpForWorseScore();
                         Score history = buildScore(request, user, difficulty, modifiedScore, rawAp, null);
                         history.setActive(false);

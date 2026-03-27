@@ -414,7 +414,7 @@ public class ScoreService {
                 if (difficulty.getMaxScore() == null || difficulty.getMaxScore() <= 0) {
                         throw new ValidationException("Map difficulty has no valid max score configured");
                 }
-                Pageable effective = resolveSort(pageable, Sort.by(Sort.Direction.DESC, "score"));
+                Pageable effective = resolveSort(pageable, Sort.by(Sort.Direction.ASC, "rank"));
                 return scoreRepository.findByMapDifficulty_IdAndActiveTrue(mapDifficultyId, effective)
                                 .map(s -> toResponse(s, computeAccuracy(s.getScore(), difficulty.getMaxScore()),
                                                 loadModifierIds(s.getId())));
@@ -427,7 +427,7 @@ public class ScoreService {
                 if (difficulty.getMaxScore() == null || difficulty.getMaxScore() <= 0) {
                         throw new ValidationException("Map difficulty has no valid max score configured");
                 }
-                Pageable effective = resolveSort(pageable, Sort.by(Sort.Direction.DESC, "score"));
+                Pageable effective = resolveSort(pageable, Sort.by(Sort.Direction.ASC, "rank"));
                 boolean hasCountry = country != null && !country.isBlank();
                 boolean hasSearch = search != null && !search.isBlank();
                 Page<Score> scores;

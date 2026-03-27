@@ -300,10 +300,12 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
 
         @Query(value = """
                         SELECT COUNT(*) FROM scores
-                        WHERE map_difficulty_id = :difficultyId AND active = true AND ap > :ap
+                        WHERE map_difficulty_id = :difficultyId AND active = true
+                        AND (ap > :ap OR (ap = :ap AND time_set < :timeSet))
                         """, nativeQuery = true)
-        int countActiveScoresWithHigherAp(@Param("difficultyId") UUID difficultyId,
-                        @Param("ap") java.math.BigDecimal ap);
+        int countActiveScoresRankedAbove(@Param("difficultyId") UUID difficultyId,
+                        @Param("ap") java.math.BigDecimal ap,
+                        @Param("timeSet") Instant timeSet);
 
         @Modifying
         @Query(value = """

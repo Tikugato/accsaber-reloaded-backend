@@ -127,10 +127,10 @@ public class ScoreService {
                         supersedes.setActive(false);
                         supersedes.setSupersedesReason("Score improved");
                         scoreRepository.saveAndFlush(supersedes);
-                        newRank = scoreRankingService.rankImprovedScore(difficulty.getId(), oldRank, rawAp);
+                        newRank = scoreRankingService.rankImprovedScore(difficulty.getId(), oldRank, rawAp, request.getTimeSet());
                 } else {
                         xpGained = xpCalculationService.calculateXpForNewMap(accuracy, complexity);
-                        newRank = scoreRankingService.rankNewScore(difficulty.getId(), rawAp);
+                        newRank = scoreRankingService.rankNewScore(difficulty.getId(), rawAp, request.getTimeSet());
                 }
 
                 Score newScore = buildScore(request, user, difficulty, modifiedScore, rawAp, supersedes);

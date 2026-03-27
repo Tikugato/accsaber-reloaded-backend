@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +31,7 @@ class ScoreRankingServiceTest {
     private ScoreRankingService scoreRankingService;
 
     private static final UUID DIFF_ID = UUID.randomUUID();
+    private static final Instant TIME_SET = Instant.parse("2025-06-15T12:00:00Z");
 
     @Nested
     class ReassignRanks {
@@ -48,9 +50,9 @@ class ScoreRankingServiceTest {
         @Test
         void firstScoreOnDifficulty_getsRank1() {
             BigDecimal ap = new BigDecimal("500.000000");
-            when(scoreRepository.countActiveScoresWithHigherAp(DIFF_ID, ap)).thenReturn(0);
+            when(scoreRepository.countActiveScoresRankedAbove(DIFF_ID, ap, TIME_SET)).thenReturn(0);
 
-            int rank = scoreRankingService.rankNewScore(DIFF_ID, ap);
+            int rank = scoreRankingService.rankNewScore(DIFF_ID, ap, TIME_SET);
 
             assertThat(rank).isEqualTo(1);
             verify(scoreRepository).shiftScoreRanksDown(DIFF_ID, 1);
@@ -59,9 +61,9 @@ class ScoreRankingServiceTest {
         @Test
         void scoresAboveExist_ranksBelow() {
             BigDecimal ap = new BigDecimal("300.000000");
-            when(scoreRepository.countActiveScoresWithHigherAp(DIFF_ID, ap)).thenReturn(5);
+            when(scoreRepository.countActiveScoresRankedAbove(DIFF_ID, ap, TIME_SET)).thenReturn(5);
 
-            int rank = scoreRankingService.rankNewScore(DIFF_ID, ap);
+            int rank = scoreRankingService.rankNewScore(DIFF_ID, ap, TIME_SET);
 
             assertThat(rank).isEqualTo(6);
             verify(scoreRepository).shiftScoreRanksDown(DIFF_ID, 6);
@@ -70,12 +72,12 @@ class ScoreRankingServiceTest {
         @Test
         void countsBeforeShifting() {
             BigDecimal ap = new BigDecimal("400.000000");
-            when(scoreRepository.countActiveScoresWithHigherAp(DIFF_ID, ap)).thenReturn(2);
+            when(scoreRepository.countActiveScoresRankedAbove(DIFF_ID, ap, TIME_SET)).thenReturn(2);
 
-            scoreRankingService.rankNewScore(DIFF_ID, ap);
+            scoreRankingService.rankNewScore(DIFF_ID, ap, TIME_SET);
 
             InOrder order = inOrder(scoreRepository);
-            order.verify(scoreRepository).countActiveScoresWithHigherAp(DIFF_ID, ap);
+            order.verify(scoreRepository).countActiveScoresRankedAbove(DIFF_ID, ap, TIME_SET);
             order.verify(scoreRepository).shiftScoreRanksDown(DIFF_ID, 3);
         }
     }
@@ -87,14 +89,14 @@ class ScoreRankingServiceTest {
         void closesGapThenInsertsAtNewPosition() {
             BigDecimal newAp = new BigDecimal("600.000000");
             int oldRank = 3;
-            when(scoreRepository.countActiveScoresWithHigherAp(DIFF_ID, newAp)).thenReturn(1);
+            when(scoreRepository.countActiveScoresRankedAbove(DIFF_ID, newAp, TIME_SET)).thenReturn(1);
 
-            int rank = scoreRankingService.rankImprovedScore(DIFF_ID, oldRank, newAp);
+            int rank = scoreRankingService.rankImprovedScore(DIFF_ID, oldRank, newAp, TIME_SET);
 
             assertThat(rank).isEqualTo(2);
             InOrder order = inOrder(scoreRepository);
             order.verify(scoreRepository).shiftScoreRanksUp(DIFF_ID, 3);
-            order.verify(scoreRepository).countActiveScoresWithHigherAp(DIFF_ID, newAp);
+            order.verify(scoreRepository).countActiveScoresRankedAbove(DIFF_ID, newAp, TIME_SET);
             order.verify(scoreRepository).shiftScoreRanksDown(DIFF_ID, 2);
         }
 
@@ -102,9 +104,9 @@ class ScoreRankingServiceTest {
         void improvesToFirstPlace() {
             BigDecimal newAp = new BigDecimal("999.000000");
             int oldRank = 5;
-            when(scoreRepository.countActiveScoresWithHigherAp(DIFF_ID, newAp)).thenReturn(0);
+            when(scoreRepository.countActiveScoresRankedAbove(DIFF_ID, newAp, TIME_SET)).thenReturn(0);
 
-            int rank = scoreRankingService.rankImprovedScore(DIFF_ID, oldRank, newAp);
+            int rank = scoreRankingService.rankImprovedScore(DIFF_ID, oldRank, newAp, TIME_SET);
 
             assertThat(rank).isEqualTo(1);
             InOrder order = inOrder(scoreRepository);
@@ -116,9 +118,9 @@ class ScoreRankingServiceTest {
         void staysAtSamePosition() {
             BigDecimal newAp = new BigDecimal("400.000000");
             int oldRank = 3;
-            when(scoreRepository.countActiveScoresWithHigherAp(DIFF_ID, newAp)).thenReturn(2);
+            when(scoreRepository.countActiveScoresRankedAbove(DIFF_ID, newAp, TIME_SET)).thenReturn(2);
 
-            int rank = scoreRankingService.rankImprovedScore(DIFF_ID, oldRank, newAp);
+            int rank = scoreRankingService.rankImprovedScore(DIFF_ID, oldRank, newAp, TIME_SET);
 
             assertThat(rank).isEqualTo(3);
         }

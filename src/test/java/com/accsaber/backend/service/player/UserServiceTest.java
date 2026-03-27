@@ -26,6 +26,7 @@ import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.model.entity.user.UserNameHistory;
 import com.accsaber.backend.repository.user.UserNameHistoryRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.milestone.LevelService;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -41,13 +42,19 @@ class UserServiceTest {
     @Mock
     private DuplicateUserService duplicateUserService;
 
+    @Mock
+    private LevelService levelService;
+
     @InjectMocks
     private UserService userService;
 
     @org.junit.jupiter.api.BeforeEach
-    void setUpDuplicateResolution() {
+    void setUp() {
         org.mockito.Mockito.lenient().when(duplicateUserService.resolvePrimaryUserId(org.mockito.ArgumentMatchers.any(Long.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
+        org.mockito.Mockito.lenient().when(levelService.calculateLevel(any()))
+                .thenReturn(com.accsaber.backend.model.dto.response.milestone.LevelResponse.builder()
+                        .level(0).title(null).build());
     }
 
     @Nested

@@ -27,18 +27,18 @@ public class AdminUserController {
 
     private final UserService userService;
 
-    @Operation(summary = "Ban a user", description = "Bans a user, excluding them from leaderboards and rankings. Profile remains accessible.")
+    @Operation(summary = "Ban a user", description = "Bans a user, excluding them from leaderboards and rankings. Ranking recalculation runs asynchronously. Profile remains accessible.")
     @PostMapping("/{userId}/ban")
     public ResponseEntity<Void> banUser(@PathVariable Long userId) {
         userService.setBanned(userId, true);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.accepted().build();
     }
 
-    @Operation(summary = "Unban a user", description = "Unbans a previously banned user, restoring them to leaderboards and rankings.")
+    @Operation(summary = "Unban a user", description = "Unbans a previously banned user, restoring them to leaderboards and rankings. Recalculation runs asynchronously.")
     @PostMapping("/{userId}/unban")
     public ResponseEntity<Void> unbanUser(@PathVariable Long userId) {
         userService.setBanned(userId, false);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.accepted().build();
     }
 
     @Operation(summary = "Override a user's country", description = "Sets a manual country override, preventing platform refreshes from changing it.")

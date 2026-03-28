@@ -54,15 +54,30 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         """)
         Page<Score> findActiveByUser(@Param("userId") Long userId, Pageable pageable);
 
-        Page<Score> findByMapDifficulty_IdAndActiveTrue(UUID mapDifficultyId, Pageable pageable);
+        @Query(value = """
+                        SELECT s FROM Score s
+                        JOIN s.user u
+                        WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
+                        AND u.active = true AND u.banned = false
+                        """, countQuery = """
+                        SELECT COUNT(s) FROM Score s
+                        JOIN s.user u
+                        WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
+                        AND u.active = true AND u.banned = false
+                        """)
+        Page<Score> findByMapDifficulty_IdAndActiveTrue(@Param("mapDifficultyId") UUID mapDifficultyId,
+                        Pageable pageable);
 
         @Query(value = """
                         SELECT s FROM Score s
                         JOIN FETCH s.user u
                         WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
+                        AND u.active = true AND u.banned = false
                         """, countQuery = """
                         SELECT COUNT(s) FROM Score s
+                        JOIN s.user u
                         WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
+                        AND u.active = true AND u.banned = false
                         """)
         Page<Score> findByMapDifficultyIdAndActiveTrueWithUser(
                         @Param("mapDifficultyId") UUID mapDifficultyId, Pageable pageable);
@@ -71,11 +86,13 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         SELECT s FROM Score s
                         JOIN FETCH s.user u
                         WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
+                        AND u.active = true AND u.banned = false
                         AND u.country = :country
                         """, countQuery = """
                         SELECT COUNT(s) FROM Score s
                         JOIN s.user u
                         WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
+                        AND u.active = true AND u.banned = false
                         AND u.country = :country
                         """)
         Page<Score> findByMapDifficultyIdAndActiveTrueWithUserAndCountry(
@@ -87,11 +104,13 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         SELECT s FROM Score s
                         JOIN FETCH s.user u
                         WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
+                        AND u.active = true AND u.banned = false
                         AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
                         """, countQuery = """
                         SELECT COUNT(s) FROM Score s
                         JOIN s.user u
                         WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
+                        AND u.active = true AND u.banned = false
                         AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
                         """)
         Page<Score> findByMapDifficultyIdAndActiveTrueWithUserAndSearch(
@@ -103,12 +122,14 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         SELECT s FROM Score s
                         JOIN FETCH s.user u
                         WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
+                        AND u.active = true AND u.banned = false
                         AND u.country = :country
                         AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
                         """, countQuery = """
                         SELECT COUNT(s) FROM Score s
                         JOIN s.user u
                         WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
+                        AND u.active = true AND u.banned = false
                         AND u.country = :country
                         AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
                         """)
@@ -225,9 +246,11 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
         @Modifying
         @Query(value = """
                         WITH ranked AS (
-                                SELECT id, ROW_NUMBER() OVER (ORDER BY ap DESC, time_set ASC) AS new_rank
-                                FROM scores
-                                WHERE map_difficulty_id = :difficultyId AND active = true
+                                SELECT s.id, ROW_NUMBER() OVER (ORDER BY s.ap DESC, s.time_set ASC) AS new_rank
+                                FROM scores s
+                                JOIN users u ON s.user_id = u.id
+                                WHERE s.map_difficulty_id = :difficultyId AND s.active = true
+                                AND u.active = true AND u.banned = false
                         )
                         UPDATE scores s SET rank = r.new_rank, updated_at = NOW()
                         FROM ranked r WHERE s.id = r.id
@@ -283,6 +306,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         WHERE s.mapDifficulty.id = :difficultyId
                         AND s.rankWhenSet = 1
                         AND s.createdAt >= :since
+                        AND u.active = true AND u.banned = false
                         ORDER BY s.createdAt ASC
                         """)
         List<Score> findTopOneHistory(
@@ -295,13 +319,16 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         WHERE s.mapDifficulty.id = :difficultyId
                         AND s.rank = 1
                         AND s.active = true
+                        AND u.active = true AND u.banned = false
                         """)
         Optional<Score> findCurrentTopOne(@Param("difficultyId") UUID difficultyId);
 
         @Query(value = """
-                        SELECT COUNT(*) FROM scores
-                        WHERE map_difficulty_id = :difficultyId AND active = true
-                        AND (ap > :ap OR (ap = :ap AND time_set < :timeSet))
+                        SELECT COUNT(*) FROM scores s
+                        JOIN users u ON s.user_id = u.id
+                        WHERE s.map_difficulty_id = :difficultyId AND s.active = true
+                        AND u.active = true AND u.banned = false
+                        AND (s.ap > :ap OR (s.ap = :ap AND s.time_set < :timeSet))
                         """, nativeQuery = true)
         int countActiveScoresRankedAbove(@Param("difficultyId") UUID difficultyId,
                         @Param("ap") java.math.BigDecimal ap,
@@ -378,7 +405,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
         @Modifying
         @Query(value = "DELETE FROM scores WHERE id IN (:scoreIds)", nativeQuery = true)
         void hardDeleteByIds(@Param("scoreIds") List<UUID> scoreIds);
-        
+
         @Query(value = """
                         SELECT s FROM Score s
                         JOIN FETCH s.user u

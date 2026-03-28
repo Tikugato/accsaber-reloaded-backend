@@ -5,19 +5,21 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.accsaber.backend.exception.ConflictException;
 import com.accsaber.backend.exception.ResourceNotFoundException;
+import com.accsaber.backend.model.dto.response.milestone.LevelResponse;
 import com.accsaber.backend.model.dto.response.player.UserResponse;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.model.entity.user.UserNameHistory;
 import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserNameHistoryRepository;
 import com.accsaber.backend.repository.user.UserRepository;
-import com.accsaber.backend.model.dto.response.milestone.LevelResponse;
 import com.accsaber.backend.service.milestone.LevelService;
 import com.accsaber.backend.service.stats.OverallStatisticsService;
 import com.accsaber.backend.service.stats.RankingService;
@@ -40,6 +42,10 @@ public class UserService {
     private final RankingService rankingService;
     private final LevelService levelService;
     private final OverallStatisticsService overallStatisticsService;
+
+    @Autowired
+    @Lazy
+    private UserService self;
 
     public UserResponse findByUserId(Long userId) {
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
@@ -120,9 +126,9 @@ public class UserService {
         userRepository.save(user);
 
         if (!banned) {
-            recalculateAfterUnban(userId);
+            self.recalculateAfterUnban(userId);
         } else {
-            recalculateRankingsForUser(userId);
+            self.recalculateRankingsForUser(userId);
         }
     }
 
@@ -143,7 +149,8 @@ public class UserService {
         log.info("Recalculation complete after unbanning user {}", userId);
     }
 
-    private void recalculateRankingsForUser(Long userId) {
+    @Async("rankingExecutor")
+    public void recalculateRankingsForUser(Long userId) {
         log.info("Recalculating rankings after banning user {}", userId);
         List<UUID> categoryIds = statisticsRepository.findByUser_IdAndActiveTrue(userId).stream()
                 .map(s -> s.getCategory().getId())

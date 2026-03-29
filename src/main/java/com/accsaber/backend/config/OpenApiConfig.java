@@ -28,7 +28,7 @@ public class OpenApiConfig {
                                                                 REST API for the AccSaber Reloaded platform - an accuracy-based \
                                                                 leaderboard system for Beat Saber.
                                                                 """)
-                                                .version("ALPHA-2.0.0")
+                                                .version("ALPHA-2.1.0")
                                                 .contact(new Contact()
                                                                 .name("AccSaber Reloaded")
                                                                 .url(baseUrl)))
@@ -59,6 +59,8 @@ public class OpenApiConfig {
                                                                 .description("Discord-to-player account linking and lookup"),
                                                 new Tag().name("Site Statistics")
                                                                 .description("Site-wide statistics, leaderboards (streaks, AP, retries, improvements, milestones), and chart data (time series, distributions)"),
+                                                new Tag().name("Calculate")
+                                                                .description("Calculation utilities - compute raw and weighted values from score percentage, complexity, and category"),
 
                                                 new Tag().name("Ranking - Map Import")
                                                                 .description("Import new map difficulties into the ranking queue (Ranking role)"),

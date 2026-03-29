@@ -5,13 +5,13 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.0.4</version>
+		<version>4.0.5</version>
 		<relativePath/>
 	</parent>
 
 	<groupId>com.accsaber</groupId>
 	<artifactId>backend</artifactId>
-	<version>ALPHA-1.0.0</version>
+	<version>ALPHA-2.1.0</version>
 	<name>AccSaber Reloaded Backend</name>
 	<description>REST API for Beat Saber accuracy leaderboard platform</description>
 

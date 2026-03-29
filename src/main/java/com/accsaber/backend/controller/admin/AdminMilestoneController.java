@@ -24,11 +24,16 @@ import com.accsaber.backend.model.dto.request.milestone.ActivateMilestonesReques
 import com.accsaber.backend.model.dto.request.milestone.AddMapDifficultyLinksRequest;
 import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneRequest;
 import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneSetRequest;
+import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneSetGroupRequest;
+import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneSetLinkRequest;
 import com.accsaber.backend.model.dto.request.milestone.CreatePrerequisiteLinkRequest;
 import com.accsaber.backend.model.dto.request.milestone.UpdateMilestoneRequest;
+import com.accsaber.backend.model.dto.request.milestone.UpdateMilestoneSetLinkRequest;
 import com.accsaber.backend.model.dto.request.milestone.UpdatePrerequisiteLinkRequest;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSchemaResponse;
+import com.accsaber.backend.model.dto.response.milestone.MilestoneSetGroupResponse;
+import com.accsaber.backend.model.dto.response.milestone.MilestoneSetLinkResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSetResponse;
 import com.accsaber.backend.model.dto.response.milestone.PrerequisiteLinkResponse;
 import com.accsaber.backend.model.entity.milestone.MilestoneStatus;
@@ -188,5 +193,49 @@ public class AdminMilestoneController {
     @GetMapping("/{id}/prerequisites")
     public ResponseEntity<List<PrerequisiteLinkResponse>> getPrerequisites(@PathVariable UUID id) {
         return ResponseEntity.ok(milestoneService.findPrerequisitesByMilestone(id));
+    }
+
+    @Operation(summary = "Create a milestone set group")
+    @PostMapping("/set-groups")
+    public ResponseEntity<MilestoneSetGroupResponse> createSetGroup(
+            @Valid @RequestBody CreateMilestoneSetGroupRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(milestoneService.createSetGroup(request));
+    }
+
+    @Operation(summary = "Update a milestone set group")
+    @PutMapping("/set-groups/{groupId}")
+    public ResponseEntity<MilestoneSetGroupResponse> updateSetGroup(
+            @PathVariable UUID groupId,
+            @Valid @RequestBody CreateMilestoneSetGroupRequest request) {
+        return ResponseEntity.ok(milestoneService.updateSetGroup(groupId, request));
+    }
+
+    @Operation(summary = "Deactivate a milestone set group")
+    @DeleteMapping("/set-groups/{groupId}")
+    public ResponseEntity<Void> deactivateSetGroup(@PathVariable UUID groupId) {
+        milestoneService.deactivateSetGroup(groupId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Create a set link within a group")
+    @PostMapping("/set-links")
+    public ResponseEntity<MilestoneSetLinkResponse> createSetLink(
+            @Valid @RequestBody CreateMilestoneSetLinkRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(milestoneService.createSetLink(request));
+    }
+
+    @Operation(summary = "Update a set link's sort order")
+    @PutMapping("/set-links/{linkId}")
+    public ResponseEntity<MilestoneSetLinkResponse> updateSetLink(
+            @PathVariable UUID linkId,
+            @Valid @RequestBody UpdateMilestoneSetLinkRequest request) {
+        return ResponseEntity.ok(milestoneService.updateSetLink(linkId, request));
+    }
+
+    @Operation(summary = "Deactivate a set link")
+    @DeleteMapping("/set-links/{linkId}")
+    public ResponseEntity<Void> deactivateSetLink(@PathVariable UUID linkId) {
+        milestoneService.deactivateSetLink(linkId);
+        return ResponseEntity.noContent().build();
     }
 }

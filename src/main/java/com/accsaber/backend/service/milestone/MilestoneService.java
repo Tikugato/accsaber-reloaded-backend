@@ -19,11 +19,16 @@ import com.accsaber.backend.exception.ConflictException;
 import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneRequest;
 import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneSetRequest;
+import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneSetGroupRequest;
+import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneSetLinkRequest;
 import com.accsaber.backend.model.dto.request.milestone.CreatePrerequisiteLinkRequest;
+import com.accsaber.backend.model.dto.request.milestone.UpdateMilestoneSetLinkRequest;
 import com.accsaber.backend.model.dto.request.milestone.UpdatePrerequisiteLinkRequest;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneCompletionResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneHolderResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneResponse;
+import com.accsaber.backend.model.dto.response.milestone.MilestoneSetGroupResponse;
+import com.accsaber.backend.model.dto.response.milestone.MilestoneSetLinkResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSetResponse;
 import com.accsaber.backend.model.dto.response.milestone.PrerequisiteLinkResponse;
 import com.accsaber.backend.model.dto.response.milestone.UserMilestoneProgressResponse;
@@ -34,6 +39,8 @@ import com.accsaber.backend.model.entity.milestone.Milestone;
 import com.accsaber.backend.model.entity.milestone.MilestoneCompletionStats;
 import com.accsaber.backend.model.entity.milestone.MilestonePrerequisiteLink;
 import com.accsaber.backend.model.entity.milestone.MilestoneSet;
+import com.accsaber.backend.model.entity.milestone.MilestoneSetGroup;
+import com.accsaber.backend.model.entity.milestone.MilestoneSetLink;
 import com.accsaber.backend.model.entity.milestone.MilestoneStatus;
 import com.accsaber.backend.model.entity.milestone.MilestoneTier;
 import com.accsaber.backend.model.entity.milestone.UserMilestoneLink;
@@ -45,6 +52,8 @@ import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.milestone.MilestoneCompletionStatsRepository;
 import com.accsaber.backend.repository.milestone.MilestonePrerequisiteLinkRepository;
 import com.accsaber.backend.repository.milestone.MilestoneRepository;
+import com.accsaber.backend.repository.milestone.MilestoneSetGroupRepository;
+import com.accsaber.backend.repository.milestone.MilestoneSetLinkRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
@@ -68,6 +77,8 @@ public class MilestoneService {
     private final MapDifficultyRepository mapDifficultyRepository;
     private final MapDifficultyMilestoneLinkRepository mapDifficultyMilestoneLinkRepository;
     private final MilestonePrerequisiteLinkRepository prerequisiteLinkRepository;
+    private final MilestoneSetGroupRepository setGroupRepository;
+    private final MilestoneSetLinkRepository setLinkRepository;
     private final MilestoneEvaluationService milestoneEvaluationService;
     private final MilestoneQueryBuilderService queryBuilderService;
     private final DuplicateUserService duplicateUserService;
@@ -345,6 +356,21 @@ public class MilestoneService {
         if (request.getDescription() != null) {
             milestone.setDescription(request.getDescription());
         }
+        if (request.getQuerySpec() != null) {
+            milestone.setQuerySpec(request.getQuerySpec());
+        }
+        if (request.getXp() != null) {
+            milestone.setXp(request.getXp());
+        }
+        if (request.getTier() != null) {
+            milestone.setTier(request.getTier());
+        }
+        if (request.getTargetValue() != null) {
+            milestone.setTargetValue(request.getTargetValue());
+        }
+        if (request.getComparison() != null) {
+            milestone.setComparison(request.getComparison());
+        }
         Milestone saved = milestoneRepository.save(milestone);
         MilestoneCompletionStats stats = completionStatsRepository.findByMilestoneId(id).orElse(null);
         return toResponse(saved, stats);
@@ -505,6 +531,107 @@ public class MilestoneService {
                 .prerequisiteTitle(prereq.getTitle())
                 .prerequisiteTier(prereq.getTier().name())
                 .blocker(link.isBlocker())
+                .createdAt(link.getCreatedAt())
+                .build();
+    }
+
+    // ---- Milestone Set Groups & Links ----
+
+    public List<MilestoneSetGroupResponse> findAllActiveGroups() {
+        return setGroupRepository.findByActiveTrue().stream()
+                .map(this::toSetGroupResponse)
+                .toList();
+    }
+
+    @Transactional
+    public MilestoneSetGroupResponse createSetGroup(CreateMilestoneSetGroupRequest request) {
+        MilestoneSetGroup group = MilestoneSetGroup.builder()
+                .name(request.getName())
+                .description(request.getDescription())
+                .build();
+        return toSetGroupResponse(setGroupRepository.save(group));
+    }
+
+    @Transactional
+    public MilestoneSetGroupResponse updateSetGroup(UUID groupId, CreateMilestoneSetGroupRequest request) {
+        MilestoneSetGroup group = setGroupRepository.findByIdAndActiveTrue(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("MilestoneSetGroup", groupId));
+        group.setName(request.getName());
+        group.setDescription(request.getDescription());
+        return toSetGroupResponse(setGroupRepository.save(group));
+    }
+
+    @Transactional
+    public void deactivateSetGroup(UUID groupId) {
+        MilestoneSetGroup group = setGroupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("MilestoneSetGroup", groupId));
+        group.setActive(false);
+        setGroupRepository.save(group);
+    }
+
+    @Transactional
+    public MilestoneSetLinkResponse createSetLink(CreateMilestoneSetLinkRequest request) {
+        MilestoneSetGroup group = setGroupRepository.findByIdAndActiveTrue(request.getGroupId())
+                .orElseThrow(() -> new ResourceNotFoundException("MilestoneSetGroup", request.getGroupId()));
+        MilestoneSet set = milestoneSetRepository.findByIdAndActiveTrue(request.getSetId())
+                .orElseThrow(() -> new ResourceNotFoundException("MilestoneSet", request.getSetId()));
+        if (setLinkRepository.existsByGroup_IdAndMilestoneSet_IdAndActiveTrue(group.getId(), set.getId())) {
+            throw new ConflictException("Set link already exists");
+        }
+        MilestoneSetLink link = MilestoneSetLink.builder()
+                .group(group)
+                .milestoneSet(set)
+                .sortOrder(request.getSortOrder())
+                .build();
+        return toSetLinkResponse(setLinkRepository.save(link));
+    }
+
+    @Transactional
+    public MilestoneSetLinkResponse updateSetLink(UUID linkId, UpdateMilestoneSetLinkRequest request) {
+        MilestoneSetLink link = setLinkRepository.findById(linkId)
+                .filter(MilestoneSetLink::isActive)
+                .orElseThrow(() -> new ResourceNotFoundException("MilestoneSetLink", linkId));
+        link.setSortOrder(request.getSortOrder());
+        return toSetLinkResponse(setLinkRepository.save(link));
+    }
+
+    @Transactional
+    public void deactivateSetLink(UUID linkId) {
+        MilestoneSetLink link = setLinkRepository.findById(linkId)
+                .orElseThrow(() -> new ResourceNotFoundException("MilestoneSetLink", linkId));
+        link.setActive(false);
+        setLinkRepository.save(link);
+    }
+
+    public List<MilestoneSetLinkResponse> findSetLinksByGroup(UUID groupId) {
+        return setLinkRepository.findByGroupIdWithSets(groupId).stream()
+                .map(this::toSetLinkResponse)
+                .toList();
+    }
+
+    public List<MilestoneSetLinkResponse> findSetLinksBySet(UUID setId) {
+        return setLinkRepository.findBySetIdWithGroup(setId).stream()
+                .map(this::toSetLinkResponse)
+                .toList();
+    }
+
+    private MilestoneSetGroupResponse toSetGroupResponse(MilestoneSetGroup group) {
+        return MilestoneSetGroupResponse.builder()
+                .id(group.getId())
+                .name(group.getName())
+                .description(group.getDescription())
+                .createdAt(group.getCreatedAt())
+                .build();
+    }
+
+    private MilestoneSetLinkResponse toSetLinkResponse(MilestoneSetLink link) {
+        return MilestoneSetLinkResponse.builder()
+                .id(link.getId())
+                .groupId(link.getGroup().getId())
+                .groupName(link.getGroup().getName())
+                .setId(link.getMilestoneSet().getId())
+                .setTitle(link.getMilestoneSet().getTitle())
+                .sortOrder(link.getSortOrder())
                 .createdAt(link.getCreatedAt())
                 .build();
     }

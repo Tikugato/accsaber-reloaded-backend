@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneCompletionResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneHolderResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneResponse;
+import com.accsaber.backend.model.dto.response.milestone.MilestoneSetGroupResponse;
+import com.accsaber.backend.model.dto.response.milestone.MilestoneSetLinkResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSetResponse;
 import com.accsaber.backend.model.dto.response.milestone.PrerequisiteLinkResponse;
 import com.accsaber.backend.model.entity.milestone.LevelThreshold;
@@ -77,6 +79,24 @@ public class MilestoneController {
     @GetMapping("/milestones/sets/{setId}/prerequisites")
     public ResponseEntity<List<PrerequisiteLinkResponse>> getPrerequisiteLinksBySet(@PathVariable UUID setId) {
         return ResponseEntity.ok(milestoneService.findPrerequisiteLinksBySet(setId));
+    }
+
+    @Operation(summary = "List active milestone set groups")
+    @GetMapping("/milestones/set-groups")
+    public ResponseEntity<List<MilestoneSetGroupResponse>> listSetGroups() {
+        return ResponseEntity.ok(milestoneService.findAllActiveGroups());
+    }
+
+    @Operation(summary = "Get set links for a group")
+    @GetMapping("/milestones/set-groups/{groupId}/links")
+    public ResponseEntity<List<MilestoneSetLinkResponse>> getSetLinksByGroup(@PathVariable UUID groupId) {
+        return ResponseEntity.ok(milestoneService.findSetLinksByGroup(groupId));
+    }
+
+    @Operation(summary = "Get set group links for a set")
+    @GetMapping("/milestones/sets/{setId}/groups")
+    public ResponseEntity<List<MilestoneSetLinkResponse>> getSetLinksBySet(@PathVariable UUID setId) {
+        return ResponseEntity.ok(milestoneService.findSetLinksBySet(setId));
     }
 
     @Operation(summary = "Get completion stats for all active milestones")

@@ -52,8 +52,8 @@ CREATE TABLE user_oauth_links (
     active           BOOLEAN      NOT NULL DEFAULT true,
     created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT unique_provider_user UNIQUE (provider, provider_user_id),
-    CONSTRAINT unique_user_provider UNIQUE (user_id, provider)
+    CONSTRAINT unique_user_oauth_provider_user UNIQUE (provider, provider_user_id),
+    CONSTRAINT unique_user_oauth_user_provider UNIQUE (user_id, provider)
 );
 
 CREATE INDEX idx_user_oauth_links_user ON user_oauth_links (user_id) WHERE active = true;

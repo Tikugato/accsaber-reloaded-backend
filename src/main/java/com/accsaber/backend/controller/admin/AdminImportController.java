@@ -15,12 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.accsaber.backend.model.dto.request.map.ImportMapFromLeaderboardIdsRequest;
 import com.accsaber.backend.model.dto.response.map.MapDifficultyResponse;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
-import com.accsaber.backend.model.dto.response.player.UserResponse;
-import com.accsaber.backend.scheduler.PlayerRefreshScheduler;
 import com.accsaber.backend.security.StaffUserDetails;
 import com.accsaber.backend.service.map.MapImportService;
-import com.accsaber.backend.service.player.PlayerImportService;
-import com.accsaber.backend.service.player.UserService;
 import com.accsaber.backend.service.score.ScoreImportService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,9 +33,6 @@ public class AdminImportController {
 
     private final MapImportService mapImportService;
     private final ScoreImportService scoreImportService;
-    private final PlayerImportService playerImportService;
-    private final PlayerRefreshScheduler playerRefreshScheduler;
-    private final UserService userService;
 
     @Operation(summary = "Import map by leaderboard IDs (Ranked)")
     @PostMapping("/maps")
@@ -67,17 +60,4 @@ public class AdminImportController {
         return ResponseEntity.accepted().build();
     }
 
-    @Operation(summary = "Refresh a player's profile")
-    @PostMapping("/players/{userId}/refresh")
-    public ResponseEntity<UserResponse> refreshPlayer(@PathVariable Long userId) {
-        playerImportService.refreshPlayerProfile(userId);
-        return ResponseEntity.ok(userService.findByUserId(userId));
-    }
-
-    @Operation(summary = "Refresh all player profiles")
-    @PostMapping("/players/refresh-all")
-    public ResponseEntity<Void> refreshAllPlayers() {
-        playerRefreshScheduler.refreshAllPlayersAsync();
-        return ResponseEntity.accepted().build();
-    }
 }

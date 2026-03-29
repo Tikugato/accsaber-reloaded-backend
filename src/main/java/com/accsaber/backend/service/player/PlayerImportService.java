@@ -1,5 +1,7 @@
 package com.accsaber.backend.service.player;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -89,7 +91,12 @@ public class PlayerImportService {
                                                 .or(() -> ssProfile.map(ScoreSaberPlayerResponse::getCountry))
                                                 .orElse(null);
 
-                boolean blInactive = blProfile.map(BeatLeaderPlayerResponse::isInactive).orElse(true);
+                boolean blInactive = blProfile
+                                .map(BeatLeaderPlayerResponse::getScoreStats)
+                                .map(BeatLeaderPlayerResponse.ScoreStats::getLastScoreTime)
+                                .map(epoch -> Instant.ofEpochSecond(epoch)
+                                                .isBefore(Instant.now().minus(Duration.ofDays(90))))
+                                .orElse(true);
                 boolean ssInactive = ssProfile.map(ScoreSaberPlayerResponse::isInactive).orElse(true);
                 boolean playerInactive = blInactive && ssInactive;
                 userService.updateProfile(userId, name, avatarUrl, country, playerInactive);

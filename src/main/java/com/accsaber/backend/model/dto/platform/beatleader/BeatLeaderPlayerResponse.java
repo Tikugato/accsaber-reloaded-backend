@@ -12,5 +12,11 @@ public class BeatLeaderPlayerResponse {
     private String name;
     private String avatar;
     private String country;
-    private boolean inactive;
+    private ScoreStats scoreStats;
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ScoreStats {
+        private Long lastScoreTime;
+    }
 }

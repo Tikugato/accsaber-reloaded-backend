@@ -12,4 +12,5 @@ public class BeatLeaderPlayerResponse {
     private String name;
     private String avatar;
     private String country;
+    private boolean inactive;
 }

@@ -25,7 +25,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("""
             SELECT u FROM User u
             WHERE u.active = true AND u.banned = false AND u.totalXp > 0
-            AND (:includeInactive = true OR u.ssInactive = false)
+            AND (:includeInactive = true OR u.playerInactive = false)
             ORDER BY u.totalXp DESC
             """)
     Page<User> findXpLeaderboard(@Param("includeInactive") boolean includeInactive, Pageable pageable);
@@ -34,7 +34,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
             SELECT u FROM User u
             WHERE u.active = true AND u.banned = false AND u.totalXp > 0
             AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
-            AND (:includeInactive = true OR u.ssInactive = false)
+            AND (:includeInactive = true OR u.playerInactive = false)
             ORDER BY u.totalXp DESC
             """)
     Page<User> findXpLeaderboardWithSearch(@Param("search") String search,
@@ -44,7 +44,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
             SELECT u FROM User u
             WHERE u.active = true AND u.banned = false AND u.totalXp > 0
             AND LOWER(u.country) = LOWER(:country)
-            AND (:includeInactive = true OR u.ssInactive = false)
+            AND (:includeInactive = true OR u.playerInactive = false)
             ORDER BY u.totalXp DESC
             """)
     Page<User> findXpLeaderboardByCountry(@Param("country") String country,
@@ -55,7 +55,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
             WHERE u.active = true AND u.banned = false AND u.totalXp > 0
             AND LOWER(u.country) = LOWER(:country)
             AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
-            AND (:includeInactive = true OR u.ssInactive = false)
+            AND (:includeInactive = true OR u.playerInactive = false)
             ORDER BY u.totalXp DESC
             """)
     Page<User> findXpLeaderboardByCountryWithSearch(@Param("country") String country,

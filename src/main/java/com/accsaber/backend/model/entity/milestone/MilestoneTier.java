@@ -5,5 +5,6 @@ public enum MilestoneTier {
     silver,
     gold,
     platinum,
-    diamond
+    diamond,
+    apex
 }

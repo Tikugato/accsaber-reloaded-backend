@@ -90,12 +90,12 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                         SELECT s FROM UserCategoryStatistics s
                         JOIN FETCH s.user u
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
-                        AND (:includeInactive = true OR u.ssInactive = false)
+                        AND (:includeInactive = true OR u.playerInactive = false)
                         """, countQuery = """
                         SELECT COUNT(s) FROM UserCategoryStatistics s
                         JOIN s.user u
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
-                        AND (:includeInactive = true OR u.ssInactive = false)
+                        AND (:includeInactive = true OR u.playerInactive = false)
                         """)
         Page<UserCategoryStatistics> findActiveByCategoryPaged(
                         @Param("categoryId") UUID categoryId,
@@ -107,13 +107,13 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                         JOIN FETCH s.user u
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
                         AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
-                        AND (:includeInactive = true OR u.ssInactive = false)
+                        AND (:includeInactive = true OR u.playerInactive = false)
                         """, countQuery = """
                         SELECT COUNT(s) FROM UserCategoryStatistics s
                         JOIN s.user u
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
                         AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
-                        AND (:includeInactive = true OR u.ssInactive = false)
+                        AND (:includeInactive = true OR u.playerInactive = false)
                         """)
         Page<UserCategoryStatistics> findActiveByCategoryPagedWithSearch(
                         @Param("categoryId") UUID categoryId,
@@ -126,13 +126,13 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                         JOIN FETCH s.user u
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
                         AND LOWER(u.country) = LOWER(:country)
-                        AND (:includeInactive = true OR u.ssInactive = false)
+                        AND (:includeInactive = true OR u.playerInactive = false)
                         """, countQuery = """
                         SELECT COUNT(s) FROM UserCategoryStatistics s
                         JOIN s.user u
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
                         AND LOWER(u.country) = LOWER(:country)
-                        AND (:includeInactive = true OR u.ssInactive = false)
+                        AND (:includeInactive = true OR u.playerInactive = false)
                         """)
         Page<UserCategoryStatistics> findActiveByCategoryAndCountryPaged(
                         @Param("categoryId") UUID categoryId,
@@ -146,14 +146,14 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
                         AND LOWER(u.country) = LOWER(:country)
                         AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
-                        AND (:includeInactive = true OR u.ssInactive = false)
+                        AND (:includeInactive = true OR u.playerInactive = false)
                         """, countQuery = """
                         SELECT COUNT(s) FROM UserCategoryStatistics s
                         JOIN s.user u
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
                         AND LOWER(u.country) = LOWER(:country)
                         AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
-                        AND (:includeInactive = true OR u.ssInactive = false)
+                        AND (:includeInactive = true OR u.playerInactive = false)
                         """)
         Page<UserCategoryStatistics> findActiveByCategoryAndCountryPagedWithSearch(
                         @Param("categoryId") UUID categoryId,

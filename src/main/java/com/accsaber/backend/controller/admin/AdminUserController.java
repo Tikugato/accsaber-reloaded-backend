@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.accsaber.backend.model.dto.request.user.CountryOverrideRequest;
+import com.accsaber.backend.scheduler.PlayerRefreshScheduler;
 import com.accsaber.backend.service.player.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 public class AdminUserController {
 
     private final UserService userService;
+    private final PlayerRefreshScheduler playerRefreshScheduler;
 
     @Operation(summary = "Ban a user", description = "Bans a user, excluding them from leaderboards and rankings. Ranking recalculation runs asynchronously. Profile remains accessible.")
     @PostMapping("/{userId}/ban")
@@ -54,5 +56,12 @@ public class AdminUserController {
     public ResponseEntity<Void> clearCountryOverride(@PathVariable Long userId) {
         userService.clearCountryOverride(userId);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Refresh all player profiles", description = "Triggers an async refresh of all player profiles from BeatLeader and ScoreSaber, updating names, avatars, countries, and activity status.")
+    @PostMapping("/refresh")
+    public ResponseEntity<Void> refreshAllPlayers() {
+        playerRefreshScheduler.refreshAllPlayersAsync();
+        return ResponseEntity.accepted().build();
     }
 }

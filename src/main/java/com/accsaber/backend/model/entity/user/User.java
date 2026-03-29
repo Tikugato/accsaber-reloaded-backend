@@ -58,9 +58,9 @@ public class User {
     @Builder.Default
     private boolean banned = false;
 
-    @Column(name = "ss_inactive", nullable = false)
+    @Column(name = "player_inactive", nullable = false)
     @Builder.Default
-    private boolean ssInactive = false;
+    private boolean playerInactive = false;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

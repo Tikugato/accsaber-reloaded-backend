@@ -89,8 +89,10 @@ public class PlayerImportService {
                                                 .or(() -> ssProfile.map(ScoreSaberPlayerResponse::getCountry))
                                                 .orElse(null);
 
-                Boolean ssInactive = ssProfile.map(ScoreSaberPlayerResponse::isInactive).orElse(null);
-                userService.updateProfile(userId, name, avatarUrl, country, ssInactive);
+                boolean blInactive = blProfile.map(BeatLeaderPlayerResponse::isInactive).orElse(true);
+                boolean ssInactive = ssProfile.map(ScoreSaberPlayerResponse::isInactive).orElse(true);
+                boolean playerInactive = blInactive && ssInactive;
+                userService.updateProfile(userId, name, avatarUrl, country, playerInactive);
                 log.debug("Refreshed profile for player {}", userId);
         }
 }

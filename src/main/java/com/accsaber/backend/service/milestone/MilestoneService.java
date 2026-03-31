@@ -421,10 +421,10 @@ public class MilestoneService {
     @Async("taskExecutor")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void backfillAllMilestones() {
-        List<Long> userIds = userRepository.findByActiveTrue().stream()
+        List<Long> userIds = userRepository.findByActiveTrueOrderByTotalXpDesc().stream()
                 .map(User::getId)
                 .toList();
-        log.info("Bulk milestone backfill started — {} users", userIds.size());
+        log.info("Bulk milestone backfill started — {} users (ordered by XP)", userIds.size());
         int processed = 0;
         int totalCompleted = 0;
         for (Long userId : userIds) {

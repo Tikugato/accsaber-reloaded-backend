@@ -22,6 +22,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
         List<User> findByActiveTrue();
 
+        List<User> findByActiveTrueOrderByTotalXpDesc();
+
         @Query("""
                         SELECT u FROM User u
                         WHERE u.active = true AND u.banned = false AND u.totalXp > 0

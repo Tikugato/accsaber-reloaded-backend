@@ -334,6 +334,16 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         """)
         Optional<Score> findCurrentTopOne(@Param("difficultyId") UUID difficultyId);
 
+        @Query("""
+                        SELECT s FROM Score s
+                        JOIN FETCH s.user u
+                        WHERE s.mapDifficulty.id IN :difficultyIds
+                        AND s.rank = 1
+                        AND s.active = true
+                        AND u.active = true AND u.banned = false
+                        """)
+        List<Score> findCurrentTopOnes(@Param("difficultyIds") List<UUID> difficultyIds);
+
         @Query(value = """
                         SELECT COUNT(*) FROM scores s
                         JOIN users u ON s.user_id = u.id

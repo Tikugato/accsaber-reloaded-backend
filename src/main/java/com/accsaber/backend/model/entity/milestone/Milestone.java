@@ -65,11 +65,11 @@ public class Milestone {
     @Builder.Default
     private BigDecimal xp = BigDecimal.ZERO;
 
-    @Column(name = "query_spec", nullable = false, columnDefinition = "jsonb")
+    @Column(name = "query_spec", columnDefinition = "jsonb")
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private MilestoneQuerySpec querySpec;
 
-    @Column(name = "target_value", nullable = false, precision = 20, scale = 6)
+    @Column(name = "target_value", precision = 20, scale = 6)
     private BigDecimal targetValue;
 
     @Column(nullable = false)

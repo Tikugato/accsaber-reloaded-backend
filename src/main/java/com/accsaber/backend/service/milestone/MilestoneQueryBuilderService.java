@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.MilestoneQuerySpec;
 import com.accsaber.backend.model.dto.MilestoneQuerySpec.FilterSpec;
+import com.accsaber.backend.model.dto.MilestoneQuerySpec.HavingSpec;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSchemaResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSchemaResponse.ColumnInfo;
 import com.accsaber.backend.model.entity.map.Difficulty;
@@ -131,7 +132,9 @@ public class MilestoneQueryBuilderService {
 
     private static final Set<String> OPERATORS = Set.of(">", ">=", "<", "<=", "=", "!=");
 
-    private static final Set<String> SUBQUERY_ONLY_OPERATORS = Set.of("IN", "NOT IN");
+    private static final Set<String> SUBQUERY_ONLY_OPERATORS = Set.of("IN", "NOT IN", "EXISTS", "NOT EXISTS");
+
+    private static final Set<String> TRANSFORM_FUNCTIONS = Set.of("MOD", "INTERVAL_SUBTRACT");
 
     private record TableConfig(String entity, String alias, String userIdPath,
             String categoryIdPath, String rankedStatusPath) {
@@ -169,6 +172,8 @@ public class MilestoneQueryBuilderService {
                 "MilestoneSet", "mset", null, null, null));
         TABLE_CONFIG.put("level_thresholds", new TableConfig(
                 "LevelThreshold", "lt", null, null, null));
+        TABLE_CONFIG.put("score_modifier_links", new TableConfig(
+                "ScoreModifierLink", "sml", null, null, null));
     }
 
     private static final Map<String, Map<String, ColumnDef>> COLUMN_ALLOWLIST = new LinkedHashMap<>();
@@ -196,7 +201,10 @@ public class MilestoneQueryBuilderService {
         scores.put("xp_gained", ColumnDef.bd("s.xpGained"));
         scores.put("reweight_derivative", ColumnDef.bool_("s.reweightDerivative"));
         scores.put("time_set", ColumnDef.instant("s.timeSet"));
-        scores.put("map_difficulty_id", ColumnDef.entity("s.mapDifficulty")); // COUNT_DISTINCT
+        scores.put("supersedes_id", ColumnDef.uuid("s.supersedes.id"));
+        scores.put("supersedes_reason", ColumnDef.str("s.supersedesReason"));
+        scores.put("supersedes_time_set", ColumnDef.instant("s.supersedes.timeSet"));
+        scores.put("map_difficulty_id", ColumnDef.entity("s.mapDifficulty"));
         scores.put("map_difficulty_uuid_id", ColumnDef.uuid("s.mapDifficulty.id"));
         scores.put("accuracy", ColumnDef.dbl("CAST(s.score AS Double) / s.mapDifficulty.maxScore"));
         // via user
@@ -398,6 +406,13 @@ public class MilestoneQueryBuilderService {
         lt.put("level", ColumnDef.int_("lt.level"));
         lt.put("title", ColumnDef.str("lt.title"));
         COLUMN_ALLOWLIST.put("level_thresholds", lt);
+
+        // --- score_modifier_links ---
+        Map<String, ColumnDef> sml = new LinkedHashMap<>();
+        sml.put("id", ColumnDef.uuid("sml.id"));
+        sml.put("score_id", ColumnDef.uuid("sml.score.id"));
+        sml.put("modifier_id", ColumnDef.uuid("sml.modifier.id"));
+        COLUMN_ALLOWLIST.put("score_modifier_links", sml);
     }
 
     public void validate(MilestoneQuerySpec spec) {
@@ -442,23 +457,186 @@ public class MilestoneQueryBuilderService {
                 } else if (isSubqueryOp) {
                     throw new ValidationException(
                             "Operator '" + filter.operator() + "' requires a subquery on column: " + filter.column());
+                } else if (filter.columnRef() != null) {
+                    String ref = filter.columnRef();
+                    String refCol = ref.startsWith("OUTER.") ? ref.substring(6) : ref;
+                    if (!columns.containsKey(refCol)) {
+                        throw new ValidationException("Unsupported column_ref '" + refCol +
+                                "' for table '" + spec.from() + "'");
+                    }
                 } else {
                     if (filter.value() == null) {
                         throw new ValidationException("Filter value must not be null for column: " + filter.column());
                     }
                 }
+                if (filter.transform() != null) {
+                    validateTransform(filter.transform());
+                }
+                if (filter.columnRefTransform() != null) {
+                    validateTransform(filter.columnRefTransform());
+                }
+                if ("EXISTS".equals(filter.operator()) || "NOT EXISTS".equals(filter.operator())) {
+                    if (filter.subquery() == null) {
+                        throw new ValidationException(
+                                "Operator '" + filter.operator() + "' requires a subquery");
+                    }
+                }
+            }
+        }
+        if (spec.having() != null) {
+            HavingSpec having = spec.having();
+            if (!AGGREGATE_FUNCTIONS.contains(having.function().toUpperCase())) {
+                throw new ValidationException("Unsupported having function: " + having.function());
+            }
+            if (!columns.containsKey(having.column())) {
+                throw new ValidationException("Unsupported having column '" + having.column() +
+                        "' for table '" + spec.from() + "'");
+            }
+            if (!OPERATORS.contains(having.operator())) {
+                throw new ValidationException("Unsupported having operator: " + having.operator());
+            }
+            if (having.value() == null && having.valueQuery() == null) {
+                throw new ValidationException("Having must have either value or value_query");
+            }
+            if (having.valueQuery() != null) {
+                validateSpec(having.valueQuery(), false);
+            }
+        }
+        if (spec.divisor() != null) {
+            validateSpec(spec.divisor(), false);
+        }
+        if (spec.groupBy() != null && !spec.groupBy().isEmpty()) {
+            for (var gb : spec.groupBy()) {
+                if (!columns.containsKey(gb.column())) {
+                    throw new ValidationException("Unsupported group_by column '" + gb.column() +
+                            "' for table '" + spec.from() + "'");
+                }
+                if (gb.cast() != null && !"DATE".equals(gb.cast().toUpperCase())) {
+                    throw new ValidationException("Unsupported group_by cast: " + gb.cast() + ". Allowed: DATE");
+                }
+            }
+            if (spec.outerFunction() == null) {
+                throw new ValidationException("outer_function is required when group_by is present");
+            }
+            if (!AGGREGATE_FUNCTIONS.contains(spec.outerFunction().toUpperCase())) {
+                throw new ValidationException("Unsupported outer_function: " + spec.outerFunction());
+            }
+        }
+        if (spec.orderBy() != null) {
+            for (var ob : spec.orderBy()) {
+                if (!columns.containsKey(ob.column())) {
+                    throw new ValidationException("Unsupported order_by column '" + ob.column() +
+                            "' for table '" + spec.from() + "'");
+                }
+                if (ob.direction() != null && !"ASC".equalsIgnoreCase(ob.direction())
+                        && !"DESC".equalsIgnoreCase(ob.direction())) {
+                    throw new ValidationException("Unsupported order_by direction: " + ob.direction());
+                }
+            }
+            if (spec.limit() == null) {
+                throw new ValidationException("limit is required when order_by is present");
             }
         }
     }
 
+    private void validateTransform(MilestoneQuerySpec.TransformSpec transform) {
+        if (!TRANSFORM_FUNCTIONS.contains(transform.function())) {
+            throw new ValidationException("Unsupported transform function: " + transform.function()
+                    + ". Allowed: " + TRANSFORM_FUNCTIONS);
+        }
+        if (transform.argument() == null) {
+            throw new ValidationException("Transform argument must not be null");
+        }
+    }
+
     public BigDecimal evaluate(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
+        BigDecimal mainResult = evaluateSingle(spec, userId, categoryId);
+
+        if (spec.divisor() != null) {
+            BigDecimal divisorResult = evaluateSingle(spec.divisor(), userId, categoryId);
+            if (mainResult == null || divisorResult == null
+                    || divisorResult.compareTo(BigDecimal.ZERO) == 0) {
+                return null;
+            }
+            return mainResult.divide(divisorResult, 6, java.math.RoundingMode.HALF_UP);
+        }
+
+        return mainResult;
+    }
+
+    public boolean requiresIndividualEvaluation(MilestoneQuerySpec spec) {
+        if (spec.having() != null) return true;
+        if (spec.divisor() != null) return true;
+        return requiresNativeSql(spec);
+    }
+
+    public boolean requiresNativeSql(MilestoneQuerySpec spec) {
+        if (spec.groupBy() != null && !spec.groupBy().isEmpty()) return true;
+        if (spec.orderBy() != null && !spec.orderBy().isEmpty()) return true;
+        if (spec.filters() == null) return false;
+        for (FilterSpec f : spec.filters()) {
+            if (f.columnRef() != null) return true;
+            if (f.transform() != null && "INTERVAL_SUBTRACT".equals(f.transform().function())) return true;
+            if (f.columnRefTransform() != null && "INTERVAL_SUBTRACT".equals(f.columnRefTransform().function()))
+                return true;
+            if (f.subquery() != null && requiresNativeSql(f.subquery())) return true;
+        }
+        return false;
+    }
+
+    private BigDecimal evaluateSingle(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
+        if (requiresNativeSql(spec)) {
+            return evaluateNativeSql(spec, userId, categoryId);
+        }
+
         TableConfig table = TABLE_CONFIG.get(spec.from());
         Map<String, ColumnDef> columns = COLUMN_ALLOWLIST.get(spec.from());
 
         ColumnDef selectCol = columns.get(spec.select().column());
         String fn = spec.select().function().toUpperCase();
-        String selectClause = buildSelectClause(fn, selectCol.jpqlExpr());
+        String selectExpr = buildSelectClause(fn, selectCol.jpqlExpr());
 
+        AtomicInteger paramCounter = new AtomicInteger(0);
+        List<Object[]> extraParams = new ArrayList<>();
+        List<String> conditions = buildConditions(spec, table, columns, userId, categoryId,
+                extraParams, paramCounter);
+
+        String finalSelect;
+        if (spec.having() != null) {
+            HavingSpec having = spec.having();
+            ColumnDef havingCol = columns.get(having.column());
+            String havingFn = having.function().toUpperCase();
+            String havingExpr = buildSelectClause(havingFn, havingCol.jpqlExpr());
+            String havingParam = "having" + paramCounter.getAndIncrement();
+            finalSelect = "CASE WHEN " + havingExpr + " " + having.operator() + " :" + havingParam
+                    + " THEN " + selectExpr + " ELSE NULL END";
+            Object havingValue;
+            if (having.valueQuery() != null) {
+                BigDecimal resolved = evaluateSingle(having.valueQuery(), userId, categoryId);
+                havingValue = resolved != null ? resolved : BigDecimal.ZERO;
+            } else {
+                havingValue = coerce(having.value(), havingCol);
+            }
+            extraParams.add(new Object[] { havingParam, havingValue });
+        } else {
+            finalSelect = selectExpr;
+        }
+
+        StringBuilder jpql = new StringBuilder()
+                .append("SELECT ").append(finalSelect)
+                .append(" FROM ").append(table.entity()).append(" ").append(table.alias());
+        if (!conditions.isEmpty()) {
+            jpql.append(" WHERE ").append(String.join(" AND ", conditions));
+        }
+
+        Query query = entityManager.createQuery(jpql.toString());
+        bindParameters(query, table, userId, categoryId, extraParams);
+        return toBigDecimal(query.getSingleResult());
+    }
+
+    private List<String> buildConditions(MilestoneQuerySpec spec, TableConfig table,
+            Map<String, ColumnDef> columns, Long userId, UUID categoryId,
+            List<Object[]> extraParams, AtomicInteger paramCounter) {
         List<String> conditions = new ArrayList<>();
         if (table.userIdPath() != null) {
             conditions.add(table.userIdPath() + " = :userId");
@@ -470,29 +648,36 @@ public class MilestoneQueryBuilderService {
             conditions.add(table.rankedStatusPath() + " = :rankedStatus");
         }
 
-        AtomicInteger paramCounter = new AtomicInteger(0);
-        List<Object[]> extraParams = new ArrayList<>();
         List<FilterSpec> filters = spec.filters() != null ? spec.filters() : List.of();
         for (FilterSpec filter : filters) {
             ColumnDef colDef = columns.get(filter.column());
-            if (filter.subquery() != null) {
+            String colExpr = colDef.jpqlExpr();
+            if (filter.transform() != null) {
+                colExpr = applyTransform(colExpr, filter.transform());
+            }
+            if ("EXISTS".equals(filter.operator()) || "NOT EXISTS".equals(filter.operator())) {
                 String subJpql = buildSubqueryJpql(filter.subquery(), extraParams, paramCounter, 1);
-                conditions.add(colDef.jpqlExpr() + " " + filter.operator() + " (" + subJpql + ")");
+                conditions.add(filter.operator() + " (" + subJpql + ")");
+            } else if (filter.subquery() != null) {
+                String subJpql = buildSubqueryJpql(filter.subquery(), extraParams, paramCounter, 1);
+                conditions.add(colExpr + " " + filter.operator() + " (" + subJpql + ")");
+            } else if (filter.columnRef() != null) {
+                String refExpr = resolveColumnRef(filter.columnRef(), columns, table.alias());
+                if (filter.columnRefTransform() != null) {
+                    refExpr = applyTransform(refExpr, filter.columnRefTransform());
+                }
+                conditions.add(colExpr + " " + filter.operator() + " " + refExpr);
             } else {
                 String paramName = "p" + paramCounter.getAndIncrement();
-                conditions.add(colDef.jpqlExpr() + " " + filter.operator() + " :" + paramName);
+                conditions.add(colExpr + " " + filter.operator() + " :" + paramName);
                 extraParams.add(new Object[] { paramName, coerce(filter.value(), colDef) });
             }
         }
+        return conditions;
+    }
 
-        StringBuilder jpql = new StringBuilder()
-                .append("SELECT ").append(selectClause)
-                .append(" FROM ").append(table.entity()).append(" ").append(table.alias());
-        if (!conditions.isEmpty()) {
-            jpql.append(" WHERE ").append(String.join(" AND ", conditions));
-        }
-
-        Query query = entityManager.createQuery(jpql.toString());
+    private void bindParameters(Query query, TableConfig table, Long userId, UUID categoryId,
+            List<Object[]> extraParams) {
         if (table.userIdPath() != null) {
             query.setParameter("userId", userId);
         }
@@ -505,15 +690,295 @@ public class MilestoneQueryBuilderService {
         for (Object[] binding : extraParams) {
             query.setParameter((String) binding[0], binding[1]);
         }
+    }
 
-        Object result = query.getSingleResult();
-        if (result == null)
-            return null;
-        if (result instanceof BigDecimal bd)
-            return bd;
-        if (result instanceof Number n)
-            return BigDecimal.valueOf(n.doubleValue());
-        return new BigDecimal(result.toString());
+    private String resolveColumnRef(String ref, Map<String, ColumnDef> columns, String currentAlias) {
+        ColumnDef def = columns.get(ref);
+        return def != null ? def.jpqlExpr() : ref;
+    }
+
+    private String resolveColumnRefInSubquery(String ref, Map<String, ColumnDef> columns,
+            String subAlias, int depth) {
+        if (ref.startsWith("OUTER.")) {
+            String col = ref.substring(6);
+            ColumnDef def = columns.get(col);
+            if (def == null) return ref;
+            String baseAlias = subAlias.substring(0, subAlias.indexOf('_'));
+            String outerAlias = depth == 1 ? baseAlias : baseAlias + "_" + (depth - 1);
+            return def.jpqlExpr().replace(baseAlias + ".", outerAlias + ".");
+        }
+        ColumnDef def = columns.get(ref);
+        if (def == null) return ref;
+        return def.jpqlExpr().replace(
+                subAlias.substring(0, subAlias.indexOf('_')) + ".", subAlias + ".");
+    }
+
+    private String applyTransform(String colExpr, MilestoneQuerySpec.TransformSpec transform) {
+        return switch (transform.function()) {
+            case "MOD" -> "MOD(" + colExpr + ", " + transform.argument() + ")";
+            case "INTERVAL_SUBTRACT" -> colExpr + " - INTERVAL '" + transform.argument() + "'";
+            default -> colExpr;
+        };
+    }
+
+    private static final Map<String, String> JPQL_TO_SQL = new HashMap<>();
+    static {
+        JPQL_TO_SQL.put("s.id", "s.id");
+        JPQL_TO_SQL.put("s.ap", "s.ap");
+        JPQL_TO_SQL.put("s.weightedAp", "s.weighted_ap");
+        JPQL_TO_SQL.put("s.score", "s.score");
+        JPQL_TO_SQL.put("s.scoreNoMods", "s.score_no_mods");
+        JPQL_TO_SQL.put("s.rank", "s.rank");
+        JPQL_TO_SQL.put("s.maxCombo", "s.max_combo");
+        JPQL_TO_SQL.put("s.misses", "s.misses");
+        JPQL_TO_SQL.put("s.badCuts", "s.bad_cuts");
+        JPQL_TO_SQL.put("s.wallHits", "s.wall_hits");
+        JPQL_TO_SQL.put("s.bombHits", "s.bomb_hits");
+        JPQL_TO_SQL.put("s.pauses", "s.pauses");
+        JPQL_TO_SQL.put("s.streak115", "s.streak_115");
+        JPQL_TO_SQL.put("s.playCount", "s.play_count");
+        JPQL_TO_SQL.put("s.active", "s.active");
+        JPQL_TO_SQL.put("s.timeSet", "s.time_set");
+        JPQL_TO_SQL.put("s.supersedes.id", "s.supersedes_id");
+        JPQL_TO_SQL.put("s.supersedesReason", "s.supersedes_reason");
+        JPQL_TO_SQL.put("s.supersedes.timeSet", "sup.time_set");
+        JPQL_TO_SQL.put("s.user.id", "s.user_id");
+        JPQL_TO_SQL.put("s.mapDifficulty", "s.map_difficulty_id");
+        JPQL_TO_SQL.put("s.mapDifficulty.id", "s.map_difficulty_id");
+        JPQL_TO_SQL.put("s.mapDifficulty.status", "md.status");
+        JPQL_TO_SQL.put("s.mapDifficulty.category.id", "md.category_id");
+        JPQL_TO_SQL.put("s.mapDifficulty.category.code", "c.code");
+        JPQL_TO_SQL.put("s.mapDifficulty.map.mapAuthor", "m.map_author");
+        JPQL_TO_SQL.put("s.mapDifficulty.map.songName", "m.song_name");
+        JPQL_TO_SQL.put("s.mapDifficulty.map.songHash", "m.song_hash");
+        JPQL_TO_SQL.put("s.mapDifficulty.difficulty", "md.difficulty");
+        JPQL_TO_SQL.put("s.mapDifficulty.maxScore", "md.max_score");
+        JPQL_TO_SQL.put("CAST(s.score AS Double) / s.mapDifficulty.maxScore",
+                "CAST(s.score AS DOUBLE PRECISION) / md.max_score");
+    }
+
+    private String toNativeSql(String jpqlExpr) {
+        return JPQL_TO_SQL.getOrDefault(jpqlExpr, jpqlExpr);
+    }
+
+    private BigDecimal evaluateNativeSql(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
+        TableConfig table = TABLE_CONFIG.get(spec.from());
+        Map<String, ColumnDef> columns = COLUMN_ALLOWLIST.get(spec.from());
+        ColumnDef selectCol = columns.get(spec.select().column());
+        String fn = spec.select().function().toUpperCase();
+
+        String selectExpr = buildSelectClause(fn, toNativeSql(selectCol.jpqlExpr()));
+        String fromClause = buildNativeFromClause(spec, table, columns, selectCol);
+
+        List<String> conditions = new ArrayList<>();
+        AtomicInteger paramCounter = new AtomicInteger(0);
+        List<Object[]> extraParams = new ArrayList<>();
+
+        if (table.userIdPath() != null) {
+            conditions.add(toNativeSql(table.userIdPath()) + " = :userId");
+        }
+        if (categoryId != null && table.categoryIdPath() != null) {
+            conditions.add(toNativeSql(table.categoryIdPath()) + " = :categoryId");
+        }
+        if (table.rankedStatusPath() != null) {
+            conditions.add(toNativeSql(table.rankedStatusPath()) + " = 'ranked'");
+        }
+
+        for (FilterSpec filter : spec.filters() != null ? spec.filters() : List.<FilterSpec>of()) {
+            ColumnDef colDef = columns.get(filter.column());
+            String colExpr = toNativeSql(colDef.jpqlExpr());
+            if (filter.transform() != null) {
+                colExpr = applyTransform(colExpr, filter.transform());
+            }
+            if ("EXISTS".equals(filter.operator()) || "NOT EXISTS".equals(filter.operator())) {
+                String subSql = buildNativeSubquery(filter.subquery(), columns, table.alias(),
+                        extraParams, paramCounter);
+                conditions.add(filter.operator() + " (" + subSql + ")");
+            } else if (filter.columnRef() != null) {
+                String refExpr = resolveNativeColumnRef(filter.columnRef(), columns, table.alias());
+                if (filter.columnRefTransform() != null) {
+                    refExpr = applyTransform(refExpr, filter.columnRefTransform());
+                }
+                conditions.add(colExpr + " " + filter.operator() + " " + refExpr);
+            } else {
+                String paramName = "p" + paramCounter.getAndIncrement();
+                conditions.add(colExpr + " " + filter.operator() + " :" + paramName);
+                extraParams.add(new Object[] { paramName, coerce(filter.value(), colDef) });
+            }
+        }
+
+        boolean hasGroupBy = spec.groupBy() != null && !spec.groupBy().isEmpty();
+        StringBuilder sql = new StringBuilder();
+
+        if (hasGroupBy) {
+            String outerFn = spec.outerFunction().toUpperCase();
+            List<String> groupByExprs = spec.groupBy().stream().map(gb -> {
+                String expr = toNativeSql(columns.get(gb.column()).jpqlExpr());
+                return gb.cast() != null && "DATE".equalsIgnoreCase(gb.cast())
+                        ? "CAST(" + expr + " AS DATE)"
+                        : expr;
+            }).toList();
+
+            sql.append("SELECT COALESCE(").append(outerFn).append("(agg), 0) FROM (")
+                    .append("SELECT ").append(selectExpr).append(" as agg FROM ").append(fromClause);
+            if (!conditions.isEmpty()) {
+                sql.append(" WHERE ").append(String.join(" AND ", conditions));
+            }
+            sql.append(" GROUP BY ").append(String.join(", ", groupByExprs)).append(") sub");
+        } else if (spec.orderBy() != null && !spec.orderBy().isEmpty() && spec.limit() != null) {
+            String innerCol = toNativeSql(selectCol.jpqlExpr());
+            String outerAgg = buildSelectClause(fn, "sub.val");
+            sql.append("SELECT ").append(outerAgg).append(" FROM (")
+                    .append("SELECT ").append(innerCol).append(" as val FROM ").append(fromClause);
+            if (!conditions.isEmpty()) {
+                sql.append(" WHERE ").append(String.join(" AND ", conditions));
+            }
+            sql.append(" ORDER BY ");
+            sql.append(spec.orderBy().stream().map(ob -> {
+                String expr = toNativeSql(columns.get(ob.column()).jpqlExpr());
+                return expr + (ob.direction() != null ? " " + ob.direction().toUpperCase() : "");
+            }).collect(java.util.stream.Collectors.joining(", ")));
+            sql.append(" LIMIT ").append(spec.limit());
+            sql.append(") sub");
+        } else {
+            sql.append("SELECT ").append(selectExpr).append(" FROM ").append(fromClause);
+            if (!conditions.isEmpty()) {
+                sql.append(" WHERE ").append(String.join(" AND ", conditions));
+            }
+        }
+
+        Query query = entityManager.createNativeQuery(sql.toString());
+        if (table.userIdPath() != null) {
+            query.setParameter("userId", userId);
+        }
+        if (categoryId != null && table.categoryIdPath() != null) {
+            query.setParameter("categoryId", categoryId);
+        }
+        for (Object[] binding : extraParams) {
+            query.setParameter((String) binding[0], binding[1]);
+        }
+        return toBigDecimal(query.getSingleResult());
+    }
+
+    private String resolveNativeColumnRef(String ref, Map<String, ColumnDef> columns, String alias) {
+        if (ref.startsWith("OUTER.")) {
+            String col = ref.substring(6);
+            ColumnDef def = columns.get(col);
+            return def != null ? toNativeSql(def.jpqlExpr()) : ref;
+        }
+        ColumnDef def = columns.get(ref);
+        return def != null ? toNativeSql(def.jpqlExpr()) : ref;
+    }
+
+    private String buildNativeSubquery(MilestoneQuerySpec spec, Map<String, ColumnDef> outerColumns,
+            String outerAlias, List<Object[]> extraParams, AtomicInteger paramCounter) {
+        TableConfig table = TABLE_CONFIG.get(spec.from());
+        Map<String, ColumnDef> columns = COLUMN_ALLOWLIST.get(spec.from());
+        ColumnDef selectCol = columns.get(spec.select().column());
+        String fn = spec.select().function().toUpperCase();
+
+        String subAlias = table.alias() + "2";
+        String selectExpr = buildSelectClause(fn, toNativeSql(selectCol.jpqlExpr()).replace(table.alias() + ".", subAlias + "."));
+
+        StringBuilder from = new StringBuilder(spec.from()).append(" ").append(subAlias);
+        if ("scores".equals(spec.from())) {
+            from.append(" JOIN map_difficulties md2 ON ").append(subAlias).append(".map_difficulty_id = md2.id");
+        }
+
+        List<String> conditions = new ArrayList<>();
+        if (table.userIdPath() != null) {
+            conditions.add(toNativeSql(table.userIdPath()).replace(table.alias() + ".", subAlias + ".") + " = :userId");
+        }
+        if (table.rankedStatusPath() != null) {
+            String statusExpr = toNativeSql(table.rankedStatusPath()).replace("md.", "md2.");
+            conditions.add(statusExpr + " = 'ranked'");
+        }
+
+        for (FilterSpec filter : spec.filters() != null ? spec.filters() : List.<FilterSpec>of()) {
+            ColumnDef colDef = columns.get(filter.column());
+            String colExpr = toNativeSql(colDef.jpqlExpr()).replace(table.alias() + ".", subAlias + ".").replace("md.", "md2.");
+            if (filter.transform() != null) {
+                colExpr = applyTransform(colExpr, filter.transform());
+            }
+            if (filter.columnRef() != null) {
+                String ref = filter.columnRef();
+                String refExpr;
+                if (ref.startsWith("OUTER.")) {
+                    String col = ref.substring(6);
+                    ColumnDef refDef = outerColumns.get(col);
+                    refExpr = refDef != null ? toNativeSql(refDef.jpqlExpr()) : ref;
+                } else {
+                    ColumnDef refDef = columns.get(ref);
+                    refExpr = refDef != null ? toNativeSql(refDef.jpqlExpr()).replace(table.alias() + ".", subAlias + ".") : ref;
+                }
+                if (filter.columnRefTransform() != null) {
+                    refExpr = applyTransform(refExpr, filter.columnRefTransform());
+                }
+                conditions.add(colExpr + " " + filter.operator() + " " + refExpr);
+            } else {
+                String paramName = "p" + paramCounter.getAndIncrement();
+                conditions.add(colExpr + " " + filter.operator() + " :" + paramName);
+                extraParams.add(new Object[] { paramName, coerce(filter.value(), colDef) });
+            }
+        }
+
+        StringBuilder sb = new StringBuilder()
+                .append("SELECT ").append(selectExpr).append(" FROM ").append(from);
+        if (!conditions.isEmpty()) {
+            sb.append(" WHERE ").append(String.join(" AND ", conditions));
+        }
+        return sb.toString();
+    }
+
+    private String buildNativeFromClause(MilestoneQuerySpec spec, TableConfig table,
+            Map<String, ColumnDef> columns, ColumnDef selectCol) {
+        if (!"scores".equals(spec.from())) {
+            return spec.from() + " " + table.alias();
+        }
+        StringBuilder from = new StringBuilder("scores s");
+
+        boolean needsMd = false;
+        boolean needsMap = false;
+        boolean needsCategory = false;
+        boolean needsSupersedes = false;
+
+        List<String> allJpqlExprs = new ArrayList<>();
+        allJpqlExprs.add(selectCol.jpqlExpr());
+        if (table.rankedStatusPath() != null)
+            allJpqlExprs.add(table.rankedStatusPath());
+        if (table.categoryIdPath() != null)
+            allJpqlExprs.add(table.categoryIdPath());
+        for (FilterSpec f : spec.filters() != null ? spec.filters() : List.<FilterSpec>of()) {
+            allJpqlExprs.add(columns.get(f.column()).jpqlExpr());
+        }
+        if (spec.groupBy() != null) {
+            for (var gb : spec.groupBy()) {
+                allJpqlExprs.add(columns.get(gb.column()).jpqlExpr());
+            }
+        }
+
+        for (String expr : allJpqlExprs) {
+            if (expr.contains("mapDifficulty"))
+                needsMd = true;
+            if (expr.contains(".map."))
+                needsMap = true;
+            if (expr.contains(".category."))
+                needsCategory = true;
+            if (expr.contains("supersedes"))
+                needsSupersedes = true;
+        }
+
+        if (needsMd || needsMap || needsCategory) {
+            from.append(" JOIN map_difficulties md ON s.map_difficulty_id = md.id");
+        }
+        if (needsMap)
+            from.append(" JOIN maps m ON md.map_id = m.id");
+        if (needsCategory)
+            from.append(" JOIN categories c ON md.category_id = c.id");
+        if (needsSupersedes)
+            from.append(" JOIN scores sup ON s.supersedes_id = sup.id");
+
+        return from.toString();
     }
 
     public Score findQualifyingScore(MilestoneQuerySpec spec, Long userId, UUID categoryId,
@@ -526,29 +991,10 @@ public class MilestoneQueryBuilderService {
         String fn = spec.select().function().toUpperCase();
         ColumnDef selectCol = columns.get(spec.select().column());
 
-        List<String> conditions = new ArrayList<>();
-        conditions.add(table.userIdPath() + " = :userId");
-        if (categoryId != null && table.categoryIdPath() != null) {
-            conditions.add(table.categoryIdPath() + " = :categoryId");
-        }
-        if (table.rankedStatusPath() != null) {
-            conditions.add(table.rankedStatusPath() + " = :rankedStatus");
-        }
-
         AtomicInteger paramCounter = new AtomicInteger(0);
         List<Object[]> extraParams = new ArrayList<>();
-        List<FilterSpec> filters = spec.filters() != null ? spec.filters() : List.of();
-        for (FilterSpec filter : filters) {
-            ColumnDef colDef = columns.get(filter.column());
-            if (filter.subquery() != null) {
-                String subJpql = buildSubqueryJpql(filter.subquery(), extraParams, paramCounter, 1);
-                conditions.add(colDef.jpqlExpr() + " " + filter.operator() + " (" + subJpql + ")");
-            } else {
-                String paramName = "p" + paramCounter.getAndIncrement();
-                conditions.add(colDef.jpqlExpr() + " " + filter.operator() + " :" + paramName);
-                extraParams.add(new Object[] { paramName, coerce(filter.value(), colDef) });
-            }
-        }
+        List<String> conditions = buildConditions(spec, table, columns, userId, categoryId,
+                extraParams, paramCounter);
 
         boolean isMaxMin = "MAX".equals(fn) || "MIN".equals(fn);
         if (isMaxMin) {
@@ -562,16 +1008,7 @@ public class MilestoneQueryBuilderService {
                 + " ORDER BY s.timeSet ASC";
 
         Query query = entityManager.createQuery(jpql, Score.class);
-        query.setParameter("userId", userId);
-        if (categoryId != null && table.categoryIdPath() != null) {
-            query.setParameter("categoryId", categoryId);
-        }
-        if (table.rankedStatusPath() != null) {
-            query.setParameter("rankedStatus", MapDifficultyStatus.RANKED);
-        }
-        for (Object[] binding : extraParams) {
-            query.setParameter((String) binding[0], binding[1]);
-        }
+        bindParameters(query, table, userId, categoryId, extraParams);
         query.setMaxResults(1);
 
         @SuppressWarnings("unchecked")
@@ -599,9 +1036,25 @@ public class MilestoneQueryBuilderService {
 
         Map<BatchKey, List<Milestone>> groups = new LinkedHashMap<>();
         for (Milestone m : milestones) {
+            MilestoneQuerySpec qs = m.getQuerySpec();
             UUID catId = m.getCategory() != null ? m.getCategory().getId() : null;
-            String filterSig = computeFilterSignature(m.getQuerySpec().filters());
-            BatchKey key = new BatchKey(m.getQuerySpec().from(), catId, filterSig);
+            String filterSig = computeFilterSignature(qs.filters());
+            if (qs.having() != null) {
+                filterSig += "|HAVING:" + qs.having().function() + "," + qs.having().column() + ","
+                        + qs.having().operator() + "," + qs.having().value();
+            }
+            if (qs.divisor() != null) {
+                filterSig += "|DIV:" + qs.divisor().from() + "," + qs.divisor().select().function()
+                        + "," + qs.divisor().select().column()
+                        + "," + computeFilterSignature(qs.divisor().filters());
+            }
+            if (qs.groupBy() != null && !qs.groupBy().isEmpty()) {
+                filterSig += "|GB:" + qs.groupBy().stream()
+                        .map(gb -> gb.column() + (gb.cast() != null ? ":" + gb.cast() : ""))
+                        .collect(java.util.stream.Collectors.joining(","))
+                        + "|OF:" + qs.outerFunction();
+            }
+            BatchKey key = new BatchKey(qs.from(), catId, filterSig);
             groups.computeIfAbsent(key, k -> new ArrayList<>()).add(m);
         }
 
@@ -633,31 +1086,10 @@ public class MilestoneQueryBuilderService {
 
         MilestoneQuerySpec referenceSpec = milestones.get(0).getQuerySpec();
 
-        List<String> conditions = new ArrayList<>();
-        if (table.userIdPath() != null) {
-            conditions.add(table.userIdPath() + " = :userId");
-        }
-        if (key.categoryId() != null && table.categoryIdPath() != null) {
-            conditions.add(table.categoryIdPath() + " = :categoryId");
-        }
-        if (table.rankedStatusPath() != null) {
-            conditions.add(table.rankedStatusPath() + " = :rankedStatus");
-        }
-
         AtomicInteger paramCounter = new AtomicInteger(0);
         List<Object[]> extraParams = new ArrayList<>();
-        List<FilterSpec> filters = referenceSpec.filters() != null ? referenceSpec.filters() : List.of();
-        for (FilterSpec filter : filters) {
-            ColumnDef colDef = columns.get(filter.column());
-            if (filter.subquery() != null) {
-                String subJpql = buildSubqueryJpql(filter.subquery(), extraParams, paramCounter, 1);
-                conditions.add(colDef.jpqlExpr() + " " + filter.operator() + " (" + subJpql + ")");
-            } else {
-                String paramName = "p" + paramCounter.getAndIncrement();
-                conditions.add(colDef.jpqlExpr() + " " + filter.operator() + " :" + paramName);
-                extraParams.add(new Object[] { paramName, coerce(filter.value(), colDef) });
-            }
-        }
+        List<String> conditions = buildConditions(referenceSpec, table, columns, userId, key.categoryId(),
+                extraParams, paramCounter);
 
         StringBuilder jpql = new StringBuilder()
                 .append("SELECT ").append(String.join(", ", selectClauses))
@@ -667,18 +1099,7 @@ public class MilestoneQueryBuilderService {
         }
 
         Query query = entityManager.createQuery(jpql.toString());
-        if (table.userIdPath() != null) {
-            query.setParameter("userId", userId);
-        }
-        if (key.categoryId() != null && table.categoryIdPath() != null) {
-            query.setParameter("categoryId", key.categoryId());
-        }
-        if (table.rankedStatusPath() != null) {
-            query.setParameter("rankedStatus", MapDifficultyStatus.RANKED);
-        }
-        for (Object[] binding : extraParams) {
-            query.setParameter((String) binding[0], binding[1]);
-        }
+        bindParameters(query, table, userId, key.categoryId(), extraParams);
 
         Object rawResult = query.getSingleResult();
 
@@ -764,9 +1185,21 @@ public class MilestoneQueryBuilderService {
         for (FilterSpec filter : filters) {
             ColumnDef colDef = columns.get(filter.column());
             String colExpr = rewrite.apply(colDef.jpqlExpr());
-            if (filter.subquery() != null) {
+            if (filter.transform() != null) {
+                colExpr = applyTransform(colExpr, filter.transform());
+            }
+            if ("EXISTS".equals(filter.operator()) || "NOT EXISTS".equals(filter.operator())) {
+                String innerJpql = buildSubqueryJpql(filter.subquery(), extraParams, paramCounter, depth + 1);
+                conditions.add(filter.operator() + " (" + innerJpql + ")");
+            } else if (filter.subquery() != null) {
                 String innerJpql = buildSubqueryJpql(filter.subquery(), extraParams, paramCounter, depth + 1);
                 conditions.add(colExpr + " " + filter.operator() + " (" + innerJpql + ")");
+            } else if (filter.columnRef() != null) {
+                String refExpr = resolveColumnRefInSubquery(filter.columnRef(), columns, alias, depth);
+                if (filter.columnRefTransform() != null) {
+                    refExpr = applyTransform(refExpr, filter.columnRefTransform());
+                }
+                conditions.add(colExpr + " " + filter.operator() + " " + refExpr);
             } else {
                 String paramName = "p" + paramCounter.getAndIncrement();
                 conditions.add(colExpr + " " + filter.operator() + " :" + paramName);

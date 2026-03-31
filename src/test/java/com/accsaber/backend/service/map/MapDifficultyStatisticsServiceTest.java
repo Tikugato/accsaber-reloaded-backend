@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -89,6 +90,8 @@ class MapDifficultyStatisticsServiceTest {
                                                         new BigDecimal("400"), 3, true));
                         when(statisticsRepository.findActiveByMapDifficultyIdIn(List.of(id1, id2)))
                                         .thenReturn(statsList);
+                        when(scoreRepository.findCurrentTopOnes(List.of(id1, id2)))
+                                        .thenReturn(Collections.emptyList());
 
                         Map<UUID, MapDifficultyStatisticsResponse> result = statisticsService
                                         .findActiveForDifficulties(List.of(id1, id2));

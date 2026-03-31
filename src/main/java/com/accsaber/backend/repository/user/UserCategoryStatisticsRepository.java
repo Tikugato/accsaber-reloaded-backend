@@ -27,17 +27,39 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                 WHERE ucs.user_id = :userId AND c.code = :categoryCode
                 AND ucs.created_at > GREATEST(CAST(:since AS timestamptz), NOW() - INTERVAL '24 hours')
                 UNION ALL
-                SELECT ucs.* FROM user_category_statistics ucs
+                SELECT ucs.id, ucs.user_id, ucs.category_id,
+                    picked.best_ranking AS ranking,
+                    picked.best_country_ranking AS country_ranking,
+                    ucs.ap, ucs.average_acc, ucs.average_ap, ucs.score_xp,
+                    ucs.ranked_plays, ucs.top_play_id, ucs.supersedes_id,
+                    ucs.supersedes_reason, ucs.supersedes_author, ucs.active,
+                    ucs.created_at, ucs.updated_at
+                FROM user_category_statistics ucs
                 INNER JOIN (
-                    SELECT sub.id FROM (
-                        SELECT id, ROW_NUMBER() OVER (
-                            PARTITION BY date_trunc(
-                                CASE WHEN CAST(:since AS timestamptz) < NOW() - INTERVAL '65 days'
-                                    THEN 'week' ELSE 'day' END,
-                                created_at
-                            )
-                            ORDER BY created_at DESC
-                        ) AS rn
+                    SELECT sub.id, sub.best_ranking, sub.best_country_ranking FROM (
+                        SELECT id,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY date_trunc(
+                                    CASE WHEN CAST(:since AS timestamptz) < NOW() - INTERVAL '65 days'
+                                        THEN 'week' ELSE 'day' END,
+                                    created_at
+                                )
+                                ORDER BY created_at DESC
+                            ) AS rn,
+                            MIN(ranking) OVER (
+                                PARTITION BY date_trunc(
+                                    CASE WHEN CAST(:since AS timestamptz) < NOW() - INTERVAL '65 days'
+                                        THEN 'week' ELSE 'day' END,
+                                    created_at
+                                )
+                            ) AS best_ranking,
+                            MIN(country_ranking) OVER (
+                                PARTITION BY date_trunc(
+                                    CASE WHEN CAST(:since AS timestamptz) < NOW() - INTERVAL '65 days'
+                                        THEN 'week' ELSE 'day' END,
+                                    created_at
+                                )
+                            ) AS best_country_ranking
                         FROM user_category_statistics
                         WHERE user_id = :userId
                         AND category_id = (SELECT id FROM categories WHERE code = :categoryCode)

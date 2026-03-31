@@ -836,5 +836,310 @@ class MilestoneQueryBuilderServiceTest {
                                         "accuracy", "map_difficulty_status", "map_difficulty_difficulty",
                                         "song_name", "song_author", "map_author", "category_name", "category_code");
                 }
+
+                @Test
+                void scoreModifierLinksTable_isExposed() {
+                        MilestoneSchemaResponse schema = service.getSchema();
+                        assertThat(schema.tables()).containsKey("score_modifier_links");
+                        List<String> colNames = schema.tables().get("score_modifier_links").stream()
+                                        .map(MilestoneSchemaResponse.ColumnInfo::name)
+                                        .toList();
+                        assertThat(colNames).contains("id", "score_id", "modifier_id");
+                }
+
+                @Test
+                void supersedes_columnsExposedInScores() {
+                        MilestoneSchemaResponse schema = service.getSchema();
+                        List<String> scoreColNames = schema.tables().get("scores").stream()
+                                        .map(MilestoneSchemaResponse.ColumnInfo::name)
+                                        .toList();
+                        assertThat(scoreColNames).contains("supersedes_id", "supersedes_time_set");
+                }
         }
+
+        @Nested
+        class ValidateHaving {
+
+                @Test
+                void validHaving_passesValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("AVG", "accuracy"),
+                                        "scores",
+                                        List.of(new FilterSpec("active", "=", true)),
+                                        new MilestoneQuerySpec.HavingSpec("COUNT", "rank", ">=", 20),
+                                        null, null, null, null, null);
+
+                        service.validate(spec);
+                }
+
+                @Test
+                void invalidHavingFunction_throwsValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("AVG", "accuracy"),
+                                        "scores",
+                                        null,
+                                        new MilestoneQuerySpec.HavingSpec("DELETE", "id", ">=", 20),
+                                        null, null, null, null, null);
+
+                        assertThatThrownBy(() -> service.validate(spec))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("Unsupported having function");
+                }
+
+                @Test
+                void invalidHavingColumn_throwsValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("AVG", "accuracy"),
+                                        "scores",
+                                        null,
+                                        new MilestoneQuerySpec.HavingSpec("COUNT", "nonexistent", ">=", 20),
+                                        null, null, null, null, null);
+
+                        assertThatThrownBy(() -> service.validate(spec))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("Unsupported having column");
+                }
+
+                @Test
+                void havingGeneratesCaseWhenJpql() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("AVG", "accuracy"),
+                                        "scores",
+                                        List.of(new FilterSpec("active", "=", true)),
+                                        new MilestoneQuerySpec.HavingSpec("COUNT", "rank", ">=", 20),
+                                        null, null, null, null, null);
+
+                        when(mockQuery.getSingleResult()).thenReturn(0.95);
+
+                        service.evaluate(spec, 1L, null);
+
+                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
+                        verify(entityManager).createQuery(jpqlCaptor.capture());
+                        String jpql = jpqlCaptor.getValue();
+                        assertThat(jpql).contains("CASE WHEN COUNT(s.rank) >=");
+                        assertThat(jpql).contains("THEN AVG(");
+                        assertThat(jpql).contains("ELSE NULL END");
+                }
+        }
+
+        @Nested
+        class ValidateDivisor {
+
+                @Test
+                void validDivisor_passesValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT_DISTINCT", "map_difficulty_id"),
+                                        "scores",
+                                        List.of(new FilterSpec("active", "=", true)),
+                                        null,
+                                        new MilestoneQuerySpec(
+                                                        new SelectSpec("COUNT", "id"),
+                                                        "map_difficulties",
+                                                        List.of(new FilterSpec("active", "=", true))),
+                                        null, null, null, null);
+
+                        service.validate(spec);
+                }
+
+                @Test
+                void divisorWithInvalidTable_throwsValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        null,
+                                        null,
+                                        new MilestoneQuerySpec(
+                                                        new SelectSpec("COUNT", "id"),
+                                                        "staff_users",
+                                                        null),
+                                        null, null, null, null);
+
+                        assertThatThrownBy(() -> service.validate(spec))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("Unsupported table");
+                }
+        }
+
+        @Nested
+        class ValidateTransform {
+
+                @Test
+                void modTransform_passesValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        List.of(new FilterSpec("score", "=", 115, null,
+                                                        new MilestoneQuerySpec.TransformSpec("MOD", 1000))));
+
+                        service.validate(spec);
+                }
+
+                @Test
+                void intervalSubtractTransform_passesValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        List.of(new FilterSpec("supersedes_time_set", "<", "2024-01-01T00:00:00Z", null,
+                                                        new MilestoneQuerySpec.TransformSpec("INTERVAL_SUBTRACT",
+                                                                        "90 days"))));
+
+                        service.validate(spec);
+                }
+
+                @Test
+                void unknownTransformFunction_throwsValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        List.of(new FilterSpec("score", "=", 1, null,
+                                                        new MilestoneQuerySpec.TransformSpec("SQRT", 2))));
+
+                        assertThatThrownBy(() -> service.validate(spec))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("Unsupported transform function");
+                }
+
+                @Test
+                void modTransform_generatesCorrectJpql() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        List.of(new FilterSpec("score", "=", 115, null,
+                                                        new MilestoneQuerySpec.TransformSpec("MOD", 1000))));
+
+                        when(mockQuery.getSingleResult()).thenReturn(1L);
+
+                        service.evaluate(spec, 1L, null);
+
+                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
+                        verify(entityManager).createQuery(jpqlCaptor.capture());
+                        assertThat(jpqlCaptor.getValue()).contains("MOD(s.score, 1000)");
+                }
+        }
+
+        @Nested
+        class ValidateGroupBy {
+
+                @Test
+                void validGroupBy_passesValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        List.of(new FilterSpec("active", "=", true)),
+                                        null, null,
+                                        List.of(new MilestoneQuerySpec.GroupBySpec("map_difficulty_id")),
+                                        "MAX", null, null);
+
+                        service.validate(spec);
+                }
+
+                @Test
+                void groupByWithDateCast_passesValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT_DISTINCT", "map_difficulty_id"),
+                                        "scores",
+                                        null, null, null,
+                                        List.of(new MilestoneQuerySpec.GroupBySpec("time_set", "DATE")),
+                                        "MAX", null, null);
+
+                        service.validate(spec);
+                }
+
+                @Test
+                void groupByWithoutOuterFunction_throwsValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        null, null, null,
+                                        List.of(new MilestoneQuerySpec.GroupBySpec("map_difficulty_id")),
+                                        null, null, null);
+
+                        assertThatThrownBy(() -> service.validate(spec))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("outer_function is required");
+                }
+
+                @Test
+                void groupByWithInvalidColumn_throwsValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        null, null, null,
+                                        List.of(new MilestoneQuerySpec.GroupBySpec("nonexistent")),
+                                        "MAX", null, null);
+
+                        assertThatThrownBy(() -> service.validate(spec))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("Unsupported group_by column");
+                }
+
+                @Test
+                void groupByWithInvalidCast_throwsValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        null, null, null,
+                                        List.of(new MilestoneQuerySpec.GroupBySpec("time_set", "FLOAT")),
+                                        "MAX", null, null);
+
+                        assertThatThrownBy(() -> service.validate(spec))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("Unsupported group_by cast");
+                }
+        }
+
+        @Nested
+        class ValidateExistsOperator {
+
+                @Test
+                void notExistsWithSubquery_passesValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        List.of(new FilterSpec("id", "NOT EXISTS", null,
+                                                        new MilestoneQuerySpec(
+                                                                        new SelectSpec("COUNT", "id"),
+                                                                        "scores",
+                                                                        List.of(new FilterSpec("active", "=", true))))));
+
+                        service.validate(spec);
+                }
+
+                @Test
+                void notExistsWithoutSubquery_throwsValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        List.of(new FilterSpec("id", "NOT EXISTS", null)));
+
+                        assertThatThrownBy(() -> service.validate(spec))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("requires a subquery");
+                }
+
+                @Test
+                void notExistsGeneratesCorrectJpql() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        List.of(new FilterSpec("active", "=", true),
+                                                        new FilterSpec("id", "NOT EXISTS", null,
+                                                                        new MilestoneQuerySpec(
+                                                                                        new SelectSpec("COUNT", "id"),
+                                                                                        "scores",
+                                                                                        List.of(new FilterSpec("active",
+                                                                                                        "=",
+                                                                                                        true))))));
+
+                        when(mockQuery.getSingleResult()).thenReturn(0L);
+
+                        service.evaluate(spec, 1L, null);
+
+                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
+                        verify(entityManager).createQuery(jpqlCaptor.capture());
+                        String jpql = jpqlCaptor.getValue();
+                        assertThat(jpql).contains("NOT EXISTS (SELECT COUNT(s_1.id)");
+                }
+        }
+
 }

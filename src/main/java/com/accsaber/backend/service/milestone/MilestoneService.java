@@ -433,7 +433,7 @@ public class MilestoneService {
                 totalCompleted += evaluation.completedMilestones().size();
                 awardMilestoneXp(userId, evaluation);
             } catch (Exception e) {
-                log.error("Bulk backfill failed for user {}: {}", userId, e.getMessage());
+                log.error("Bulk backfill failed for user {}: {}", userId, e.getMessage(), e);
             }
             processed++;
             if (processed % 10000 == 0) {

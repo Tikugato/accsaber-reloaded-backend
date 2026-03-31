@@ -52,10 +52,15 @@ public class MapDifficultyStatisticsService {
     }
 
     public Map<UUID, MapDifficultyStatisticsResponse> findActiveForDifficulties(List<UUID> difficultyIds) {
+        Map<UUID, TopScoreSnapshot> topScores = scoreRepository.findCurrentTopOnes(difficultyIds).stream()
+                .collect(Collectors.toMap(
+                        s -> s.getMapDifficulty().getId(),
+                        this::toTopScoreSnapshot));
+
         return statisticsRepository.findActiveByMapDifficultyIdIn(difficultyIds).stream()
                 .collect(Collectors.toMap(
                         s -> s.getMapDifficulty().getId(),
-                        s -> toResponse(s, null)));
+                        s -> toResponse(s, topScores.get(s.getMapDifficulty().getId()))));
     }
 
     public List<MapDifficultyStatisticsResponse> findHistoric(UUID mapDifficultyId, int amount, String unit) {

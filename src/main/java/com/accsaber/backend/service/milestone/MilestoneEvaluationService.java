@@ -3,6 +3,7 @@ package com.accsaber.backend.service.milestone;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +60,7 @@ public class MilestoneEvaluationService {
         if (toEvaluate.isEmpty())
             return new EvaluationResult(List.of(), List.of());
 
-        Map<UUID, BigDecimal> batchResults = queryBuilderService.evaluateBatch(toEvaluate, userId);
+        Map<UUID, BigDecimal> batchResults = evaluateAll(toEvaluate, userId);
         Map<UUID, UserMilestoneLink> linkMap = loadLinkMap(userId, toEvaluate);
 
         List<Milestone> newlyCompleted = new ArrayList<>();
@@ -72,7 +73,7 @@ public class MilestoneEvaluationService {
 
             if (isCompleted(milestone, currentValue) && !link.isCompleted()) {
                 link.setCompleted(true);
-                link.setCompletedAt(newScore.getTimeSet() != null ? newScore.getTimeSet() : Instant.now());
+                link.setCompletedAt(resolveCompletionTime(newScore));
                 link.setAchievedWithScore(newScore);
                 newlyCompleted.add(milestone);
             }
@@ -94,18 +95,22 @@ public class MilestoneEvaluationService {
         }
 
         UUID categoryId = milestone.getCategory() != null ? milestone.getCategory().getId() : null;
-        BigDecimal currentValue = queryBuilderService.evaluate(milestone.getQuerySpec(), userId, categoryId);
+        BigDecimal currentValue = evaluateMilestone(milestone, userId, categoryId);
         link.setProgress(currentValue);
 
         boolean newlyCompleted = isCompleted(milestone, currentValue);
         if (newlyCompleted) {
             link.setCompleted(true);
-            Score qualifying = queryBuilderService.findQualifyingScore(
-                    milestone.getQuerySpec(), userId, categoryId,
-                    milestone.getTargetValue(), milestone.getComparison());
+            Score qualifying = null;
+            if (milestone.getQuerySpec() != null
+                    && !queryBuilderService.requiresIndividualEvaluation(milestone.getQuerySpec())) {
+                qualifying = queryBuilderService.findQualifyingScore(
+                        milestone.getQuerySpec(), userId, categoryId,
+                        milestone.getTargetValue(), milestone.getComparison());
+            }
             if (qualifying != null) {
                 link.setAchievedWithScore(qualifying);
-                link.setCompletedAt(qualifying.getTimeSet() != null ? qualifying.getTimeSet() : Instant.now());
+                link.setCompletedAt(resolveCompletionTime(qualifying));
             } else {
                 link.setCompletedAt(Instant.now());
             }
@@ -131,7 +136,7 @@ public class MilestoneEvaluationService {
         if (uncompleted.isEmpty())
             return new EvaluationResult(List.of(), List.of());
 
-        Map<UUID, BigDecimal> batchResults = queryBuilderService.evaluateBatch(uncompleted, userId);
+        Map<UUID, BigDecimal> batchResults = evaluateAll(uncompleted, userId);
         Map<UUID, UserMilestoneLink> linkMap = loadLinkMap(userId, uncompleted);
 
         List<Milestone> newlyCompleted = new ArrayList<>();
@@ -145,13 +150,16 @@ public class MilestoneEvaluationService {
             if (isCompleted(milestone, currentValue) && !link.isCompleted()) {
                 link.setCompleted(true);
                 UUID catId = milestone.getCategory() != null ? milestone.getCategory().getId() : null;
-                Score qualifying = queryBuilderService.findQualifyingScore(
-                        milestone.getQuerySpec(), userId, catId,
-                        milestone.getTargetValue(), milestone.getComparison());
+                Score qualifying = null;
+                if (milestone.getQuerySpec() != null
+                        && !queryBuilderService.requiresIndividualEvaluation(milestone.getQuerySpec())) {
+                    qualifying = queryBuilderService.findQualifyingScore(
+                            milestone.getQuerySpec(), userId, catId,
+                            milestone.getTargetValue(), milestone.getComparison());
+                }
                 if (qualifying != null) {
                     link.setAchievedWithScore(qualifying);
-                    link.setCompletedAt(
-                            qualifying.getTimeSet() != null ? qualifying.getTimeSet() : Instant.now());
+                    link.setCompletedAt(resolveCompletionTime(qualifying));
                 } else {
                     link.setCompletedAt(Instant.now());
                 }
@@ -165,6 +173,32 @@ public class MilestoneEvaluationService {
 
         List<MilestoneSet> completedSets = claimEligibleSetBonuses(userId, newlyCompleted);
         return new EvaluationResult(newlyCompleted, completedSets);
+    }
+
+    private BigDecimal evaluateMilestone(Milestone milestone, Long userId, UUID categoryId) {
+        if (milestone.getQuerySpec() == null) return null;
+        return queryBuilderService.evaluate(milestone.getQuerySpec(), userId, categoryId);
+    }
+
+    private Map<UUID, BigDecimal> evaluateAll(List<Milestone> milestones, Long userId) {
+        List<Milestone> batchable = new ArrayList<>();
+        Map<UUID, BigDecimal> results = new HashMap<>();
+
+        for (Milestone m : milestones) {
+            if (m.getQuerySpec() == null) {
+                continue;
+            } else if (queryBuilderService.requiresIndividualEvaluation(m.getQuerySpec())) {
+                UUID catId = m.getCategory() != null ? m.getCategory().getId() : null;
+                results.put(m.getId(), queryBuilderService.evaluate(m.getQuerySpec(), userId, catId));
+            } else {
+                batchable.add(m);
+            }
+        }
+
+        if (!batchable.isEmpty()) {
+            results.putAll(queryBuilderService.evaluateBatch(batchable, userId));
+        }
+        return results;
     }
 
     private Map<UUID, UserMilestoneLink> loadLinkMap(Long userId, List<Milestone> milestones) {
@@ -229,6 +263,10 @@ public class MilestoneEvaluationService {
         return "LTE".equals(milestone.getComparison())
                 ? currentValue.compareTo(milestone.getTargetValue()) <= 0
                 : currentValue.compareTo(milestone.getTargetValue()) >= 0;
+    }
+
+    private Instant resolveCompletionTime(Score score) {
+        return score != null && score.getTimeSet() != null ? score.getTimeSet() : Instant.now();
     }
 
     private UserMilestoneLink getOrCreateLink(Long userId, Milestone milestone) {

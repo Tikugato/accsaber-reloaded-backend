@@ -15,10 +15,17 @@ public record MilestoneQuerySpec(
         @JsonProperty("group_by") List<GroupBySpec> groupBy,
         @JsonProperty("outer_function") String outerFunction,
         @JsonProperty("order_by") List<OrderBySpec> orderBy,
-        Integer limit) {
+        Integer limit,
+        @JsonProperty("or_groups") List<List<FilterSpec>> orGroups) {
 
     public MilestoneQuerySpec(SelectSpec select, String from, List<FilterSpec> filters) {
-        this(select, from, filters, null, null, null, null, null, null);
+        this(select, from, filters, null, null, null, null, null, null, null);
+    }
+
+    public MilestoneQuerySpec(SelectSpec select, String from, List<FilterSpec> filters,
+            HavingSpec having, MilestoneQuerySpec divisor, List<GroupBySpec> groupBy,
+            String outerFunction, List<OrderBySpec> orderBy, Integer limit) {
+        this(select, from, filters, having, divisor, groupBy, outerFunction, orderBy, limit, null);
     }
 
     public record SelectSpec(String function, String column) {

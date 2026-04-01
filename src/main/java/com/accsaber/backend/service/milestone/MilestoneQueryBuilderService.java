@@ -443,43 +443,16 @@ public class MilestoneQueryBuilderService {
         }
         if (spec.filters() != null) {
             for (FilterSpec filter : spec.filters()) {
-                if (!columns.containsKey(filter.column())) {
-                    throw new ValidationException("Unsupported filter column '" + filter.column() +
-                            "' for table '" + spec.from() + "'");
+                validateFilter(filter, columns, spec.from());
+            }
+        }
+        if (spec.orGroups() != null) {
+            for (List<FilterSpec> group : spec.orGroups()) {
+                if (group == null || group.isEmpty()) {
+                    throw new ValidationException("or_groups entries must not be null or empty");
                 }
-                boolean isSubqueryOp = SUBQUERY_ONLY_OPERATORS.contains(filter.operator());
-                if (!OPERATORS.contains(filter.operator()) && !isSubqueryOp) {
-                    throw new ValidationException("Unsupported operator: " + filter.operator() +
-                            ". Allowed: " + OPERATORS + " or subquery operators: " + SUBQUERY_ONLY_OPERATORS);
-                }
-                if (filter.subquery() != null) {
-                    validateSpec(filter.subquery(), true);
-                } else if (isSubqueryOp) {
-                    throw new ValidationException(
-                            "Operator '" + filter.operator() + "' requires a subquery on column: " + filter.column());
-                } else if (filter.columnRef() != null) {
-                    String ref = filter.columnRef();
-                    String refCol = ref.startsWith("OUTER.") ? ref.substring(6) : ref;
-                    if (!columns.containsKey(refCol)) {
-                        throw new ValidationException("Unsupported column_ref '" + refCol +
-                                "' for table '" + spec.from() + "'");
-                    }
-                } else {
-                    if (filter.value() == null) {
-                        throw new ValidationException("Filter value must not be null for column: " + filter.column());
-                    }
-                }
-                if (filter.transform() != null) {
-                    validateTransform(filter.transform());
-                }
-                if (filter.columnRefTransform() != null) {
-                    validateTransform(filter.columnRefTransform());
-                }
-                if ("EXISTS".equals(filter.operator()) || "NOT EXISTS".equals(filter.operator())) {
-                    if (filter.subquery() == null) {
-                        throw new ValidationException(
-                                "Operator '" + filter.operator() + "' requires a subquery");
-                    }
+                for (FilterSpec filter : group) {
+                    validateFilter(filter, columns, spec.from());
                 }
             }
         }
@@ -549,6 +522,47 @@ public class MilestoneQueryBuilderService {
         }
     }
 
+    private void validateFilter(FilterSpec filter, Map<String, ColumnDef> columns, String table) {
+        if (!columns.containsKey(filter.column())) {
+            throw new ValidationException("Unsupported filter column '" + filter.column() +
+                    "' for table '" + table + "'");
+        }
+        boolean isSubqueryOp = SUBQUERY_ONLY_OPERATORS.contains(filter.operator());
+        if (!OPERATORS.contains(filter.operator()) && !isSubqueryOp) {
+            throw new ValidationException("Unsupported operator: " + filter.operator() +
+                    ". Allowed: " + OPERATORS + " or subquery operators: " + SUBQUERY_ONLY_OPERATORS);
+        }
+        if (filter.subquery() != null) {
+            validateSpec(filter.subquery(), true);
+        } else if (isSubqueryOp) {
+            throw new ValidationException(
+                    "Operator '" + filter.operator() + "' requires a subquery on column: " + filter.column());
+        } else if (filter.columnRef() != null) {
+            String ref = filter.columnRef();
+            String refCol = ref.startsWith("OUTER.") ? ref.substring(6) : ref;
+            if (!columns.containsKey(refCol)) {
+                throw new ValidationException("Unsupported column_ref '" + refCol +
+                        "' for table '" + table + "'");
+            }
+        } else {
+            if (filter.value() == null) {
+                throw new ValidationException("Filter value must not be null for column: " + filter.column());
+            }
+        }
+        if (filter.transform() != null) {
+            validateTransform(filter.transform());
+        }
+        if (filter.columnRefTransform() != null) {
+            validateTransform(filter.columnRefTransform());
+        }
+        if ("EXISTS".equals(filter.operator()) || "NOT EXISTS".equals(filter.operator())) {
+            if (filter.subquery() == null) {
+                throw new ValidationException(
+                        "Operator '" + filter.operator() + "' requires a subquery");
+            }
+        }
+    }
+
     public BigDecimal evaluate(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
         BigDecimal mainResult = evaluateSingle(spec, userId, categoryId);
 
@@ -573,8 +587,18 @@ public class MilestoneQueryBuilderService {
     public boolean requiresNativeSql(MilestoneQuerySpec spec) {
         if (spec.groupBy() != null && !spec.groupBy().isEmpty()) return true;
         if (spec.orderBy() != null && !spec.orderBy().isEmpty()) return true;
-        if (spec.filters() == null) return false;
-        for (FilterSpec f : spec.filters()) {
+        if (filterRequiresNativeSql(spec.filters())) return true;
+        if (spec.orGroups() != null) {
+            for (List<FilterSpec> group : spec.orGroups()) {
+                if (filterRequiresNativeSql(group)) return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean filterRequiresNativeSql(List<FilterSpec> filters) {
+        if (filters == null) return false;
+        for (FilterSpec f : filters) {
             if (f.columnRef() != null) return true;
             if (f.transform() != null && "INTERVAL_SUBTRACT".equals(f.transform().function())) return true;
             if (f.columnRefTransform() != null && "INTERVAL_SUBTRACT".equals(f.columnRefTransform().function()))
@@ -650,30 +674,50 @@ public class MilestoneQueryBuilderService {
 
         List<FilterSpec> filters = spec.filters() != null ? spec.filters() : List.of();
         for (FilterSpec filter : filters) {
-            ColumnDef colDef = columns.get(filter.column());
-            String colExpr = colDef.jpqlExpr();
-            if (filter.transform() != null) {
-                colExpr = applyTransform(colExpr, filter.transform());
-            }
-            if ("EXISTS".equals(filter.operator()) || "NOT EXISTS".equals(filter.operator())) {
-                String subJpql = buildSubqueryJpql(filter.subquery(), extraParams, paramCounter, 1);
-                conditions.add(filter.operator() + " (" + subJpql + ")");
-            } else if (filter.subquery() != null) {
-                String subJpql = buildSubqueryJpql(filter.subquery(), extraParams, paramCounter, 1);
-                conditions.add(colExpr + " " + filter.operator() + " (" + subJpql + ")");
-            } else if (filter.columnRef() != null) {
-                String refExpr = resolveColumnRef(filter.columnRef(), columns, table.alias());
-                if (filter.columnRefTransform() != null) {
-                    refExpr = applyTransform(refExpr, filter.columnRefTransform());
-                }
-                conditions.add(colExpr + " " + filter.operator() + " " + refExpr);
-            } else {
-                String paramName = "p" + paramCounter.getAndIncrement();
-                conditions.add(colExpr + " " + filter.operator() + " :" + paramName);
-                extraParams.add(new Object[] { paramName, coerce(filter.value(), colDef) });
-            }
+            conditions.add(buildSingleFilterCondition(filter, columns, table.alias(),
+                    extraParams, paramCounter));
         }
+
+        if (spec.orGroups() != null && !spec.orGroups().isEmpty()) {
+            List<String> orBranches = new ArrayList<>();
+            for (List<FilterSpec> group : spec.orGroups()) {
+                List<String> groupConditions = new ArrayList<>();
+                for (FilterSpec filter : group) {
+                    groupConditions.add(buildSingleFilterCondition(filter, columns, table.alias(),
+                            extraParams, paramCounter));
+                }
+                orBranches.add("(" + String.join(" AND ", groupConditions) + ")");
+            }
+            conditions.add("(" + String.join(" OR ", orBranches) + ")");
+        }
+
         return conditions;
+    }
+
+    private String buildSingleFilterCondition(FilterSpec filter, Map<String, ColumnDef> columns,
+            String alias, List<Object[]> extraParams, AtomicInteger paramCounter) {
+        ColumnDef colDef = columns.get(filter.column());
+        String colExpr = colDef.jpqlExpr();
+        if (filter.transform() != null) {
+            colExpr = applyTransform(colExpr, filter.transform());
+        }
+        if ("EXISTS".equals(filter.operator()) || "NOT EXISTS".equals(filter.operator())) {
+            String subJpql = buildSubqueryJpql(filter.subquery(), extraParams, paramCounter, 1);
+            return filter.operator() + " (" + subJpql + ")";
+        } else if (filter.subquery() != null) {
+            String subJpql = buildSubqueryJpql(filter.subquery(), extraParams, paramCounter, 1);
+            return colExpr + " " + filter.operator() + " (" + subJpql + ")";
+        } else if (filter.columnRef() != null) {
+            String refExpr = resolveColumnRef(filter.columnRef(), columns, alias);
+            if (filter.columnRefTransform() != null) {
+                refExpr = applyTransform(refExpr, filter.columnRefTransform());
+            }
+            return colExpr + " " + filter.operator() + " " + refExpr;
+        } else {
+            String paramName = "p" + paramCounter.getAndIncrement();
+            extraParams.add(new Object[] { paramName, coerce(filter.value(), colDef) });
+            return colExpr + " " + filter.operator() + " :" + paramName;
+        }
     }
 
     private void bindParameters(Query query, TableConfig table, Long userId, UUID categoryId,
@@ -785,26 +829,21 @@ public class MilestoneQueryBuilderService {
         }
 
         for (FilterSpec filter : spec.filters() != null ? spec.filters() : List.<FilterSpec>of()) {
-            ColumnDef colDef = columns.get(filter.column());
-            String colExpr = toNativeSql(colDef.jpqlExpr());
-            if (filter.transform() != null) {
-                colExpr = applyTransform(colExpr, filter.transform());
-            }
-            if ("EXISTS".equals(filter.operator()) || "NOT EXISTS".equals(filter.operator())) {
-                String subSql = buildNativeSubquery(filter.subquery(), columns, table.alias(),
-                        extraParams, paramCounter);
-                conditions.add(filter.operator() + " (" + subSql + ")");
-            } else if (filter.columnRef() != null) {
-                String refExpr = resolveNativeColumnRef(filter.columnRef(), columns, table.alias());
-                if (filter.columnRefTransform() != null) {
-                    refExpr = applyTransform(refExpr, filter.columnRefTransform());
+            conditions.add(buildSingleNativeFilterCondition(filter, columns, table.alias(),
+                    extraParams, paramCounter));
+        }
+
+        if (spec.orGroups() != null && !spec.orGroups().isEmpty()) {
+            List<String> orBranches = new ArrayList<>();
+            for (List<FilterSpec> group : spec.orGroups()) {
+                List<String> groupConditions = new ArrayList<>();
+                for (FilterSpec filter : group) {
+                    groupConditions.add(buildSingleNativeFilterCondition(filter, columns, table.alias(),
+                            extraParams, paramCounter));
                 }
-                conditions.add(colExpr + " " + filter.operator() + " " + refExpr);
-            } else {
-                String paramName = "p" + paramCounter.getAndIncrement();
-                conditions.add(colExpr + " " + filter.operator() + " :" + paramName);
-                extraParams.add(new Object[] { paramName, coerce(filter.value(), colDef) });
+                orBranches.add("(" + String.join(" AND ", groupConditions) + ")");
             }
+            conditions.add("(" + String.join(" OR ", orBranches) + ")");
         }
 
         boolean hasGroupBy = spec.groupBy() != null && !spec.groupBy().isEmpty();
@@ -858,6 +897,30 @@ public class MilestoneQueryBuilderService {
             query.setParameter((String) binding[0], binding[1]);
         }
         return toBigDecimal(query.getSingleResult());
+    }
+
+    private String buildSingleNativeFilterCondition(FilterSpec filter, Map<String, ColumnDef> columns,
+            String alias, List<Object[]> extraParams, AtomicInteger paramCounter) {
+        ColumnDef colDef = columns.get(filter.column());
+        String colExpr = toNativeSql(colDef.jpqlExpr());
+        if (filter.transform() != null) {
+            colExpr = applyTransform(colExpr, filter.transform());
+        }
+        if ("EXISTS".equals(filter.operator()) || "NOT EXISTS".equals(filter.operator())) {
+            String subSql = buildNativeSubquery(filter.subquery(), columns, alias,
+                    extraParams, paramCounter);
+            return filter.operator() + " (" + subSql + ")";
+        } else if (filter.columnRef() != null) {
+            String refExpr = resolveNativeColumnRef(filter.columnRef(), columns, alias);
+            if (filter.columnRefTransform() != null) {
+                refExpr = applyTransform(refExpr, filter.columnRefTransform());
+            }
+            return colExpr + " " + filter.operator() + " " + refExpr;
+        } else {
+            String paramName = "p" + paramCounter.getAndIncrement();
+            extraParams.add(new Object[] { paramName, coerce(filter.value(), colDef) });
+            return colExpr + " " + filter.operator() + " :" + paramName;
+        }
     }
 
     private String resolveNativeColumnRef(String ref, Map<String, ColumnDef> columns, String alias) {
@@ -1042,6 +1105,11 @@ public class MilestoneQueryBuilderService {
             if (qs.having() != null) {
                 filterSig += "|HAVING:" + qs.having().function() + "," + qs.having().column() + ","
                         + qs.having().operator() + "," + qs.having().value();
+            }
+            if (qs.orGroups() != null && !qs.orGroups().isEmpty()) {
+                filterSig += "|OR:" + qs.orGroups().stream()
+                        .map(group -> computeFilterSignature(group))
+                        .collect(java.util.stream.Collectors.joining("|"));
             }
             if (qs.divisor() != null) {
                 filterSig += "|DIV:" + qs.divisor().from() + "," + qs.divisor().select().function()

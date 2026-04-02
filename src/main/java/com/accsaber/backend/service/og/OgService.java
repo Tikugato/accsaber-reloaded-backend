@@ -54,9 +54,9 @@ public class OgService {
             BigDecimal acc = stats.getAverageAcc() != null
                     ? stats.getAverageAcc().multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP)
                     : null;
-            description = user.getName() + " - " + stats.getAp().setScale(2, RoundingMode.HALF_UP) + " AP, #"
-                    + stats.getRanking() + " Global, "
-                    + (acc != null ? acc + "%" : "N/A") + " Avg Accuracy, "
+            description = stats.getAp().setScale(2, RoundingMode.HALF_UP) + " AP\n#"
+                    + stats.getRanking() + " Global\n"
+                    + (acc != null ? acc + "%" : "N/A") + " Avg Accuracy\n"
                     + stats.getRankedPlays() + " Ranked Plays";
         }
         return buildHtml("profile", title, description, image, url);

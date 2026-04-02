@@ -89,14 +89,14 @@ public class OgService {
                     + " [" + diff.getDifficulty().getDbValue() + "] | " + SITE_NAME;
 
             StringBuilder desc = new StringBuilder("Mapped by " + map.getMapAuthor());
-            desc.append(" · ").append(diff.getCategory().getName());
+            desc.append("\n").append(diff.getCategory().getName());
 
             complexityRepository.findByMapDifficultyIdAndActiveTrue(diff.getId())
-                    .ifPresent(c -> desc.append(" · Complexity ")
+                    .ifPresent(c -> desc.append("\nComplexity ")
                             .append(c.getComplexity().setScale(2, RoundingMode.HALF_UP)));
 
             diffStatsRepository.findByMapDifficultyIdAndActiveTrue(diff.getId())
-                    .ifPresent(s -> desc.append(" · ").append(s.getTotalScores()).append(" scores"));
+                    .ifPresent(s -> desc.append("\n").append(s.getTotalScores()).append(" scores"));
 
             description = desc.toString();
         }

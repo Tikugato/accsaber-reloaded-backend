@@ -61,6 +61,8 @@ public class OpenApiConfig {
                                                                 .description("Site-wide statistics, leaderboards (streaks, AP, retries, improvements, milestones), and chart data (time series, distributions)"),
                                                 new Tag().name("Calculate")
                                                                 .description("Calculation utilities - compute raw and weighted values from score percentage, complexity, and category"),
+                                                new Tag().name("Open Graph")
+                                                                .description("OG meta tag endpoints for link preview embeds (Discord, Twitter, etc.)"),
 
                                                 new Tag().name("Ranking - Map Import")
                                                                 .description("Import new map difficulties into the ranking queue (Ranking role)"),

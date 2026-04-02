@@ -12,11 +12,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.accsaber.backend.service.og.OgService;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/v1/og")
 @RequiredArgsConstructor
+@Tag(name = "Open Graph")
 public class OgController {
 
     private final OgService ogService;

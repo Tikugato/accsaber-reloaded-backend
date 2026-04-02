@@ -64,6 +64,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/v1/discord/links").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/staff/users-public/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/calculate/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/v1/og/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/v1/admin/**").hasRole("ADMIN")
                 .requestMatchers("/v1/ranking/**").authenticated()

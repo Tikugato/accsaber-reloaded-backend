@@ -142,7 +142,7 @@ public class ScoreService {
                         ScoreResponse worseResponse = toResponse(history,
                                         computeAccuracy(history.getScore(), difficulty.getMaxScore()),
                                         loadModifierIds(history.getId()));
-                        eventPublisher.publishEvent(new ScoreSubmittedEvent(worseResponse));
+                        eventPublisher.publishEvent(new ScoreSubmittedEvent(withMapMetadata(worseResponse, difficulty)));
                         return worseResponse;
                 }
 
@@ -191,7 +191,7 @@ public class ScoreService {
                                         }
                                         campaignEvaluationService.evaluateAfterScore(userId, freshScore);
                                 }
-                                eventPublisher.publishEvent(new ScoreSubmittedEvent(response));
+                                eventPublisher.publishEvent(new ScoreSubmittedEvent(withMapMetadata(response, difficulty)));
                         });
                 });
 
@@ -808,6 +808,13 @@ public class ScoreService {
                 if (total.compareTo(BigDecimal.ZERO) > 0) {
                         updateUserXp(userId, total);
                 }
+        }
+
+        private ScoreResponse withMapMetadata(ScoreResponse response, MapDifficulty difficulty) {
+                return response.toBuilder()
+                                .metadata(difficulty.getMetadata())
+                                .nps(MapDifficultyMetrics.nps(difficulty.getMetadata()))
+                                .build();
         }
 
         private void validateScoreBounds(SubmitScoreRequest request, MapDifficulty difficulty,

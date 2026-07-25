@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.accsaber.backend.model.entity.map.Difficulty;
+import com.accsaber.backend.model.entity.map.MapDifficultyMetadata;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import lombok.Builder;
@@ -68,4 +69,10 @@ public class ScoreResponse {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String supporterTier;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private MapDifficultyMetadata metadata;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private BigDecimal nps;
 }

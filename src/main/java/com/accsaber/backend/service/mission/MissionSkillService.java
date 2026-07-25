@@ -34,6 +34,10 @@ public class MissionSkillService {
     private static final BigDecimal SKILL_LIFT_DEEP = new BigDecimal("0.45");
     private static final double PLAY_DAMPEN_FLOOR = 0.30;
     private static final double PLAY_DAMPEN_RATE = 0.70;
+    private static final int STREAK_SAMPLE_SIZE = 30;
+    private static final int STREAK_OUTLIER_WINDOW = 10;
+    private static final double STREAK_REFERENCE_DEPTH = 0.30;
+    private static final int STREAK_MIN_DEPTH_INDEX = 4;
 
     private final ScoreRepository scoreRepository;
 
@@ -94,14 +98,15 @@ public class MissionSkillService {
 
     public int representativeUserStreak(Long userId, UUID categoryId, MissionBand band) {
         List<Integer> top = scoreRepository.findTopStreak115ValuesByUserAndCategory(
-                userId, categoryId, PageRequest.of(0, 10));
+                userId, categoryId, PageRequest.of(0, STREAK_SAMPLE_SIZE));
         return representativeStreakFromTop(top, band);
     }
 
     public RepresentativeStreak representativeUserStreakForComplexityBand(Long userId, UUID categoryId,
             MissionBand band, BigDecimal complexityMin, BigDecimal complexityMaxExclusive) {
         List<Integer> top = scoreRepository.findTopStreak115ValuesByUserAndCategoryAndComplexityRange(
-                userId, categoryId, complexityMin, complexityMaxExclusive, PageRequest.of(0, 10));
+                userId, categoryId, complexityMin, complexityMaxExclusive,
+                PageRequest.of(0, STREAK_SAMPLE_SIZE));
         if (top.isEmpty())
             return new RepresentativeStreak(representativeUserStreak(userId, categoryId, band), false);
         return new RepresentativeStreak(representativeStreakFromTop(top, band), true);
@@ -110,9 +115,10 @@ public class MissionSkillService {
     private int representativeStreakFromTop(List<Integer> top, MissionBand band) {
         if (top.isEmpty())
             return 0;
-        int max = top.get(0);
-        int median = top.get(Math.min(top.size() / 2, top.size() - 1));
-        if (top.size() >= 5 && max > median * 1.5) {
+        List<Integer> head = top.subList(0, Math.min(STREAK_OUTLIER_WINDOW, top.size()));
+        int max = head.get(0);
+        int median = head.get(Math.min(head.size() / 2, head.size() - 1));
+        if (head.size() >= 5 && max > median * 1.5) {
             double multiplier = switch (band) {
                 case easy -> 0.80;
                 case medium -> 0.90;
@@ -121,13 +127,9 @@ public class MissionSkillService {
             };
             return Math.max(2, (int) Math.round(median * multiplier));
         }
-        int effectiveTop = top.size() >= 2 && max > top.get(1) * 1.5 ? top.get(1) : max;
-        return switch (band) {
-            case easy -> top.get(Math.min(8, top.size() - 1));
-            case medium -> top.get(Math.min(6, top.size() - 1));
-            case hard -> top.get(Math.min(4, top.size() - 1));
-            case extreme -> top.size() >= 3 ? Math.min(top.get(2), effectiveTop) : effectiveTop;
-        };
+        int idx = Math.max((int) Math.round((top.size() - 1) * STREAK_REFERENCE_DEPTH),
+                Math.min(STREAK_MIN_DEPTH_INDEX, top.size() - 1));
+        return top.get(Math.min(idx, top.size() - 1));
     }
 
     public BigDecimal ageAdjustedUserAp(Score myScore, BigDecimal topAp) {

@@ -33,7 +33,7 @@ class CampaignChatBroadcastServiceTest {
         CampaignChatMessageResponse message = CampaignChatMessageResponse.builder()
                 .id(UUID.randomUUID())
                 .campaignId(campaignId)
-                .authorId(50L)
+                .authorId("76561198000000000")
                 .authorName("Tester")
                 .content("hello team")
                 .createdAt(Instant.parse("2026-07-03T21:00:00Z"))
@@ -45,6 +45,7 @@ class CampaignChatBroadcastServiceTest {
         verify(presenceHandler).broadcastChat(eq(campaignId), json.capture());
         assertThat(json.getValue())
                 .contains("\"type\":\"chat\"")
+                .contains("\"authorId\":\"76561198000000000\"")
                 .contains("hello team")
                 .contains("2026-07-03T21:00:00Z")
                 .contains(campaignId.toString());

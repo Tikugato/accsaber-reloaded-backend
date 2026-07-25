@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -14,6 +16,7 @@ import lombok.NoArgsConstructor;
 public class CampaignPresenceMessage {
 
     private UUID campaignId;
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long actorUserId;
     private String actorName;
     private String actorAvatarUrl;
@@ -30,6 +33,7 @@ public class CampaignPresenceMessage {
     @AllArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Member {
+        @JsonSerialize(using = ToStringSerializer.class)
         private Long userId;
         private String name;
         private String avatarUrl;

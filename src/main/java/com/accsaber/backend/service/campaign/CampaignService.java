@@ -2011,7 +2011,7 @@ public class CampaignService {
 
         return CampaignDetailResponse.builder()
                 .id(campaignId)
-                .creatorId(campaign.getCreator() != null ? campaign.getCreator().getId() : null)
+                .creatorId(campaign.getCreator() != null ? String.valueOf(campaign.getCreator().getId()) : null)
                 .creatorName(campaign.getCreator() != null ? campaign.getCreator().getName() : null)
                 .creatorAlias(campaign.getCreatorAlias())
                 .name(campaign.getName())
@@ -2121,7 +2121,7 @@ public class CampaignService {
             List<CampaignItemAwardResponse> completionItems) {
         return CampaignResponse.builder()
                 .id(campaign.getId())
-                .creatorId(campaign.getCreator() != null ? campaign.getCreator().getId() : null)
+                .creatorId(campaign.getCreator() != null ? String.valueOf(campaign.getCreator().getId()) : null)
                 .creatorName(campaign.getCreator() != null ? campaign.getCreator().getName() : null)
                 .creatorAlias(campaign.getCreatorAlias())
                 .name(campaign.getName())

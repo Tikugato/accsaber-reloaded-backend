@@ -2,6 +2,9 @@ package com.accsaber.backend.model.dto.response;
 
 import java.util.List;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+
 import lombok.Builder;
 import lombok.Value;
 
@@ -9,6 +12,7 @@ import lombok.Value;
 @Builder
 public class AuthMeResponse {
 
+    @JsonSerialize(using = ToStringSerializer.class)
     Long userId;
     String name;
     String avatarUrl;

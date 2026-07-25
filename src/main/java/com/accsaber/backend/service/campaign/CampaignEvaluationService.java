@@ -124,7 +124,7 @@ public class CampaignEvaluationService {
                     if (alreadyCompleted && window != null && !countsFor(scoreTime, window)) {
                         continue;
                     }
-                    recordQualifyingScore(uc, difficulty, score, graph, completionTimes.keySet());
+                    recordQualifyingScore(uc, difficulty, score, graph, completionTimes.keySet(), false);
                     recorded.add(difficulty.getId());
                     if (!alreadyCompleted) {
                         completionTimes.put(difficulty.getId(), scoreTime != null ? scoreTime : Instant.now());
@@ -141,7 +141,7 @@ public class CampaignEvaluationService {
                 }
             }
             sweepMilestonePayouts(uc, graph, completionTimes.keySet());
-            evaluateCampaignCompletion(uc, graph, completionTimes.keySet());
+            evaluateCampaignCompletion(uc, graph, completionTimes.keySet(), false);
         }
     }
 
@@ -269,7 +269,7 @@ public class CampaignEvaluationService {
                     .orElse(null);
             if (uc != null) {
                 evaluateCampaignCompletion(uc, graph,
-                        completedByUser.computeIfAbsent(userId, k -> loadCompletedIds(k, campaignId)));
+                        completedByUser.computeIfAbsent(userId, k -> loadCompletedIds(k, campaignId)), false);
             }
         }
     }
@@ -364,7 +364,7 @@ public class CampaignEvaluationService {
         if (uc == null || !uc.getCampaign().isLegacy()) {
             return;
         }
-        settleCampaignFromCurrentScores(uc);
+        settleCampaignFromCurrentScores(uc, true);
     }
 
     @Transactional
@@ -374,12 +374,12 @@ public class CampaignEvaluationService {
         for (UserCampaign uc : inProgress) {
             Campaign campaign = uc.getCampaign();
             if (campaign.isActive() && campaign.getStatus() != CampaignStatus.DRAFT) {
-                settleCampaignFromCurrentScores(uc);
+                settleCampaignFromCurrentScores(uc, false);
             }
         }
     }
 
-    private void settleCampaignFromCurrentScores(UserCampaign uc) {
+    private void settleCampaignFromCurrentScores(UserCampaign uc, boolean silent) {
         Campaign campaign = uc.getCampaign();
         List<CampaignDifficulty> difficulties = campaignDifficultyRepository
                 .findActiveWithMapByCampaignId(campaign.getId());
@@ -429,7 +429,7 @@ public class CampaignEvaluationService {
                         .max(Comparator.comparing(Score::getScoreNoMods,
                                 Comparator.nullsFirst(Comparator.naturalOrder())))
                         .orElseThrow();
-                recordQualifyingScore(uc, difficulty, reference, graph, completionTimes.keySet());
+                recordQualifyingScore(uc, difficulty, reference, graph, completionTimes.keySet(), silent);
                 if (!alreadyCompleted) {
                     Instant completedAtTime = qualifying.stream()
                             .map(CampaignScoreMetrics::effectiveTime)
@@ -449,7 +449,7 @@ public class CampaignEvaluationService {
             }
         }
         sweepMilestonePayouts(uc, graph, completionTimes.keySet());
-        evaluateCampaignCompletion(uc, graph, completionTimes.keySet());
+        evaluateCampaignCompletion(uc, graph, completionTimes.keySet(), silent);
     }
 
     private boolean rowMeetsRequirement(CampaignDifficulty difficulty, Score row, Set<UUID> nfScoreIds) {
@@ -464,7 +464,7 @@ public class CampaignEvaluationService {
     }
 
     private void recordQualifyingScore(UserCampaign uc, CampaignDifficulty difficulty, Score score,
-            Graph graph, Set<UUID> completedIdsBefore) {
+            Graph graph, Set<UUID> completedIdsBefore, boolean silent) {
         UserCampaignScore existing = userCampaignScoreRepository
                 .findByUser_IdAndCampaignDifficulty_IdAndActiveTrue(uc.getUser().getId(), difficulty.getId())
                 .orElse(null);
@@ -499,7 +499,7 @@ public class CampaignEvaluationService {
         userCampaignScoreRepository.save(record);
         Instant achievedAt = CampaignScoreMetrics.effectiveTime(score);
         eventPublisher.publishEvent(new CampaignNodeCompletedEvent(uc.getUser().getId(), uc.getCampaign().getId(),
-                difficulty.getId(), achievedAt != null ? achievedAt : record.getSubmittedAt()));
+                difficulty.getId(), achievedAt != null ? achievedAt : record.getSubmittedAt(), silent));
     }
 
     private void sweepBarriers(UserCampaign uc, Graph graph, Map<UUID, Instant> completionTimes,
@@ -726,7 +726,7 @@ public class CampaignEvaluationService {
         }
     }
 
-    private void evaluateCampaignCompletion(UserCampaign uc, Graph graph, Set<UUID> completedIds) {
+    private void evaluateCampaignCompletion(UserCampaign uc, Graph graph, Set<UUID> completedIds, boolean silent) {
         Campaign campaign = uc.getCampaign();
         if (uc.getStatus() == UserCampaignStatus.COMPLETED && uc.isCompletionRewardsPaid()) {
             return;
@@ -748,7 +748,7 @@ public class CampaignEvaluationService {
 
         if (newlyCompleted) {
             eventPublisher.publishEvent(new CampaignCompletedEvent(uc.getUser().getId(), campaign.getId(),
-                    campaign.getStatus(), uc.getCompletedAt()));
+                    campaign.getStatus(), uc.getCompletedAt(), silent));
         }
     }
 

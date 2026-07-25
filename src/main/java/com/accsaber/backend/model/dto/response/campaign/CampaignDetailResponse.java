@@ -17,7 +17,7 @@ import lombok.Getter;
 public class CampaignDetailResponse {
 
     private UUID id;
-    private Long creatorId;
+    private String creatorId;
     private String creatorName;
     private String creatorAlias;
     private String name;

@@ -6,5 +6,9 @@ import java.util.UUID;
 import com.accsaber.backend.model.entity.campaign.CampaignStatus;
 
 public record CampaignCompletedEvent(Long userId, UUID campaignId, CampaignStatus campaignStatus,
-        Instant completedAt) {
+        Instant completedAt, boolean silent) {
+
+    public CampaignCompletedEvent(Long userId, UUID campaignId, CampaignStatus campaignStatus, Instant completedAt) {
+        this(userId, campaignId, campaignStatus, completedAt, false);
+    }
 }

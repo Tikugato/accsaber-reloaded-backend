@@ -16,12 +16,12 @@ public class CampaignCollaboratorResponse {
     private UUID campaignId;
     private String campaignName;
     private String campaignSlug;
-    private Long userId;
+    private String userId;
     private String userName;
     private String userAvatarUrl;
     private String userCdnAvatarUrl;
     private String userCountry;
     private CampaignCollaboratorStatus status;
-    private Long invitedById;
+    private String invitedById;
     private Instant createdAt;
 }

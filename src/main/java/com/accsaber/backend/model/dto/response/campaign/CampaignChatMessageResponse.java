@@ -12,7 +12,7 @@ public class CampaignChatMessageResponse {
 
     private UUID id;
     private UUID campaignId;
-    private Long authorId;
+    private String authorId;
     private String authorName;
     private String authorAvatarUrl;
     private String authorCdnAvatarUrl;

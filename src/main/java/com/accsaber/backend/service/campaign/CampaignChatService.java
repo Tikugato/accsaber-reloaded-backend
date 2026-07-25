@@ -86,7 +86,7 @@ public class CampaignChatService {
         return CampaignChatMessageResponse.builder()
                 .id(message.getId())
                 .campaignId(message.getCampaign().getId())
-                .authorId(author.getId())
+                .authorId(String.valueOf(author.getId()))
                 .authorName(author.getName())
                 .authorAvatarUrl(author.getAvatarUrl())
                 .authorCdnAvatarUrl(author.getCdnAvatarUrl())

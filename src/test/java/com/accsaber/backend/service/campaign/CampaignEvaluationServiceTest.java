@@ -876,7 +876,46 @@ class CampaignEvaluationServiceTest {
                         assertThat(e.campaignId()).isEqualTo(campaign.getId());
                         assertThat(e.nodeId()).isEqualTo(a.getId());
                         assertThat(e.completedAt()).isNotNull();
+                        assertThat(e.silent()).isFalse();
                 });
+        }
+
+        @Test
+        void legacyStartBackfillPublishesSilentEvents() {
+                campaign.setStatus(CampaignStatus.PUBLISHED);
+                campaign.setLegacy(true);
+                MapDifficulty mdA = mapDifficulty(1_000_000);
+                a.setMapDifficulty(mdA);
+                a.setRequirementType(CampaignRequirementType.ACC);
+                a.setRequirementValue(new BigDecimal("0.80"));
+
+                when(userCampaignRepository.findByUser_IdAndCampaign_IdAndActiveTrue(user.getId(), campaign.getId()))
+                                .thenReturn(Optional.of(inProgressCampaign()));
+                when(campaignDifficultyRepository.findActiveWithMapByCampaignId(campaign.getId()))
+                                .thenReturn(List.of(a));
+                when(scoreRepository.findEligibleCampaignRows(eq(user.getId()), any(), any()))
+                                .thenReturn(List.of(row(mdA, 900_000, PLAYED)));
+                when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
+                                .thenReturn(List.of(a));
+                when(campaignDifficultyPathRepository
+                                .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
+                                .thenReturn(List.of());
+                stubEmptyProgress();
+                when(userCampaignScoreRepository.findByUser_IdAndCampaignDifficulty_IdAndActiveTrue(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+
+                service.importLegacyScores(user.getId(), campaign.getId());
+
+                ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+                verify(eventPublisher, atLeastOnce()).publishEvent(captor.capture());
+                assertThat(captor.getAllValues())
+                                .filteredOn(CampaignNodeCompletedEvent.class::isInstance)
+                                .isNotEmpty()
+                                .allSatisfy(e -> assertThat(((CampaignNodeCompletedEvent) e).silent()).isTrue());
+                assertThat(captor.getAllValues())
+                                .filteredOn(CampaignCompletedEvent.class::isInstance)
+                                .isNotEmpty()
+                                .allSatisfy(e -> assertThat(((CampaignCompletedEvent) e).silent()).isTrue());
         }
 
         @Test

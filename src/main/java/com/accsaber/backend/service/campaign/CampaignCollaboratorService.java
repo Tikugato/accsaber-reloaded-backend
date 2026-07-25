@@ -156,13 +156,15 @@ public class CampaignCollaboratorService {
                 .campaignId(campaign.getId())
                 .campaignName(campaign.getName())
                 .campaignSlug(campaign.getSlug())
-                .userId(user.getId())
+                .userId(String.valueOf(user.getId()))
                 .userName(user.getName())
                 .userAvatarUrl(user.getAvatarUrl())
                 .userCdnAvatarUrl(user.getCdnAvatarUrl())
                 .userCountry(user.getCountry())
                 .status(collaborator.getStatus())
-                .invitedById(collaborator.getInvitedBy() != null ? collaborator.getInvitedBy().getId() : null)
+                .invitedById(collaborator.getInvitedBy() != null
+                        ? String.valueOf(collaborator.getInvitedBy().getId())
+                        : null)
                 .createdAt(collaborator.getCreatedAt())
                 .build();
     }

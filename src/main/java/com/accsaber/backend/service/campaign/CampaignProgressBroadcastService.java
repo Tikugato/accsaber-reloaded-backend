@@ -38,6 +38,9 @@ public class CampaignProgressBroadcastService {
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onNodeCompleted(CampaignNodeCompletedEvent event) {
+        if (event.silent()) {
+            return;
+        }
         broadcast(new CampaignProgressBroadcast("node_completed", player(event.userId()),
                 campaignService.getCampaignSummary(event.campaignId()),
                 campaignService.getCampaignNode(event.nodeId()), event.completedAt()));
@@ -46,6 +49,9 @@ public class CampaignProgressBroadcastService {
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onCampaignCompleted(CampaignCompletedEvent event) {
+        if (event.silent()) {
+            return;
+        }
         broadcast(new CampaignProgressBroadcast("campaign_completed", player(event.userId()),
                 campaignService.getCampaignSummary(event.campaignId()), null, event.completedAt()));
     }

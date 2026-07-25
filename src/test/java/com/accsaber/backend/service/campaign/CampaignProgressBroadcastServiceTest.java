@@ -1,6 +1,8 @@
 package com.accsaber.backend.service.campaign;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,7 +49,7 @@ class CampaignProgressBroadcastServiceTest {
 
     private CampaignResponse campaign(UUID id) {
         return CampaignResponse.builder().id(id).name("Endless Climb").slug("endless-climb")
-                .status(CampaignStatus.PUBLISHED).build();
+                .creatorId(String.valueOf(USER_ID)).status(CampaignStatus.PUBLISHED).build();
     }
 
     @Test
@@ -70,7 +72,8 @@ class CampaignProgressBroadcastServiceTest {
                 .contains("\"songName\":\"Reality Check\"")
                 .contains("\"userName\":\"Tikugato\"")
                 .contains("\"cdnAvatarUrl\":\"https://cdn.accsaber/a.webp\"")
-                .contains(String.valueOf(USER_ID))
+                .contains("\"userId\":\"" + USER_ID + "\"")
+                .contains("\"creatorId\":\"" + USER_ID + "\"")
                 .contains("2026-07-03T21:00:00Z");
     }
 
@@ -91,5 +94,21 @@ class CampaignProgressBroadcastServiceTest {
                 .contains("\"userName\":\"Tikugato\"")
                 .doesNotContain("\"node\":")
                 .doesNotContain("songName");
+    }
+
+    @Test
+    void silentNodeCompletionIsNotBroadcast() {
+        service.onNodeCompleted(new CampaignNodeCompletedEvent(USER_ID, UUID.randomUUID(), UUID.randomUUID(),
+                Instant.parse("2026-07-03T21:00:00Z"), true));
+
+        verify(campaignProgressHandler, never()).broadcast(anyString());
+    }
+
+    @Test
+    void silentCampaignCompletionIsNotBroadcast() {
+        service.onCampaignCompleted(new CampaignCompletedEvent(USER_ID, UUID.randomUUID(), CampaignStatus.CURATED,
+                Instant.parse("2026-07-03T21:00:00Z"), true));
+
+        verify(campaignProgressHandler, never()).broadcast(anyString());
     }
 }

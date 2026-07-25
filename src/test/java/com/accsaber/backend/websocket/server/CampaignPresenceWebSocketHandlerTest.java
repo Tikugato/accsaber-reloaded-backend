@@ -54,7 +54,7 @@ class CampaignPresenceWebSocketHandlerTest {
         handler.handleTextMessage(b, new TextMessage("{\"type\":\"cursor\",\"x\":10,\"y\":20}"));
 
         assertThat(payloadsSentTo(a))
-                .anyMatch(p -> p.contains("\"type\":\"cursor\"") && p.contains("\"actorUserId\":2"));
+                .anyMatch(p -> p.contains("\"type\":\"cursor\"") && p.contains("\"actorUserId\":\"2\""));
         assertThat(payloadsSentTo(b)).isEmpty();
     }
 
@@ -68,7 +68,7 @@ class CampaignPresenceWebSocketHandlerTest {
         handler.afterConnectionEstablished(b);
 
         assertThat(payloadsSentTo(a))
-                .anyMatch(p -> p.contains("presence_join") && p.contains("\"actorUserId\":2"));
+                .anyMatch(p -> p.contains("presence_join") && p.contains("\"actorUserId\":\"2\""));
     }
 
     @Test
@@ -82,7 +82,7 @@ class CampaignPresenceWebSocketHandlerTest {
         handler.afterConnectionClosed(b, CloseStatus.NORMAL);
 
         assertThat(payloadsSentTo(a))
-                .anyMatch(p -> p.contains("presence_leave") && p.contains("\"actorUserId\":2"));
+                .anyMatch(p -> p.contains("presence_leave") && p.contains("\"actorUserId\":\"2\""));
     }
 
     @Test
@@ -94,7 +94,7 @@ class CampaignPresenceWebSocketHandlerTest {
         handler.afterConnectionEstablished(b);
 
         assertThat(payloadsSentTo(b))
-                .anyMatch(p -> p.contains("presence_state") && p.contains("\"userId\":1")
+                .anyMatch(p -> p.contains("presence_state") && p.contains("\"userId\":\"1\"")
                         && p.contains("\"avatarUrl\":\"avatar1\""));
     }
 }

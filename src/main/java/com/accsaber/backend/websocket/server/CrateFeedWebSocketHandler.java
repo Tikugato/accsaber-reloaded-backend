@@ -3,5 +3,5 @@ package com.accsaber.backend.websocket.server;
 import org.springframework.stereotype.Component;
 
 @Component
-public class MissionFeedWebSocketHandler extends BroadcastWebSocketHandler {
+public class CrateFeedWebSocketHandler extends BroadcastWebSocketHandler {
 }

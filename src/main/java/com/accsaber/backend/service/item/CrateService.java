@@ -12,6 +12,7 @@ import java.util.UUID;
 import java.util.random.RandomGenerator;
 import java.util.stream.Collectors;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ import com.accsaber.backend.model.entity.item.ItemModifier;
 import com.accsaber.backend.model.entity.item.UnusualEffect;
 import com.accsaber.backend.model.entity.item.UserCrateOpen;
 import com.accsaber.backend.model.entity.item.UserItemLink;
+import com.accsaber.backend.model.event.CrateOpenedEvent;
 import com.accsaber.backend.repository.item.CrateContentRepository;
 import com.accsaber.backend.repository.item.CrateModifierRepository;
 import com.accsaber.backend.repository.item.CrateUnusualEffectRepository;
@@ -36,7 +38,9 @@ import com.accsaber.backend.repository.item.ItemRepository;
 import com.accsaber.backend.repository.item.UnusualEffectRepository;
 import com.accsaber.backend.repository.item.UserCrateOpenRepository;
 import com.accsaber.backend.repository.item.UserItemLinkRepository;
+import com.accsaber.backend.service.market.MarketMapper;
 import com.accsaber.backend.service.player.DuplicateUserService;
+import com.accsaber.backend.websocket.server.CrateOpenBroadcast;
 
 import lombok.RequiredArgsConstructor;
 
@@ -57,6 +61,7 @@ public class CrateService {
     private final ItemService itemService;
     private final ModifierResolver modifierResolver;
     private final DuplicateUserService duplicateUserService;
+    private final ApplicationEventPublisher eventPublisher;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -268,7 +273,11 @@ public class CrateService {
                 .rewardItem(winner.getRewardItem())
                 .rollSeed(seed)
                 .build();
-        return userCrateOpenRepository.save(open);
+        UserCrateOpen saved = userCrateOpenRepository.save(open);
+
+        eventPublisher.publishEvent(new CrateOpenedEvent(new CrateOpenBroadcast("crate_opened",
+                MarketMapper.toUserRef(saved.getUser()), ItemMapper.toCrateOpenResponse(saved))));
+        return saved;
     }
 
     private Set<ItemModifier> rollModifiers(UUID crateItemId, SplittableRandom rng) {

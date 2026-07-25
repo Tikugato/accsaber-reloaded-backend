@@ -54,6 +54,7 @@ import com.accsaber.backend.service.player.UserRelationService;
 import com.accsaber.backend.service.stats.RankingService;
 import com.accsaber.backend.service.stats.StatisticsService;
 import com.accsaber.backend.util.HmdMapper;
+import com.accsaber.backend.util.MapDifficultyMetrics;
 import com.accsaber.backend.util.TimeRangeUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -811,6 +812,10 @@ public class ScoreService {
 
         private void validateScoreBounds(SubmitScoreRequest request, MapDifficulty difficulty,
                         boolean enforceScoreCeiling) {
+                Integer maxCombo = MapDifficultyMetrics.maxCombo(difficulty.getMetadata());
+                if (maxCombo != null && request.getMaxCombo() != null && request.getMaxCombo() > maxCombo) {
+                        throw new ValidationException("maxCombo exceeds the map's note count");
+                }
                 Integer max = difficulty.getMaxScore();
                 if (max == null || max <= 0) {
                         return;

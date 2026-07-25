@@ -21,6 +21,8 @@ public class BeatSaverMapResponse {
         private String songSubName;
         private String songAuthorName;
         private String levelAuthorName;
+        private Double bpm;
+        private Integer duration;
     }
 
     @Data
@@ -38,5 +40,8 @@ public class BeatSaverMapResponse {
         private String difficulty;
         private String characteristic;
         private Integer maxScore;
+        private Integer notes;
+        private Integer bombs;
+        private Integer obstacles;
     }
 }

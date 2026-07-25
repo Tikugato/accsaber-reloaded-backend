@@ -37,6 +37,7 @@ import com.accsaber.backend.model.dto.response.map.RankedDifficultyResponse;
 import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.map.Batch;
 import com.accsaber.backend.model.entity.map.Difficulty;
+import com.accsaber.backend.util.MapDifficultyMetrics;
 import com.accsaber.backend.model.entity.map.Map;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
@@ -448,6 +449,7 @@ public class MapService {
                 .ssLeaderboardId(request.getSsLeaderboardId())
                 .blLeaderboardId(request.getBlLeaderboardId())
                 .maxScore(request.getMaxScore())
+                .metadata(request.getMetadata())
                 .previousVersion(previousVersion)
                 .status(status)
                 .rankedAt(rankedAt)
@@ -761,6 +763,9 @@ public class MapService {
                 .ssLeaderboardId(d.getSsLeaderboardId())
                 .blLeaderboardId(d.getBlLeaderboardId())
                 .maxScore(d.getMaxScore())
+                .metadata(d.getMetadata())
+                .nps(MapDifficultyMetrics.nps(d.getMetadata()))
+                .maxCombo(MapDifficultyMetrics.maxCombo(d.getMetadata()))
                 .complexity(complexity)
                 .rankedAt(d.getRankedAt())
                 .previousVersionId(d.getPreviousVersion() != null ? d.getPreviousVersion().getId() : null)
@@ -826,6 +831,9 @@ public class MapService {
                 .ssLeaderboardId(d.getSsLeaderboardId())
                 .blLeaderboardId(d.getBlLeaderboardId())
                 .maxScore(d.getMaxScore())
+                .metadata(d.getMetadata())
+                .nps(d.getNps())
+                .maxCombo(d.getMaxCombo())
                 .rankedAt(d.getRankedAt())
                 .createdAt(d.getCreatedAt())
                 .complexity(ranked ? d.getComplexity() : null)

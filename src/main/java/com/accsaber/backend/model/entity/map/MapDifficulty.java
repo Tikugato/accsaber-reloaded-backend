@@ -68,6 +68,9 @@ public class MapDifficulty {
     @Column(name = "max_score")
     private Integer maxScore;
 
+    @jakarta.persistence.Embedded
+    private MapDifficultyMetadata metadata;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "batch_id")
     private Batch batch;

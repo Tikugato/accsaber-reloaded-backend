@@ -103,6 +103,7 @@ import com.accsaber.backend.service.player.DuplicateUserService;
 import com.accsaber.backend.service.player.RichTextSanitizer;
 import com.accsaber.backend.service.playlist.PlaylistService;
 import com.accsaber.backend.util.CampaignScoreMetrics;
+import com.accsaber.backend.util.MapDifficultyMetrics;
 import com.accsaber.backend.util.Slugs;
 import com.accsaber.backend.util.WilsonScore;
 
@@ -2188,6 +2189,9 @@ public class CampaignService {
                 .complexity(complexity)
                 .beatsaverCode(md.getMap().getBeatsaverCode())
                 .maxScore(md.getMaxScore())
+                .metadata(md.getMetadata())
+                .nps(MapDifficultyMetrics.nps(md.getMetadata()))
+                .maxCombo(MapDifficultyMetrics.maxCombo(md.getMetadata()))
                 .songName(md.getMap().getSongName())
                 .songAuthor(md.getMap().getSongAuthor())
                 .mapAuthor(md.getMap().getMapAuthor())

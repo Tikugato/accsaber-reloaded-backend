@@ -2,10 +2,14 @@ package com.accsaber.backend.service.map;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -26,6 +30,7 @@ import com.accsaber.backend.model.dto.response.map.AiComplexityResponse;
 import com.accsaber.backend.model.dto.response.map.MapDifficultyResponse;
 import com.accsaber.backend.model.entity.Curve;
 import com.accsaber.backend.model.entity.map.Difficulty;
+import com.accsaber.backend.model.entity.map.MapDifficultyMetadata;
 import com.accsaber.backend.model.entity.map.Map;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
@@ -136,6 +141,8 @@ public class MapImportService {
         request.setSsLeaderboardId(ssId);
         request.setBlLeaderboardId(blId);
         request.setMaxScore(maxScore);
+        request.setMetadata(extractMetadata(beatSaverMap, importRequest.getDifficulty(),
+                importRequest.getCharacteristic()));
         request.setBatchId(importRequest.getBatchId());
         request.setRankedAt(importRequest.getRankedAt());
 
@@ -294,6 +301,7 @@ public class MapImportService {
                 .ssLeaderboardId(ssId)
                 .blLeaderboardId(blId)
                 .maxScore(maxScore)
+                .metadata(extractMetadata(beatSaverMap, difficulty, characteristic))
                 .status(MapDifficultyStatus.CAMPAIGN)
                 .importedBy(playerId)
                 .previousVersion(previousVersion)
@@ -417,6 +425,8 @@ public class MapImportService {
         difficulty.setBlLeaderboardId(newBlId);
         difficulty.setSsLeaderboardId(newSsId);
         difficulty.setMaxScore(maxScore);
+        difficulty.setMetadata(extractMetadata(beatSaverMap, difficulty.getDifficulty(),
+                difficulty.getCharacteristic()));
         difficulty.setLastUpdatedBy(staffId);
         mapDifficultyRepository.save(difficulty);
 
@@ -504,6 +514,64 @@ public class MapImportService {
         double complexity = apTarget / (transformedMultiplier * scale) + shift;
 
         return BigDecimal.valueOf(complexity).setScale(1, RoundingMode.HALF_UP);
+    }
+
+    private static MapDifficultyMetadata extractMetadata(BeatSaverMapResponse beatSaverMap, Difficulty difficulty,
+            String characteristic) {
+        if (beatSaverMap == null || beatSaverMap.getVersions() == null || difficulty == null
+                || characteristic == null) {
+            return null;
+        }
+        String difficultyValue = difficulty.getDbValue();
+        BeatSaverMapResponse.Diff diff = beatSaverMap.getVersions().stream()
+                .filter(version -> version.getDiffs() != null)
+                .flatMap(version -> version.getDiffs().stream())
+                .filter(d -> difficultyValue.equalsIgnoreCase(d.getDifficulty())
+                        && characteristic.equalsIgnoreCase(d.getCharacteristic()))
+                .findFirst()
+                .orElse(null);
+        if (diff == null) {
+            return null;
+        }
+        BeatSaverMapResponse.Metadata songMetadata = beatSaverMap.getMetadata();
+        return MapDifficultyMetadata.builder()
+                .bpm(songMetadata != null ? songMetadata.getBpm() : null)
+                .duration(songMetadata != null ? songMetadata.getDuration() : null)
+                .notes(diff.getNotes())
+                .bombs(diff.getBombs())
+                .walls(diff.getObstacles())
+                .build();
+    }
+
+    @Async("backfillExecutor")
+    public void backfillMetadata() {
+        List<MapDifficulty> pending = mapDifficultyRepository.findActiveMissingMetadata();
+        var byHash = pending.stream()
+                .filter(d -> d.getMap() != null && d.getMap().getSongHash() != null)
+                .collect(Collectors.groupingBy(d -> d.getMap().getSongHash()));
+        log.info("Map metadata backfill starting: {} difficulties across {} maps", pending.size(), byHash.size());
+
+        int updated = 0;
+        for (var entry : byHash.entrySet()) {
+            BeatSaverMapResponse beatSaverMap = beatSaverClient.getMapByHash(entry.getKey()).orElse(null);
+            if (beatSaverMap == null) {
+                continue;
+            }
+            List<MapDifficulty> toSave = new ArrayList<>();
+            for (MapDifficulty difficulty : entry.getValue()) {
+                MapDifficultyMetadata metadata = extractMetadata(beatSaverMap, difficulty.getDifficulty(),
+                        difficulty.getCharacteristic());
+                if (metadata != null) {
+                    difficulty.setMetadata(metadata);
+                    toSave.add(difficulty);
+                }
+            }
+            if (!toSave.isEmpty()) {
+                mapDifficultyRepository.saveAll(toSave);
+                updated += toSave.size();
+            }
+        }
+        log.info("Chart stats backfill complete: {} difficulties updated", updated);
     }
 
     private static double transformMultiplier(double mult, double offset, double scale, double base) {

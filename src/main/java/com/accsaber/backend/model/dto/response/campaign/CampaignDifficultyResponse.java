@@ -8,6 +8,7 @@ import com.accsaber.backend.model.entity.campaign.CampaignLabelPosition;
 import com.accsaber.backend.model.entity.campaign.CampaignPrerequisiteMode;
 import com.accsaber.backend.model.entity.campaign.CampaignRequirementType;
 import com.accsaber.backend.model.entity.map.Difficulty;
+import com.accsaber.backend.model.entity.map.MapDifficultyMetadata;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
 
 import lombok.Builder;
@@ -24,6 +25,9 @@ public class CampaignDifficultyResponse {
     private BigDecimal complexity;
     private String beatsaverCode;
     private Integer maxScore;
+    private MapDifficultyMetadata metadata;
+    private BigDecimal nps;
+    private Integer maxCombo;
     private String songName;
     private String songAuthor;
     private String mapAuthor;

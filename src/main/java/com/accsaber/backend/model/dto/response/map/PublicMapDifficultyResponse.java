@@ -7,6 +7,7 @@ import java.util.UUID;
 import com.accsaber.backend.model.entity.AutoCriteriaStatus;
 import com.accsaber.backend.model.entity.CriteriaStatus;
 import com.accsaber.backend.model.entity.map.Difficulty;
+import com.accsaber.backend.model.entity.map.MapDifficultyMetadata;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
 
 import lombok.Builder;
@@ -32,6 +33,9 @@ public class PublicMapDifficultyResponse {
     String ssLeaderboardId;
     String blLeaderboardId;
     Integer maxScore;
+    MapDifficultyMetadata metadata;
+    BigDecimal nps;
+    Integer maxCombo;
     Instant rankedAt;
     Instant createdAt;
     BigDecimal complexity;

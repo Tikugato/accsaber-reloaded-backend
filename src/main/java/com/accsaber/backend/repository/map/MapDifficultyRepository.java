@@ -67,6 +67,13 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
 
         @Query("""
                         SELECT d FROM MapDifficulty d
+                        JOIN FETCH d.map
+                        WHERE d.metadata.notes IS NULL AND d.active = true
+                        """)
+        List<MapDifficulty> findActiveMissingMetadata();
+
+        @Query("""
+                        SELECT d FROM MapDifficulty d
                         JOIN FETCH d.category c
                         JOIN FETCH c.scoreCurve
                         JOIN FETCH c.weightCurve

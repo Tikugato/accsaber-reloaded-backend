@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.accsaber.backend.model.entity.map.Difficulty;
+import com.accsaber.backend.model.entity.map.MapDifficultyMetadata;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -51,4 +52,6 @@ public class CreateMapDifficultyRequest {
     private UUID batchId;
 
     private Instant rankedAt;
+
+    private MapDifficultyMetadata metadata;
 }

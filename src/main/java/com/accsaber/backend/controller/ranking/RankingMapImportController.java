@@ -54,4 +54,11 @@ public class RankingMapImportController {
                 return ResponseEntity.created(URI.create("/v1/maps/difficulties/" + response.getId()))
                                 .body(response);
         }
+
+        @Operation(summary = "Backfill map metadata", description = "Fetches BPM, notes, bombs, walls and duration from BeatSaver for all active difficulties missing metadata")
+        @PostMapping("/backfill-metadata")
+        public ResponseEntity<Void> backfillMetadata() {
+                mapImportService.backfillMetadata();
+                return ResponseEntity.accepted().build();
+        }
 }

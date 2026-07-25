@@ -400,7 +400,7 @@ public class MissionBuilderService {
                 : targetService.applySkillAwareTopApNerf(baseHardCap, categorySkill))
                 .setScale(0, RoundingMode.HALF_UP);
         BigDecimal threshold = rawThreshold.compareTo(hardCap) > 0 ? hardCap : rawThreshold;
-        threshold = pbAboveThresholdAvailabilityCap(scores, band, threshold); // new line added
+        threshold = pbAboveThresholdAvailabilityCap(scores, band, threshold);
         BigDecimal qualifyingThreshold = threshold;
         long qualifying = scores.stream()
                 .filter(s -> s.getAp() != null && s.getAp().compareTo(qualifyingThreshold) >= 0)
@@ -637,7 +637,7 @@ public class MissionBuilderService {
             return failBuild("user-streak-too-low");
         BigDecimal skillLevel = skillService.skillLevelFor(ctx, category);
         boolean topTier = skillLevel != null && skillLevel.doubleValue() >= 90.0;
-        int targetStreak = Math.max(3, band == MissionBand.extreme && topTier ? reference + 1 : reference);
+        int targetStreak = Math.max(3, streakTargetFor(band, reference, topTier));
         int count = pickCount(template, band, rng);
         int xp = calibrationService.computeXpReward(template, skillLevel, band, null);
         return baseBuilder(ctx, template, category, expiresAt, pool, band)

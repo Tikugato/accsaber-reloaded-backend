@@ -44,10 +44,10 @@ public class CampaignText {
     private String content = "";
 
     @Column(name = "position_x", nullable = false)
-    private Integer positionX;
+    private BigDecimal positionX;
 
     @Column(name = "position_y", nullable = false)
-    private Integer positionY;
+    private BigDecimal positionY;
 
     private String font;
 

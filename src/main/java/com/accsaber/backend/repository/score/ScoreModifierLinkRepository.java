@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.accsaber.backend.model.dto.projection.ScoreModifierRow;
 import com.accsaber.backend.model.entity.score.ScoreModifierLink;
 
 public interface ScoreModifierLinkRepository extends JpaRepository<ScoreModifierLink, UUID> {
@@ -18,4 +19,12 @@ public interface ScoreModifierLinkRepository extends JpaRepository<ScoreModifier
 
     @Query("SELECT l.score.id FROM ScoreModifierLink l WHERE l.score.id IN :scoreIds AND l.modifier.code = :code")
     List<UUID> findScoreIdsWithModifierCode(@Param("scoreIds") Collection<UUID> scoreIds, @Param("code") String code);
+
+    @Query("""
+            SELECT new com.accsaber.backend.model.dto.projection.ScoreModifierRow(
+                l.score.id, l.modifier.id, l.modifier.code)
+            FROM ScoreModifierLink l
+            WHERE l.score.id IN :scoreIds
+            """)
+    List<ScoreModifierRow> findModifierRows(@Param("scoreIds") Collection<UUID> scoreIds);
 }

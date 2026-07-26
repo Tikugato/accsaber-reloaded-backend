@@ -2,8 +2,10 @@ package com.accsaber.backend.model.dto.request.campaign;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 
 import com.accsaber.backend.model.entity.campaign.CampaignLabelPosition;
+import com.accsaber.backend.model.entity.campaign.CampaignNodeBorderLayer;
 import com.accsaber.backend.model.entity.campaign.CampaignPrerequisiteMode;
 import com.accsaber.backend.model.entity.campaign.CampaignRequirementType;
 import com.accsaber.backend.validation.CleanText;
@@ -20,6 +22,14 @@ public class UpdateCampaignDifficultyRequest {
     private CampaignRequirementType requirementType;
     private CampaignPrerequisiteMode prerequisiteMode;
     private BigDecimal requirementValue;
+    private BigDecimal requirementValueMax;
+    private Set<CampaignBound> clear;
+
+    @Valid
+    @Size(max = 8)
+    private List<CampaignTargetRequest> targets;
+
+    private CampaignPrerequisiteMode targetMode;
 
     @Size(max = 1000)
     @CleanText
@@ -44,17 +54,27 @@ public class UpdateCampaignDifficultyRequest {
     @Pattern(regexp = "^$|^[A-Za-z0-9 _-]{1,32}$", message = "invalid style token")
     private String borderShape;
 
+    @Size(max = 512)
+    @Pattern(regexp = "^$|^https?://[^\\s\"'<>]+$", message = "must be a valid http(s) URL")
+    private String nodeBorderUrl;
+
+    private CampaignNodeBorderLayer nodeBorderLayer;
+
     @PositiveOrZero
     private Integer size;
 
     @PositiveOrZero
     private Integer checkpointSize;
 
-    private Integer positionX;
-    private Integer positionY;
+    private BigDecimal positionX;
+    private BigDecimal positionY;
     private BigDecimal xp;
 
     @Valid
     @Size(max = 25)
     private List<CampaignConnectionRequest> prerequisites;
+
+    @Valid
+    @Size(max = 20)
+    private List<CampaignModifierRequirementRequest> modifiers;
 }

@@ -12,8 +12,8 @@ public class CampaignTextResponse {
 
     private UUID id;
     private String content;
-    private Integer positionX;
-    private Integer positionY;
+    private BigDecimal positionX;
+    private BigDecimal positionY;
     private String font;
     private BigDecimal scale;
     private String color;

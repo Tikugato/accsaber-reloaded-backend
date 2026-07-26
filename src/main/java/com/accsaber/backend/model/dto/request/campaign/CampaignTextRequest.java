@@ -17,10 +17,10 @@ public class CampaignTextRequest {
     private String content;
 
     @NotNull
-    private Integer positionX;
+    private BigDecimal positionX;
 
     @NotNull
-    private Integer positionY;
+    private BigDecimal positionY;
 
     @Size(max = 64)
     @Pattern(regexp = "^$|^[A-Za-z0-9 _-]{1,64}$", message = "invalid font")

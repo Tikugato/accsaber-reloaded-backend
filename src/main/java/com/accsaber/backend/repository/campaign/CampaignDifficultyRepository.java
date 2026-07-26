@@ -1,5 +1,6 @@
 package com.accsaber.backend.repository.campaign;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -32,8 +33,8 @@ public interface CampaignDifficultyRepository extends JpaRepository<CampaignDiff
         List<CampaignDifficulty> findByCampaign_IdAndMapDifficulty_IdAndActiveTrue(UUID campaignId,
                         UUID mapDifficultyId);
 
-        boolean existsByCampaign_IdAndPositionXAndPositionYAndActiveTrue(UUID campaignId, Integer positionX,
-                        Integer positionY);
+        boolean existsByCampaign_IdAndPositionXAndPositionYAndActiveTrue(UUID campaignId, BigDecimal positionX,
+                        BigDecimal positionY);
 
         @Query("""
                         SELECT cd.campaign.id, COUNT(cd) FROM CampaignDifficulty cd

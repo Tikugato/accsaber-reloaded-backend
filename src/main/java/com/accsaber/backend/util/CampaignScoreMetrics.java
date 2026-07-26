@@ -5,11 +5,11 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import com.accsaber.backend.model.dto.projection.UserMapDifficultyBests;
 import com.accsaber.backend.model.entity.campaign.BarrierConditionType;
+import com.accsaber.backend.model.entity.campaign.CampaignDifficultyTarget;
 import com.accsaber.backend.model.entity.campaign.CampaignRequirementType;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.score.Score;
@@ -33,7 +33,7 @@ public final class CampaignScoreMetrics {
                 && score.getMisses() == 0 && score.getBadCuts() == 0;
     }
 
-    public static BigDecimal requirementValue(Score score, CampaignRequirementType type, Set<UUID> nfScoreIds) {
+    public static BigDecimal requirementValue(Score score, CampaignRequirementType type, ScoreModifierIndex modifiers) {
         return switch (type) {
             case ACC -> accuracy(score);
             case AP -> score.getAp();
@@ -41,8 +41,33 @@ public final class CampaignScoreMetrics {
             case STREAK_115 -> score.getStreak115() != null ? BigDecimal.valueOf(score.getStreak115()) : null;
             case FC -> isFullCombo(score) ? BigDecimal.ONE : BigDecimal.ZERO;
             case RANK -> score.getRank() != null ? BigDecimal.valueOf(score.getRank()) : null;
-            case PASS -> nfScoreIds.contains(score.getId()) ? BigDecimal.ZERO : BigDecimal.ONE;
+            case PASS -> modifiers.hasNoFail(score.getId()) ? BigDecimal.ZERO : BigDecimal.ONE;
+            case COMBO -> toDecimal(score.getMaxCombo());
+            case BOMB_HITS -> toDecimal(score.getBombHits());
         };
+    }
+
+    public static boolean satisfies(CampaignDifficultyTarget target, BigDecimal value) {
+        CampaignRequirementType type = target.getRequirementType();
+        return satisfiesBounds(
+                toDisplayPrecision(value, type),
+                toDisplayPrecision(target.getRequirementValue(), type),
+                toDisplayPrecision(target.getRequirementValueMax(), type),
+                type.isLowerBetter());
+    }
+
+    public static boolean satisfiesBounds(BigDecimal value, BigDecimal bound, BigDecimal cap,
+            boolean lowerBetter) {
+        if (value == null || (bound == null && cap == null)) {
+            return false;
+        }
+        if (bound != null) {
+            int cmp = value.compareTo(bound);
+            if (lowerBetter ? cmp > 0 : cmp < 0) {
+                return false;
+            }
+        }
+        return cap == null || value.compareTo(cap) <= 0;
     }
 
     public static BigDecimal bestAccuracy(UserMapDifficultyBests bests) {
@@ -62,6 +87,8 @@ public final class CampaignScoreMetrics {
             case FC -> bests.hasFullCombo() ? BigDecimal.ONE : BigDecimal.ZERO;
             case RANK -> toDecimal(bests.bestRank());
             case PASS -> bests.hasNoNfPass() ? BigDecimal.ONE : BigDecimal.ZERO;
+            case COMBO -> toDecimal(bests.bestCombo());
+            case BOMB_HITS -> toDecimal(bests.fewestBombHits());
         };
     }
 
@@ -71,6 +98,8 @@ public final class CampaignScoreMetrics {
             case AVERAGE_AP, AP_MAX -> bests.bestAp();
             case STREAK_115_AVERAGE, STREAK_115_MAX -> toDecimal(bests.bestStreak115());
             case AVERAGE_RANK, MAX_RANK -> toDecimal(bests.bestRank());
+            case AVERAGE_COMBO -> toDecimal(bests.bestCombo());
+            case AVERAGE_BOMB_HITS -> toDecimal(bests.fewestBombHits());
             case FC, COMPLETION_COUNT, PASS -> null;
         };
     }
@@ -123,7 +152,7 @@ public final class CampaignScoreMetrics {
     }
 
     public static UserMapDifficultyBests reduceBests(UUID mapDifficultyId, Integer maxScore,
-            Collection<Score> rows, Set<UUID> nfScoreIds) {
+            Collection<Score> rows, ScoreModifierIndex modifiers) {
         if (rows.isEmpty()) {
             return null;
         }
@@ -132,9 +161,13 @@ public final class CampaignScoreMetrics {
         BigDecimal bestAp = null;
         Integer bestStreak115 = null;
         Integer bestRank = null;
+        Integer bestCombo = null;
+        Integer fewestBombHits = null;
         int fcFlag = 0;
         int noNfFlag = 0;
         for (Score s : rows) {
+            bestCombo = maxOf(bestCombo, s.getMaxCombo());
+            fewestBombHits = minOf(fewestBombHits, s.getBombHits());
             bestScore = maxOf(bestScore, s.getScore());
             bestScoreNoMods = maxOf(bestScoreNoMods, s.getScoreNoMods());
             if (s.getAp() != null && (bestAp == null || s.getAp().compareTo(bestAp) > 0)) {
@@ -150,12 +183,12 @@ public final class CampaignScoreMetrics {
             if (isFullCombo(s)) {
                 fcFlag = 1;
             }
-            if (!nfScoreIds.contains(s.getId())) {
+            if (!modifiers.hasNoFail(s.getId())) {
                 noNfFlag = 1;
             }
         }
         return new UserMapDifficultyBests(mapDifficultyId, maxScore, bestScore, bestScoreNoMods,
-                bestAp, bestStreak115, bestRank, fcFlag, noNfFlag);
+                bestAp, bestStreak115, bestRank, fcFlag, noNfFlag, bestCombo, fewestBombHits);
     }
 
     private static Integer maxOf(Integer current, Integer candidate) {
@@ -163,5 +196,12 @@ public final class CampaignScoreMetrics {
             return current;
         }
         return current == null || candidate > current ? candidate : current;
+    }
+
+    private static Integer minOf(Integer current, Integer candidate) {
+        if (candidate == null) {
+            return current;
+        }
+        return current == null || candidate < current ? candidate : current;
     }
 }

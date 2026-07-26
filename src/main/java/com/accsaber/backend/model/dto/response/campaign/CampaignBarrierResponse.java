@@ -18,6 +18,7 @@ public class CampaignBarrierResponse {
     private UUID id;
     private BarrierConditionType conditionType;
     private BigDecimal conditionValue;
+    private BigDecimal conditionValueMax;
     private CampaignPrerequisiteMode prerequisiteMode;
     private String description;
     private String checkpointLabel;
@@ -28,8 +29,8 @@ public class CampaignBarrierResponse {
     private String borderShape;
     private Integer size;
     private Integer checkpointSize;
-    private Integer positionX;
-    private Integer positionY;
+    private BigDecimal positionX;
+    private BigDecimal positionY;
     private BigDecimal xp;
     private List<CampaignConnectionResponse> prerequisites;
     private List<UUID> affectedCampaignDifficultyIds;

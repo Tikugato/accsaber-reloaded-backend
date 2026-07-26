@@ -1,8 +1,10 @@
 package com.accsaber.backend.service.market;
 
+import com.accsaber.backend.model.dto.response.item.UserItemResponse;
 import com.accsaber.backend.model.dto.response.market.MarketBidResponse;
 import com.accsaber.backend.model.dto.response.market.MarketListingResponse;
 import com.accsaber.backend.model.dto.response.market.MarketUserRef;
+import com.accsaber.backend.model.entity.item.UserItemLink;
 import com.accsaber.backend.model.entity.market.MarketBid;
 import com.accsaber.backend.model.entity.market.MarketListing;
 import com.accsaber.backend.model.entity.market.MarketListingStatus;
@@ -20,7 +22,7 @@ public final class MarketMapper {
                 .title(listing.getTitle())
                 .description(listing.getDescription())
                 .seller(toUserRef(listing.getSeller()))
-                .item(ItemMapper.toUserItemResponse(listing.getUserItemLink()))
+                .item(toItemView(listing))
                 .quantity(listing.getQuantity())
                 .startingBid(listing.getStartingBid())
                 .buyoutPrice(listing.getBuyoutPrice())
@@ -37,6 +39,17 @@ public final class MarketMapper {
                 .settledAt(listing.getSettledAt())
                 .winner(toUserRef(listing.getWinner()))
                 .finalPrice(listing.getFinalPrice())
+                .build();
+    }
+
+    private static UserItemResponse toItemView(MarketListing listing) {
+        UserItemLink link = listing.getUserItemLink();
+        if (link != null) {
+            return ItemMapper.toUserItemResponse(link);
+        }
+        return UserItemResponse.builder()
+                .item(ItemMapper.toItemResponse(listing.getItem()))
+                .quantity(listing.getQuantity())
                 .build();
     }
 

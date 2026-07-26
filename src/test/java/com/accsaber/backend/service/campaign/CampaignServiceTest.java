@@ -6,11 +6,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -24,6 +27,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import com.accsaber.backend.config.CdnProperties;
@@ -31,8 +35,10 @@ import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.projection.UserMapDifficultyBests;
 import com.accsaber.backend.model.dto.request.campaign.AddCampaignDifficultyRequest;
+import com.accsaber.backend.model.dto.request.campaign.CampaignBound;
 import com.accsaber.backend.model.dto.request.campaign.CreateCampaignRequest;
 import com.accsaber.backend.model.dto.request.campaign.SetCampaignItemRequest;
+import com.accsaber.backend.model.dto.request.campaign.UpdateCampaignDifficultyRequest;
 import com.accsaber.backend.model.dto.request.campaign.UpdateCampaignRequest;
 import com.accsaber.backend.model.dto.response.campaign.CampaignDifficultyResponse;
 import com.accsaber.backend.model.dto.response.campaign.CampaignProgressResponse;
@@ -53,10 +59,20 @@ import com.accsaber.backend.model.entity.staff.StaffRole;
 import com.accsaber.backend.model.entity.staff.StaffUser;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.CategoryRepository;
+import com.accsaber.backend.repository.ModifierRepository;
 import com.accsaber.backend.repository.campaign.CampaignBarrierAffectedDifficultyRepository;
 import com.accsaber.backend.repository.campaign.CampaignCollaboratorRepository;
 import com.accsaber.backend.repository.campaign.CampaignCompletionItemRepository;
+import com.accsaber.backend.model.dto.response.campaign.CampaignItemAwardResponse;
+import com.accsaber.backend.model.entity.campaign.CampaignBackgroundPlacement;
+import com.accsaber.backend.model.entity.campaign.CampaignCompletionItem;
+import com.accsaber.backend.model.entity.campaign.CampaignDifficultyItem;
+import com.accsaber.backend.model.entity.campaign.CampaignNodeBorderLayer;
+import com.accsaber.backend.model.entity.campaign.CampaignRewardTotals;
+import com.accsaber.backend.repository.campaign.CampaignRewardTotalsRepository;
 import com.accsaber.backend.repository.campaign.CampaignDifficultyItemRepository;
+import com.accsaber.backend.repository.campaign.CampaignDifficultyModifierRepository;
+import com.accsaber.backend.repository.campaign.CampaignDifficultyTargetRepository;
 import com.accsaber.backend.repository.campaign.CampaignDifficultyPathRepository;
 import com.accsaber.backend.repository.campaign.CampaignDifficultyRepository;
 import com.accsaber.backend.repository.campaign.CampaignRepository;
@@ -113,6 +129,14 @@ class CampaignServiceTest {
         private ScoreRepository scoreRepository;
         @Mock
         private ScoreModifierLinkRepository scoreModifierLinkRepository;
+        @Mock
+        private CampaignDifficultyModifierRepository campaignDifficultyModifierRepository;
+        @Mock
+        private CampaignDifficultyTargetRepository campaignDifficultyTargetRepository;
+        @Mock
+        private CampaignRewardTotalsRepository campaignRewardTotalsRepository;
+        @Mock
+        private ModifierRepository modifierRepository;
         @Mock
         private UserRepository userRepository;
         @Mock
@@ -270,6 +294,256 @@ class CampaignServiceTest {
                         assertThatThrownBy(() -> campaignService.updateCampaign(campaign.getId(), request))
                                         .isInstanceOf(ValidationException.class);
                 }
+
+                @Test
+                void storesBackgroundPlacementWhenAllThreeSupplied() {
+                        UpdateCampaignRequest request = new UpdateCampaignRequest();
+                        request.setBackground(new CampaignBackgroundPlacement(140, 50, 20));
+                        stubUpdate();
+
+                        CampaignResponse result = campaignService.updateCampaign(campaign.getId(), request);
+
+                        assertThat(result.getBackground())
+                                        .isEqualTo(new CampaignBackgroundPlacement(140, 50, 20));
+                }
+
+                @Test
+                void emptyBackgroundObjectClearsPlacement() {
+                        campaign.setBackground(new CampaignBackgroundPlacement(140, 50, 20));
+                        UpdateCampaignRequest request = new UpdateCampaignRequest();
+                        request.setBackground(new CampaignBackgroundPlacement());
+                        stubUpdate();
+
+                        CampaignResponse result = campaignService.updateCampaign(campaign.getId(), request);
+
+                        assertThat(result.getBackground()).isNull();
+                        assertThat(campaign.getBackground()).isNull();
+                }
+
+                @Test
+                void omittedBackgroundLeavesPlacementUntouched() {
+                        campaign.setBackground(new CampaignBackgroundPlacement(140, 50, 20));
+                        UpdateCampaignRequest request = new UpdateCampaignRequest();
+                        request.setName("Renamed");
+                        stubUpdate();
+
+                        CampaignResponse result = campaignService.updateCampaign(campaign.getId(), request);
+
+                        assertThat(result.getBackground())
+                                        .isEqualTo(new CampaignBackgroundPlacement(140, 50, 20));
+                }
+
+                @Test
+                void rejectsPartialBackgroundPlacement() {
+                        UpdateCampaignRequest request = new UpdateCampaignRequest();
+                        request.setBackground(new CampaignBackgroundPlacement(140, null, null));
+                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
+                                        .thenReturn(Optional.of(campaign));
+
+                        assertThatThrownBy(() -> campaignService.updateCampaign(campaign.getId(), request))
+                                        .isInstanceOf(ValidationException.class);
+                }
+
+                @Test
+                void rejectsOutOfRangeBackgroundSize() {
+                        UpdateCampaignRequest request = new UpdateCampaignRequest();
+                        request.setBackground(new CampaignBackgroundPlacement(0, 50, 20));
+                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
+                                        .thenReturn(Optional.of(campaign));
+
+                        assertThatThrownBy(() -> campaignService.updateCampaign(campaign.getId(), request))
+                                        .isInstanceOf(ValidationException.class);
+                }
+
+                @Test
+                void removingBackgroundImageClearsPlacement() {
+                        campaign.setBackgroundUrl("https://cdn.example/bg.png");
+                        campaign.setBackground(new CampaignBackgroundPlacement(140, 50, 20));
+                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
+                                        .thenReturn(Optional.of(campaign));
+                        when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
+                        when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
+
+                        CampaignResponse result = campaignService.setBackgroundUrl(campaign.getId(), null);
+
+                        assertThat(result.getBackgroundUrl()).isNull();
+                        assertThat(result.getBackground()).isNull();
+                }
+
+                private void stubUpdate() {
+                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
+                                        .thenReturn(Optional.of(campaign));
+                        when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
+                        when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
+                }
+        }
+
+        @Nested
+        class RewardTotals {
+
+                private final UUID crateId = UUID.randomUUID();
+                private final UUID titleId = UUID.randomUUID();
+
+                @Test
+                void sumsAnItemAwardedByBothANodeAndCampaignCompletion() {
+                        stubCampaignPage();
+                        when(campaignDifficultyItemRepository.findActiveByCampaignIds(List.of(campaign.getId())))
+                                        .thenReturn(List.of(nodeAward(crateId, "Alpha Crate", 4),
+                                                        nodeAward(titleId, "Founder Title", 1)));
+                        when(campaignCompletionItemRepository.findByCampaign_IdIn(List.of(campaign.getId())))
+                                        .thenReturn(List.of(completionAward(crateId, "Alpha Crate", 2)));
+
+                        CampaignResponse result = firstListedCampaign();
+
+                        assertThat(result.getRewards())
+                                        .extracting(CampaignItemAwardResponse::getItemName,
+                                                        CampaignItemAwardResponse::getQuantity)
+                                        .containsExactlyInAnyOrder(
+                                                        org.assertj.core.api.Assertions.tuple("Alpha Crate", 6),
+                                                        org.assertj.core.api.Assertions.tuple("Founder Title", 1));
+                }
+
+                @Test
+                void reportsTotalsFromTheRewardTotalsView() {
+                        stubCampaignPage();
+                        when(campaignDifficultyItemRepository.findActiveByCampaignIds(List.of(campaign.getId())))
+                                        .thenReturn(List.of());
+                        when(campaignCompletionItemRepository.findByCampaign_IdIn(List.of(campaign.getId())))
+                                        .thenReturn(List.of());
+                        when(campaignRewardTotalsRepository.findByCampaignIdIn(List.of(campaign.getId())))
+                                        .thenReturn(List.of(new CampaignRewardTotals(campaign.getId(),
+                                                        new BigDecimal("4500"), 9)));
+
+                        CampaignResponse result = firstListedCampaign();
+
+                        assertThat(result.getTotalXp()).isEqualByComparingTo(new BigDecimal("4500"));
+                        assertThat(result.getTotalRewardCount()).isEqualTo(9);
+                }
+
+                @Test
+                void leavesTotalsNullWhenTheViewHasNoRow() {
+                        stubCampaignPage();
+                        when(campaignDifficultyItemRepository.findActiveByCampaignIds(List.of(campaign.getId())))
+                                        .thenReturn(List.of());
+                        when(campaignCompletionItemRepository.findByCampaign_IdIn(List.of(campaign.getId())))
+                                        .thenReturn(List.of());
+                        when(campaignRewardTotalsRepository.findByCampaignIdIn(List.of(campaign.getId())))
+                                        .thenReturn(List.of());
+
+                        CampaignResponse result = firstListedCampaign();
+
+                        assertThat(result.getTotalXp()).isNull();
+                        assertThat(result.getTotalRewardCount()).isNull();
+                        assertThat(result.getRewards()).isEmpty();
+                }
+
+                private CampaignResponse firstListedCampaign() {
+                        Page<CampaignResponse> page = campaignService.findCampaigns(List.of(), List.of(), null, null,
+                                        null, null, null, true, PageRequest.of(0, 20));
+                        assertThat(page.getContent()).hasSize(1);
+                        return page.getContent().get(0);
+                }
+
+                private void stubCampaignPage() {
+                        campaign.setStatus(CampaignStatus.PUBLISHED);
+                        when(campaignRepository.findFiltered(anyBoolean(), any(), any(), anyBoolean(), any(), any(),
+                                        any(), anyBoolean(), any(), any(), any(), any(), any()))
+                                        .thenReturn(new PageImpl<>(List.of(campaign)));
+                        when(campaignTagLinkRepository.findByCampaign_IdIn(List.of(campaign.getId())))
+                                        .thenReturn(List.of());
+                        when(campaignDifficultyRepository.countActiveByCampaignIds(List.of(campaign.getId())))
+                                        .thenReturn(List.of());
+                        lenient().when(campaignRewardTotalsRepository.findByCampaignIdIn(List.of(campaign.getId())))
+                                        .thenReturn(List.of());
+                }
+
+                private CampaignDifficultyItem nodeAward(UUID itemId, String name, int quantity) {
+                        CampaignDifficulty node = CampaignDifficulty.builder()
+                                        .id(UUID.randomUUID()).campaign(campaign).active(true).build();
+                        return CampaignDifficultyItem.builder()
+                                        .campaignDifficulty(node)
+                                        .item(Item.builder().id(itemId).name(name).build())
+                                        .quantity(quantity)
+                                        .build();
+                }
+
+                private CampaignCompletionItem completionAward(UUID itemId, String name, int quantity) {
+                        return CampaignCompletionItem.builder()
+                                        .campaign(campaign)
+                                        .item(Item.builder().id(itemId).name(name).build())
+                                        .quantity(quantity)
+                                        .build();
+                }
+        }
+
+        @Nested
+        class Loved {
+
+                private final StaffUser curator = StaffUser.builder()
+                                .id(UUID.randomUUID()).username("curator").role(StaffRole.CAMPAIGN_CURATOR).build();
+
+                @Test
+                void stampsTheCuratorAndTimestampWhenLoved() {
+                        campaign.setStatus(CampaignStatus.PUBLISHED);
+                        stubLovedUpdate();
+
+                        CampaignResponse result = campaignService.setLoved(campaign.getId(), true, curator);
+
+                        assertThat(result.isLoved()).isTrue();
+                        assertThat(result.getLovedAt()).isNotNull();
+                        assertThat(result.getLovedById()).isEqualTo(curator.getId().toString());
+                }
+
+                @Test
+                void clearsTheStampWhenUnloved() {
+                        campaign.setStatus(CampaignStatus.PUBLISHED);
+                        campaign.setLoved(true);
+                        campaign.setLovedAt(Instant.now());
+                        campaign.setLovedBy(curator);
+                        stubLovedUpdate();
+
+                        CampaignResponse result = campaignService.setLoved(campaign.getId(), false, curator);
+
+                        assertThat(result.isLoved()).isFalse();
+                        assertThat(result.getLovedAt()).isNull();
+                        assertThat(result.getLovedById()).isNull();
+                }
+
+                @Test
+                void allowsLovingAnAlreadyCuratedCampaign() {
+                        campaign.setStatus(CampaignStatus.CURATED);
+                        stubLovedUpdate();
+
+                        CampaignResponse result = campaignService.setLoved(campaign.getId(), true, curator);
+
+                        assertThat(result.isLoved()).isTrue();
+                }
+
+                @Test
+                void rejectsLovingADraft() {
+                        campaign.setStatus(CampaignStatus.DRAFT);
+                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
+                                        .thenReturn(Optional.of(campaign));
+
+                        assertThatThrownBy(() -> campaignService.setLoved(campaign.getId(), true, curator))
+                                        .isInstanceOf(ValidationException.class);
+                }
+
+                @Test
+                void rejectsANonCuratorStaffMember() {
+                        StaffUser ranking = StaffUser.builder()
+                                        .id(UUID.randomUUID()).role(StaffRole.RANKING).build();
+
+                        assertThatThrownBy(() -> campaignService.setLoved(campaign.getId(), true, ranking))
+                                        .isInstanceOf(ValidationException.class);
+                }
+
+                private void stubLovedUpdate() {
+                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
+                                        .thenReturn(Optional.of(campaign));
+                        when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
+                        when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
+                }
         }
 
         @Nested
@@ -281,12 +555,12 @@ class CampaignServiceTest {
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(0).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
                         CampaignDifficulty b = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(1).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(1)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
@@ -315,15 +589,15 @@ class CampaignServiceTest {
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(0).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
                         CampaignDifficulty b = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(1).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(1)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
                         CampaignDifficulty gate = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).barrier(true)
-                                        .positionX(2).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(2)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
@@ -351,15 +625,15 @@ class CampaignServiceTest {
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(0).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
                         CampaignDifficulty b = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(1).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(1)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
                         CampaignDifficulty gate = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).barrier(true)
-                                        .positionX(2).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(2)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
@@ -392,20 +666,20 @@ class CampaignServiceTest {
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(0).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
                         CampaignDifficulty b = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(1).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(1)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
                         CampaignDifficulty terminal = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.97"))
-                                        .positionX(2).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(2)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
                         CampaignDifficulty gate = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).barrier(true)
-                                        .positionX(3).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(3)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
@@ -442,12 +716,12 @@ class CampaignServiceTest {
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(0).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
                         CampaignDifficulty b = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(1).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(1)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
@@ -467,7 +741,7 @@ class CampaignServiceTest {
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(0).positionY(0).xp(BigDecimal.ZERO).active(true)
+                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true)
                                         .requirementDirty(true).build();
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
@@ -562,7 +836,7 @@ class CampaignServiceTest {
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(0).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
@@ -589,15 +863,15 @@ class CampaignServiceTest {
                         request.setMapDifficultyId(mapDifficulty.getId());
                         request.setRequirementType(CampaignRequirementType.ACC);
                         request.setRequirementValue(new BigDecimal("0.95"));
-                        request.setPositionX(0);
-                        request.setPositionY(0);
+                        request.setPositionX(BigDecimal.valueOf(0));
+                        request.setPositionY(BigDecimal.valueOf(0));
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
                         when(mapDifficultyRepository.findByIdAndActiveTrue(mapDifficulty.getId()))
                                         .thenReturn(Optional.of(mapDifficulty));
                         when(campaignDifficultyRepository.existsByCampaign_IdAndPositionXAndPositionYAndActiveTrue(
-                                        campaign.getId(), 0, 0)).thenReturn(true);
+                                        campaign.getId(), BigDecimal.ZERO, BigDecimal.ZERO)).thenReturn(true);
 
                         assertThatThrownBy(() -> campaignService.addDifficulty(campaign.getId(), request))
                                         .isInstanceOf(ValidationException.class);
@@ -609,8 +883,8 @@ class CampaignServiceTest {
                         request.setMapDifficultyId(mapDifficulty.getId());
                         request.setRequirementType(CampaignRequirementType.ACC);
                         request.setRequirementValue(new BigDecimal("0.95"));
-                        request.setPositionX(2);
-                        request.setPositionY(1);
+                        request.setPositionX(BigDecimal.valueOf(2));
+                        request.setPositionY(BigDecimal.valueOf(1));
                         request.setXp(new BigDecimal("100"));
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
@@ -618,7 +892,7 @@ class CampaignServiceTest {
                         when(mapDifficultyRepository.findByIdAndActiveTrue(mapDifficulty.getId()))
                                         .thenReturn(Optional.of(mapDifficulty));
                         when(campaignDifficultyRepository.existsByCampaign_IdAndPositionXAndPositionYAndActiveTrue(
-                                        campaign.getId(), 2, 1)).thenReturn(false);
+                                        campaign.getId(), BigDecimal.valueOf(2), BigDecimal.ONE)).thenReturn(false);
                         when(campaignDifficultyRepository.save(any(CampaignDifficulty.class))).thenAnswer(inv -> {
                                 CampaignDifficulty d = inv.getArgument(0);
                                 d.setId(UUID.randomUUID());
@@ -627,9 +901,179 @@ class CampaignServiceTest {
 
                         CampaignDifficultyResponse result = campaignService.addDifficulty(campaign.getId(), request);
 
-                        assertThat(result.getPositionX()).isEqualTo(2);
-                        assertThat(result.getPositionY()).isEqualTo(1);
+                        assertThat(result.getPositionX()).isEqualByComparingTo(BigDecimal.valueOf(2));
+                        assertThat(result.getPositionY()).isEqualByComparingTo(BigDecimal.valueOf(1));
                         assertThat(result.getXp()).isEqualByComparingTo(new BigDecimal("100"));
+                }
+
+                @Test
+                void defaultsNodeBorderLayerToAboveWhenUnspecified() {
+                        AddCampaignDifficultyRequest request = new AddCampaignDifficultyRequest();
+                        request.setMapDifficultyId(mapDifficulty.getId());
+                        request.setRequirementType(CampaignRequirementType.ACC);
+                        request.setRequirementValue(new BigDecimal("0.95"));
+                        request.setPositionX(BigDecimal.valueOf(2));
+                        request.setPositionY(BigDecimal.valueOf(1));
+                        request.setNodeBorderUrl("https://cdn.example/border.png");
+                        stubAddDifficulty();
+
+                        CampaignDifficultyResponse result = campaignService.addDifficulty(campaign.getId(), request);
+
+                        assertThat(result.getNodeBorderUrl()).isEqualTo("https://cdn.example/border.png");
+                        assertThat(result.getNodeBorderLayer()).isEqualTo(CampaignNodeBorderLayer.ABOVE);
+                }
+
+                @Test
+                void honoursExplicitBelowNodeBorderLayer() {
+                        AddCampaignDifficultyRequest request = new AddCampaignDifficultyRequest();
+                        request.setMapDifficultyId(mapDifficulty.getId());
+                        request.setRequirementType(CampaignRequirementType.ACC);
+                        request.setRequirementValue(new BigDecimal("0.95"));
+                        request.setPositionX(BigDecimal.valueOf(2));
+                        request.setPositionY(BigDecimal.valueOf(1));
+                        request.setNodeBorderUrl("https://cdn.example/border.png");
+                        request.setNodeBorderLayer(CampaignNodeBorderLayer.BELOW);
+                        stubAddDifficulty();
+
+                        CampaignDifficultyResponse result = campaignService.addDifficulty(campaign.getId(), request);
+
+                        assertThat(result.getNodeBorderLayer()).isEqualTo(CampaignNodeBorderLayer.BELOW);
+                }
+
+                @Test
+                void acceptsFractionalNodePositions() {
+                        AddCampaignDifficultyRequest request = new AddCampaignDifficultyRequest();
+                        request.setMapDifficultyId(mapDifficulty.getId());
+                        request.setRequirementType(CampaignRequirementType.ACC);
+                        request.setRequirementValue(new BigDecimal("0.95"));
+                        request.setPositionX(new BigDecimal("2.25"));
+                        request.setPositionY(new BigDecimal("-1.5"));
+
+                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
+                                        .thenReturn(Optional.of(campaign));
+                        when(mapDifficultyRepository.findByIdAndActiveTrue(mapDifficulty.getId()))
+                                        .thenReturn(Optional.of(mapDifficulty));
+                        when(campaignDifficultyRepository.existsByCampaign_IdAndPositionXAndPositionYAndActiveTrue(
+                                        campaign.getId(), new BigDecimal("2.25"), new BigDecimal("-1.5")))
+                                        .thenReturn(false);
+                        when(campaignDifficultyRepository.save(any(CampaignDifficulty.class))).thenAnswer(inv -> {
+                                CampaignDifficulty d = inv.getArgument(0);
+                                d.setId(UUID.randomUUID());
+                                return d;
+                        });
+
+                        CampaignDifficultyResponse result = campaignService.addDifficulty(campaign.getId(), request);
+
+                        assertThat(result.getPositionX()).isEqualByComparingTo(new BigDecimal("2.25"));
+                        assertThat(result.getPositionY()).isEqualByComparingTo(new BigDecimal("-1.5"));
+                }
+
+                @Test
+                void clearsTheUpperBoundOnRequest() {
+                        CampaignDifficulty node = boundedNode(new BigDecimal("0.90"), new BigDecimal("0.95"));
+                        UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
+                        request.setClear(Set.of(CampaignBound.VALUE_MAX));
+                        stubNodeUpdate(node);
+
+                        CampaignDifficultyResponse result = campaignService.updateDifficulty(node.getId(), request);
+
+                        assertThat(result.getRequirementValue()).isEqualByComparingTo(new BigDecimal("0.90"));
+                        assertThat(result.getRequirementValueMax()).isNull();
+                }
+
+                @Test
+                void clearsTheLowerBoundLeavingACapOnlyRequirement() {
+                        CampaignDifficulty node = boundedNode(BigDecimal.ONE, new BigDecimal("3"));
+                        UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
+                        request.setClear(Set.of(CampaignBound.VALUE));
+                        stubNodeUpdate(node);
+
+                        CampaignDifficultyResponse result = campaignService.updateDifficulty(node.getId(), request);
+
+                        assertThat(result.getRequirementValue()).isNull();
+                        assertThat(result.getRequirementValueMax()).isEqualByComparingTo(new BigDecimal("3"));
+                }
+
+                @Test
+                void rejectsClearingBothBounds() {
+                        CampaignDifficulty node = boundedNode(new BigDecimal("0.90"), new BigDecimal("0.95"));
+                        UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
+                        request.setClear(Set.of(CampaignBound.VALUE, CampaignBound.VALUE_MAX));
+                        when(campaignDifficultyRepository.findByIdAndActiveTrue(node.getId()))
+                                        .thenReturn(Optional.of(node));
+
+                        assertThatThrownBy(() -> campaignService.updateDifficulty(node.getId(), request))
+                                        .isInstanceOf(ValidationException.class);
+                }
+
+                @Test
+                void rejectsSettingAndClearingTheSameBound() {
+                        CampaignDifficulty node = boundedNode(new BigDecimal("0.90"), new BigDecimal("0.95"));
+                        UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
+                        request.setRequirementValueMax(new BigDecimal("0.99"));
+                        request.setClear(Set.of(CampaignBound.VALUE_MAX));
+                        when(campaignDifficultyRepository.findByIdAndActiveTrue(node.getId()))
+                                        .thenReturn(Optional.of(node));
+
+                        assertThatThrownBy(() -> campaignService.updateDifficulty(node.getId(), request))
+                                        .isInstanceOf(ValidationException.class);
+                }
+
+                private CampaignDifficulty boundedNode(BigDecimal value, BigDecimal valueMax) {
+                        return CampaignDifficulty.builder()
+                                        .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
+                                        .requirementType(CampaignRequirementType.ACC)
+                                        .requirementValue(value).requirementValueMax(valueMax)
+                                        .positionX(BigDecimal.ZERO).positionY(BigDecimal.ZERO)
+                                        .xp(BigDecimal.ZERO).active(true).build();
+                }
+
+                private void stubNodeUpdate(CampaignDifficulty node) {
+                        when(campaignDifficultyRepository.findByIdAndActiveTrue(node.getId()))
+                                        .thenReturn(Optional.of(node));
+                        when(campaignDifficultyRepository.save(any(CampaignDifficulty.class)))
+                                        .thenAnswer(inv -> inv.getArgument(0));
+                        when(campaignDifficultyPathRepository.findByCampaignDifficulty_IdAndActiveTrue(node.getId()))
+                                        .thenReturn(List.of());
+                }
+
+                @Test
+                void treatsAPositionDifferingOnlyInScaleAsUnmoved() {
+                        CampaignDifficulty node = CampaignDifficulty.builder()
+                                        .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
+                                        .requirementType(CampaignRequirementType.ACC)
+                                        .requirementValue(new BigDecimal("0.95"))
+                                        .positionX(new BigDecimal("2")).positionY(BigDecimal.ONE)
+                                        .xp(BigDecimal.ZERO).active(true).build();
+                        UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
+                        request.setPositionX(new BigDecimal("2.00"));
+                        request.setPositionY(new BigDecimal("1.000"));
+
+                        when(campaignDifficultyRepository.findByIdAndActiveTrue(node.getId()))
+                                        .thenReturn(Optional.of(node));
+                        when(campaignDifficultyRepository.save(any(CampaignDifficulty.class)))
+                                        .thenAnswer(inv -> inv.getArgument(0));
+                        when(campaignDifficultyPathRepository.findByCampaignDifficulty_IdAndActiveTrue(node.getId()))
+                                        .thenReturn(List.of());
+
+                        campaignService.updateDifficulty(node.getId(), request);
+
+                        verify(campaignDifficultyRepository, never())
+                                        .existsByCampaign_IdAndPositionXAndPositionYAndActiveTrue(any(), any(), any());
+                }
+
+                private void stubAddDifficulty() {
+                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
+                                        .thenReturn(Optional.of(campaign));
+                        when(mapDifficultyRepository.findByIdAndActiveTrue(mapDifficulty.getId()))
+                                        .thenReturn(Optional.of(mapDifficulty));
+                        when(campaignDifficultyRepository.existsByCampaign_IdAndPositionXAndPositionYAndActiveTrue(
+                                        campaign.getId(), BigDecimal.valueOf(2), BigDecimal.ONE)).thenReturn(false);
+                        when(campaignDifficultyRepository.save(any(CampaignDifficulty.class))).thenAnswer(inv -> {
+                                CampaignDifficulty d = inv.getArgument(0);
+                                d.setId(UUID.randomUUID());
+                                return d;
+                        });
                 }
         }
 
@@ -701,7 +1145,7 @@ class CampaignServiceTest {
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(0).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
                         Score score = Score.builder()
                                         .id(UUID.randomUUID()).user(creator).mapDifficulty(mapDifficulty)
                                         .score(950000).scoreNoMods(950000)
@@ -747,7 +1191,7 @@ class CampaignServiceTest {
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(0).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
                         when(userCampaignRepository.findByUser_IdAndCampaign_IdInAndActiveTrue(eq(creator.getId()),
@@ -777,12 +1221,12 @@ class CampaignServiceTest {
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(0).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
                         CampaignDifficulty b = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(1).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(1)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
@@ -944,7 +1388,7 @@ class CampaignServiceTest {
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(0).positionY(0).xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0)).xp(BigDecimal.ZERO).active(true).build();
                 }
 
                 @Test

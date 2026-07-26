@@ -341,7 +341,9 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                             MAX(CASE WHEN NOT EXISTS (
                                 SELECT l.id FROM ScoreModifierLink l
                                 WHERE l.score = s AND l.modifier.code = 'NF'
-                            ) THEN 1 ELSE 0 END)
+                            ) THEN 1 ELSE 0 END),
+                            MAX(s.maxCombo),
+                            MIN(s.bombHits)
                         )
                         FROM Score s
                         WHERE s.user.id = :userId

@@ -98,9 +98,9 @@ public class MediaProcessingService {
     }
 
     public void deleteIfExists(String subdir, String key) {
-        deletePathIfExists(baseDir(subdir).resolve(key + MediaFormat.WEBP.extension));
-        deletePathIfExists(baseDir(subdir).resolve(key + MediaFormat.AVIF.extension));
-        deletePathIfExists(baseDir(subdir).resolve(key + MediaFormat.PNG.extension));
+        for (MediaFormat format : MediaFormat.values()) {
+            deletePathIfExists(baseDir(subdir).resolve(key + format.extension));
+        }
     }
 
     private void deletePathIfExists(Path target) {
@@ -122,17 +122,21 @@ public class MediaProcessingService {
             populator.populate(tempInput);
 
             boolean animated = sourcePageCount(tempInput) > 1;
-            MediaFormat format = (animated && requestedFormat == MediaFormat.AVIF)
-                    ? MediaFormat.WEBP
-                    : requestedFormat;
-            Path target = baseDir.resolve(key + format.extension);
+            MediaFormat format = resolveFormat(requestedFormat, animated);
             tempOutput = Files.createTempFile("cdn-out-", format.extension);
-
-            switch (format) {
-                case AVIF -> runVipsAvif(tempInput, tempOutput, animated, maxDim);
-                case PNG -> runVipsPng(tempInput, tempOutput, animated, maxDim);
-                default -> runVipsWebp(tempInput, tempOutput, animated, maxDim);
+            try {
+                encode(format, tempInput, tempOutput, animated, maxDim);
+            } catch (MediaProcessingException e) {
+                if (format != MediaFormat.GIF) {
+                    throw e;
+                }
+                log.info("GIF encode unavailable for {}/{}, falling back to animated WebP", subdir, key);
+                deleteQuietly(tempOutput);
+                format = MediaFormat.WEBP;
+                tempOutput = Files.createTempFile("cdn-out-", format.extension);
+                encode(format, tempInput, tempOutput, animated, maxDim);
             }
+            Path target = baseDir.resolve(key + format.extension);
             atomicMove(tempOutput, target);
             makeWorldReadable(target);
             return cdn.getBaseUrl() + "/" + subdir + "/" + key + format.extension
@@ -143,6 +147,23 @@ public class MediaProcessingService {
         } finally {
             deleteQuietly(tempInput);
             deleteQuietly(tempOutput);
+        }
+    }
+
+    private static MediaFormat resolveFormat(MediaFormat requested, boolean animated) {
+        return switch (requested) {
+            case AVIF -> animated ? MediaFormat.WEBP : MediaFormat.AVIF;
+            case GIF -> animated ? MediaFormat.GIF : MediaFormat.PNG;
+            default -> requested;
+        };
+    }
+
+    private void encode(MediaFormat format, Path input, Path output, boolean animated, int maxDim) {
+        switch (format) {
+            case AVIF -> runVipsAvif(input, output, animated, maxDim);
+            case PNG -> runVipsPng(input, output, animated, maxDim);
+            case GIF -> runVipsGif(input, output, animated, maxDim);
+            default -> runVipsWebp(input, output, animated, maxDim);
         }
     }
 
@@ -262,6 +283,10 @@ public class MediaProcessingService {
     private void runVipsPng(Path input, Path output, boolean animated, int maxDim) {
         String outputArg = output + "[compression=" + cdn.getPngCompression() + "]";
         encodeWithFallback(input, outputArg, animated, maxDim, "PNG");
+    }
+
+    private void runVipsGif(Path input, Path output, boolean animated, int maxDim) {
+        encodeWithFallback(input, output.toString(), animated, maxDim, "GIF");
     }
 
     private void encodeWithFallback(Path input, String outputArg, boolean animated, int maxDim, String label) {

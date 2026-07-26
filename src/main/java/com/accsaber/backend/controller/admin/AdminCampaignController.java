@@ -53,6 +53,7 @@ public class AdminCampaignController {
     private static final String CAMPAIGN_BACKGROUND_SUBDIR = "campaigns";
     private static final String CAMPAIGN_ICON_SUBDIR = "campaign-icons";
     private static final String CAMPAIGN_CHECKPOINT_SUBDIR = "campaign-checkpoints";
+    private static final String CAMPAIGN_NODE_BORDER_SUBDIR = "campaign-node-borders";
 
     private final CampaignService campaignService;
     private final MediaProcessingService mediaProcessingService;
@@ -90,6 +91,16 @@ public class AdminCampaignController {
             @PathVariable UUID campaignId,
             @AuthenticationPrincipal StaffUserDetails principal) {
         return ResponseEntity.ok(campaignService.markCurated(campaignId, principal.getStaffUser()));
+    }
+
+    @Operation(summary = "Mark a campaign as loved by the community")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_CURATOR')")
+    @PatchMapping("/{campaignId}/loved")
+    public ResponseEntity<CampaignResponse> setLoved(
+            @PathVariable UUID campaignId,
+            @RequestParam(name = "loved", defaultValue = "true") boolean loved,
+            @AuthenticationPrincipal StaffUserDetails principal) {
+        return ResponseEntity.ok(campaignService.setLoved(campaignId, loved, principal.getStaffUser()));
     }
 
     @Operation(summary = "Strip curation status from a campaign")
@@ -264,6 +275,29 @@ public class AdminCampaignController {
         request.setCheckpointAvatarUrl("");
         CampaignDifficultyResponse result = campaignService.updateDifficulty(campaignDifficultyId, request);
         mediaProcessingService.deleteIfExists(CAMPAIGN_CHECKPOINT_SUBDIR, campaignDifficultyId.toString());
+        return ResponseEntity.ok(result);
+    }
+
+    @Operation(summary = "Upload (or replace) the border image for a campaign node")
+    @PostMapping(value = "/difficulties/{campaignDifficultyId}/node-border", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CampaignDifficultyResponse> uploadNodeBorder(
+            @PathVariable UUID campaignDifficultyId,
+            @RequestPart("file") MultipartFile file) {
+        String url = mediaProcessingService.storeImage(file, CAMPAIGN_NODE_BORDER_SUBDIR,
+                campaignDifficultyId.toString(), MediaFormat.GIF);
+        UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
+        request.setNodeBorderUrl(url);
+        return ResponseEntity.ok(campaignService.updateDifficulty(campaignDifficultyId, request));
+    }
+
+    @Operation(summary = "Remove the border image for a campaign node")
+    @DeleteMapping("/difficulties/{campaignDifficultyId}/node-border")
+    public ResponseEntity<CampaignDifficultyResponse> deleteNodeBorder(
+            @PathVariable UUID campaignDifficultyId) {
+        UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
+        request.setNodeBorderUrl("");
+        CampaignDifficultyResponse result = campaignService.updateDifficulty(campaignDifficultyId, request);
+        mediaProcessingService.deleteIfExists(CAMPAIGN_NODE_BORDER_SUBDIR, campaignDifficultyId.toString());
         return ResponseEntity.ok(result);
     }
 }

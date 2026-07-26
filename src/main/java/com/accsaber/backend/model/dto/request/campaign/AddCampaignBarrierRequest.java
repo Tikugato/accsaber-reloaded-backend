@@ -24,6 +24,8 @@ public class AddCampaignBarrierRequest {
 
     private BigDecimal conditionValue;
 
+    private BigDecimal conditionValueMax;
+
     private CampaignPrerequisiteMode prerequisiteMode;
 
     @Size(max = 1000)
@@ -56,10 +58,10 @@ public class AddCampaignBarrierRequest {
     private Integer checkpointSize;
 
     @NotNull
-    private Integer positionX;
+    private BigDecimal positionX;
 
     @NotNull
-    private Integer positionY;
+    private BigDecimal positionY;
 
     private BigDecimal xp;
 

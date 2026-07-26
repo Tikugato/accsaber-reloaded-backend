@@ -62,9 +62,17 @@ Common stuff every build pulls from the context:
 
 ### Triggers
 
-`MissionType` carries a `MissionTrigger` (`SCORE` or `CAMPAIGN`). `MissionProgressService.openMissionsFor(userId, trigger)` filters by it before dispatch, so each listener only ever sees missions it can evaluate. The score switch throws `IllegalStateException` on a non-SCORE type rather than returning false - it's unreachable by construction, and a throw fails loudly if the filter ever regresses instead of silently never completing. Adding a new type is still a compile error in both switches.
+`MissionType` carries a `MissionTrigger` (`SCORE` or `CAMPAIGN`). `MissionProgressService.openMissionsFor(userId, trigger)` filters by it before dispatch, so each listener only ever sees missions it can evaluate. The score switch throws `IllegalStateException` on a non-SCORE type rather than returning false - it's unreachable by construction, and a throw fails loudly if the filter ever regresses instead of silently never completing. Adding a new type is still a compile error in both switches, plus the two progress-display switches in `MissionResponse`.
 - **COMEBACK_PB** - random old score (>1y), band derived from `weightedAp / maxWeightedAp` (so a comeback for a tiny historical play isn't "extreme").
 - **SCORES_N** - always re-bands to easy or medium, XP scaled by `0.5 + 0.5 * count`.
+
+### Progress display
+
+Every accumulating type banks into a *different* pair of columns - `progressCount`/`targetCount` for the count types, `progressCount`/`targetXp` for `XP_IN_WINDOW`, `progressAp`/`targetAp` for `AP_GAIN_OVERALL` - so a client that binds a bar to `progressCount / targetCount` silently renders nothing for the other two. `MissionResponse.progressValue` / `targetValue` are the normalised pair to bind to: same numbers, one field, resolved per type by two exhaustive switches in `MissionResponse`. The raw columns stay on the DTO, so nothing that already reads them breaks.
+
+Binary types (`ACC_ON_MAP`, `AP_ON_MAP`, `PB_SPECIFIC_MAP`, `COMEBACK_PB`, `SNIPE_PLAYER_ON_MAP`, `STREAK_ON_MAP`) complete off a single score and accumulate nothing, so both fields are null - that's the signal to draw no bar, not a bug. On a template response (`fromTemplate`, i.e. a locked or not-yet-started mission) only `targetValue` is populated; treat the missing `progressValue` as 0.
+
+**`AP_GAIN_OVERALL` additionally mirrors into `progressCount`/`targetCount`** (`countProgress` / `countTarget`), which is why a type that never touches `progressCount` still reports one. The plugin is frozen: `AccSaberMission` has no `progressAp` field, and `AccSaberMissionScreen.ShowProgress` gates the bar on `TargetCount != null || TargetXp != null`, so without the mirror the plugin draws nothing at all for this type. Progress floors and the target ceils, so the mirrored pair can never read `5 / 5` while `progressAp` is still short of `targetAp` - the bar rounds down, never up. The mirror only fires when `targetCount` is null, so it can't shadow a real count. Drop it if the plugin ever learns to read `progressValue`.
 
 ### Bands
 

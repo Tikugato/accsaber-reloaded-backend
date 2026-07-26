@@ -11,7 +11,9 @@ public enum BarrierConditionType {
     AVERAGE_RANK,
     MAX_RANK,
     COMPLETION_COUNT,
-    PASS;
+    PASS,
+    AVERAGE_COMBO,
+    AVERAGE_BOMB_HITS;
 
     public boolean isLowerBetter() {
         return this == AVERAGE_RANK || this == MAX_RANK;

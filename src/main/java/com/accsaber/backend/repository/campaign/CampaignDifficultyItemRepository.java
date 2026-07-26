@@ -30,6 +30,14 @@ public interface CampaignDifficultyItemRepository
         List<CampaignDifficultyItem> findByCampaignDifficulty_IdIn(
                         @Param("campaignDifficultyIds") Collection<UUID> campaignDifficultyIds);
 
+        @Query("""
+                        SELECT cdi FROM CampaignDifficultyItem cdi
+                        JOIN FETCH cdi.item
+                        JOIN FETCH cdi.campaignDifficulty cd
+                        WHERE cd.campaign.id IN :campaignIds AND cd.active = true
+                        """)
+        List<CampaignDifficultyItem> findActiveByCampaignIds(@Param("campaignIds") Collection<UUID> campaignIds);
+
         void deleteByCampaignDifficulty_IdAndItem_Id(UUID campaignDifficultyId, UUID itemId);
 
         void deleteByCampaignDifficulty_Id(UUID campaignDifficultyId);

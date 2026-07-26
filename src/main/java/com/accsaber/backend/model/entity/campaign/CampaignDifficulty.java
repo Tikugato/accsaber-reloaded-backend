@@ -54,6 +54,9 @@ public class CampaignDifficulty {
     @Column(name = "requirement_value", precision = 20, scale = 6)
     private BigDecimal requirementValue;
 
+    @Column(name = "requirement_value_max", precision = 20, scale = 6)
+    private BigDecimal requirementValueMax;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean barrier = false;
@@ -64,9 +67,16 @@ public class CampaignDifficulty {
     @Column(name = "barrier_condition_value", precision = 20, scale = 6)
     private BigDecimal barrierConditionValue;
 
+    @Column(name = "barrier_condition_value_max", precision = 20, scale = 6)
+    private BigDecimal barrierConditionValueMax;
+
     @Column(name = "prerequisite_mode", nullable = false)
     @Builder.Default
     private CampaignPrerequisiteMode prerequisiteMode = CampaignPrerequisiteMode.OR;
+
+    @Column(name = "target_mode", nullable = false)
+    @Builder.Default
+    private CampaignPrerequisiteMode targetMode = CampaignPrerequisiteMode.AND;
 
     private String description;
 
@@ -88,6 +98,13 @@ public class CampaignDifficulty {
     @Column(name = "border_shape")
     private String borderShape;
 
+    @Column(name = "node_border_url")
+    private String nodeBorderUrl;
+
+    @Column(name = "node_border_layer", nullable = false)
+    @Builder.Default
+    private CampaignNodeBorderLayer nodeBorderLayer = CampaignNodeBorderLayer.ABOVE;
+
     @Column(name = "size")
     private Integer size;
 
@@ -95,10 +112,10 @@ public class CampaignDifficulty {
     private Integer checkpointSize;
 
     @Column(name = "position_x", nullable = false)
-    private Integer positionX;
+    private BigDecimal positionX;
 
     @Column(name = "position_y", nullable = false)
-    private Integer positionY;
+    private BigDecimal positionY;
 
     @Column(nullable = false, precision = 20, scale = 6)
     @Builder.Default

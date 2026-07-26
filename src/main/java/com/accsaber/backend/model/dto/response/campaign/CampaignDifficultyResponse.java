@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.accsaber.backend.model.entity.campaign.CampaignLabelPosition;
+import com.accsaber.backend.model.entity.campaign.CampaignNodeBorderLayer;
 import com.accsaber.backend.model.entity.campaign.CampaignPrerequisiteMode;
 import com.accsaber.backend.model.entity.campaign.CampaignRequirementType;
 import com.accsaber.backend.model.entity.map.Difficulty;
@@ -38,6 +39,9 @@ public class CampaignDifficultyResponse {
     private MapDifficultyStatus mapDifficultyStatus;
     private CampaignRequirementType requirementType;
     private BigDecimal requirementValue;
+    private BigDecimal requirementValueMax;
+    private CampaignPrerequisiteMode targetMode;
+    private List<CampaignTargetResponse> targets;
     private CampaignPrerequisiteMode prerequisiteMode;
     private String description;
     private String checkpointLabel;
@@ -46,11 +50,14 @@ public class CampaignDifficultyResponse {
     private String checkpointColor;
     private String borderColor;
     private String borderShape;
+    private String nodeBorderUrl;
+    private CampaignNodeBorderLayer nodeBorderLayer;
     private Integer size;
     private Integer checkpointSize;
-    private Integer positionX;
-    private Integer positionY;
+    private BigDecimal positionX;
+    private BigDecimal positionY;
     private BigDecimal xp;
     private List<CampaignConnectionResponse> prerequisites;
     private List<CampaignItemAwardResponse> items;
+    private List<CampaignModifierRequirementResponse> modifiers;
 }

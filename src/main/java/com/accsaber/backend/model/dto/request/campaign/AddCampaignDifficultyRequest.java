@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.accsaber.backend.model.entity.campaign.CampaignLabelPosition;
+import com.accsaber.backend.model.entity.campaign.CampaignNodeBorderLayer;
 import com.accsaber.backend.model.entity.campaign.CampaignPrerequisiteMode;
 import com.accsaber.backend.model.entity.campaign.CampaignRequirementType;
 import com.accsaber.backend.validation.CleanText;
@@ -25,8 +26,15 @@ public class AddCampaignDifficultyRequest {
     @NotNull
     private CampaignRequirementType requirementType;
 
-    @NotNull
     private BigDecimal requirementValue;
+
+    private BigDecimal requirementValueMax;
+
+    @Valid
+    @Size(max = 8)
+    private List<CampaignTargetRequest> targets;
+
+    private CampaignPrerequisiteMode targetMode;
 
     @Size(max = 1000)
     @CleanText
@@ -51,6 +59,12 @@ public class AddCampaignDifficultyRequest {
     @Pattern(regexp = "^$|^[A-Za-z0-9 _-]{1,32}$", message = "invalid style token")
     private String borderShape;
 
+    @Size(max = 512)
+    @Pattern(regexp = "^$|^https?://[^\\s\"'<>]+$", message = "must be a valid http(s) URL")
+    private String nodeBorderUrl;
+
+    private CampaignNodeBorderLayer nodeBorderLayer;
+
     @PositiveOrZero
     private Integer size;
 
@@ -58,16 +72,20 @@ public class AddCampaignDifficultyRequest {
     private Integer checkpointSize;
 
     @NotNull
-    private Integer positionX;
+    private BigDecimal positionX;
 
     @NotNull
-    private Integer positionY;
+    private BigDecimal positionY;
 
     private BigDecimal xp;
 
     @Valid
     @Size(max = 25)
     private List<CampaignConnectionRequest> prerequisites;
+
+    @Valid
+    @Size(max = 20)
+    private List<CampaignModifierRequirementRequest> modifiers;
 
     private CampaignPrerequisiteMode prerequisiteMode;
 }

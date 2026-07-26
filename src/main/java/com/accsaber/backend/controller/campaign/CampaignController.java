@@ -71,6 +71,7 @@ public class CampaignController {
     private static final String CAMPAIGN_BACKGROUND_SUBDIR = "campaigns";
     private static final String CAMPAIGN_ICON_SUBDIR = "campaign-icons";
     private static final String CAMPAIGN_CHECKPOINT_SUBDIR = "campaign-checkpoints";
+    private static final String CAMPAIGN_NODE_BORDER_SUBDIR = "campaign-node-borders";
 
     private final CampaignService campaignService;
     private final MapImportService mapImportService;
@@ -93,9 +94,10 @@ public class CampaignController {
             @RequestParam(required = false) Long creatorId,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean official,
+            @RequestParam(required = false) Boolean loved,
             Authentication authentication,
             @PageableDefault(size = 20, sort = "name") Pageable pageable) {
-        return ResponseEntity.ok(campaignService.findCampaigns(status, tagIds, creatorId, search, official,
+        return ResponseEntity.ok(campaignService.findCampaigns(status, tagIds, creatorId, search, official, loved,
                 viewerId(authentication), canViewAllDrafts(authentication), pageable));
     }
 
@@ -374,6 +376,7 @@ public class CampaignController {
             @PathVariable UUID campaignId,
             @RequestPart("file") MultipartFile file,
             @AuthenticationPrincipal PlayerUserDetails principal) {
+        campaignService.assertPlayerCanUploadCampaignMedia(principal.getUserId(), campaignId);
         String url = mediaProcessingService.storeImage(file, CAMPAIGN_BACKGROUND_SUBDIR, campaignId.toString(),
                 MediaFormat.PNG);
         return ResponseEntity.ok(
@@ -398,6 +401,7 @@ public class CampaignController {
             @PathVariable UUID campaignId,
             @RequestPart("file") MultipartFile file,
             @AuthenticationPrincipal PlayerUserDetails principal) {
+        campaignService.assertPlayerCanUploadCampaignMedia(principal.getUserId(), campaignId);
         String url = mediaProcessingService.storeImage(file, CAMPAIGN_ICON_SUBDIR, campaignId.toString(),
                 MediaFormat.PNG);
         return ResponseEntity.ok(
@@ -422,6 +426,7 @@ public class CampaignController {
             @PathVariable UUID campaignDifficultyId,
             @RequestPart("file") MultipartFile file,
             @AuthenticationPrincipal PlayerUserDetails principal) {
+        campaignService.assertPlayerCanUploadDifficultyMedia(principal.getUserId(), campaignDifficultyId);
         String url = mediaProcessingService.storeImage(file, CAMPAIGN_CHECKPOINT_SUBDIR,
                 campaignDifficultyId.toString(), MediaFormat.PNG);
         UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
@@ -441,6 +446,36 @@ public class CampaignController {
         CampaignDifficultyResponse result = campaignService.updateDifficultyAsPlayer(
                 principal.getUserId(), campaignDifficultyId, request);
         mediaProcessingService.deleteIfExists(CAMPAIGN_CHECKPOINT_SUBDIR, campaignDifficultyId.toString());
+        return ResponseEntity.ok(result);
+    }
+
+    @Operation(summary = "Upload (or replace) the border image for a node on a draft campaign the authenticated player can edit")
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping(value = "/difficulties/{campaignDifficultyId}/node-border", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CampaignDifficultyResponse> uploadMyNodeBorder(
+            @PathVariable UUID campaignDifficultyId,
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal PlayerUserDetails principal) {
+        campaignService.assertPlayerCanUploadDifficultyMedia(principal.getUserId(), campaignDifficultyId);
+        String url = mediaProcessingService.storeImage(file, CAMPAIGN_NODE_BORDER_SUBDIR,
+                campaignDifficultyId.toString(), MediaFormat.GIF);
+        UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
+        request.setNodeBorderUrl(url);
+        return ResponseEntity.ok(
+                campaignService.updateDifficultyAsPlayer(principal.getUserId(), campaignDifficultyId, request));
+    }
+
+    @Operation(summary = "Remove the border image for a node on a draft campaign the authenticated player can edit")
+    @PreAuthorize("isAuthenticated()")
+    @DeleteMapping("/difficulties/{campaignDifficultyId}/node-border")
+    public ResponseEntity<CampaignDifficultyResponse> deleteMyNodeBorder(
+            @PathVariable UUID campaignDifficultyId,
+            @AuthenticationPrincipal PlayerUserDetails principal) {
+        UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
+        request.setNodeBorderUrl("");
+        CampaignDifficultyResponse result = campaignService.updateDifficultyAsPlayer(
+                principal.getUserId(), campaignDifficultyId, request);
+        mediaProcessingService.deleteIfExists(CAMPAIGN_NODE_BORDER_SUBDIR, campaignDifficultyId.toString());
         return ResponseEntity.ok(result);
     }
 

@@ -12,6 +12,7 @@ import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.mission.Event;
 import com.accsaber.backend.model.entity.mission.MissionTemplate;
+import com.accsaber.backend.model.entity.mission.MissionType;
 import com.accsaber.backend.model.entity.mission.UserMission;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.service.item.ItemMapper;
@@ -55,6 +56,8 @@ public class MissionResponse {
 
     private Integer progressCount;
     private BigDecimal progressAp;
+    private BigDecimal progressValue;
+    private BigDecimal targetValue;
     private Integer xpReward;
     private ItemResponse itemReward;
 
@@ -93,14 +96,17 @@ public class MissionResponse {
                 .targetAcc(roundAcc(m.getTargetAcc()))
                 .targetAp(roundAp(m.getTargetAp()))
                 .targetScore(m.getTargetScore())
-                .targetCount(m.getTargetCount())
+                .targetCount(countTarget(m.getTemplate().getType(), m.getTargetCount(), m.getTargetAp()))
                 .targetXp(m.getTargetXp())
                 .targetThresholdAp(roundAp(m.getTargetThresholdAp()))
                 .targetStreak(m.getTargetStreak())
                 .targetRankedBefore(m.getTargetRankedBefore())
                 .targetCuratedOnly(m.getTargetCuratedOnly())
-                .progressCount(m.getProgressCount())
+                .progressCount(countProgress(m.getTemplate().getType(), m.getProgressCount(), m.getProgressAp()))
                 .progressAp(roundProgressAp(m.getProgressAp()))
+                .progressValue(progressValue(m.getTemplate().getType(), m.getProgressCount(), m.getProgressAp()))
+                .targetValue(targetValue(m.getTemplate().getType(), m.getTargetCount(), m.getTargetXp(),
+                        m.getTargetAp()))
                 .xpReward(m.getXpReward())
                 .itemReward(m.getItemReward() != null ? ItemMapper.toItemResponse(m.getItemReward()) : null)
                 .assignedAt(m.getAssignedAt())
@@ -133,12 +139,15 @@ public class MissionResponse {
                 .targetAcc(targets != null ? roundAcc(targets.acc()) : null)
                 .targetAp(targets != null ? roundAp(targets.ap()) : null)
                 .targetScore(targets != null ? targets.score() : null)
-                .targetCount(targets != null ? targets.count() : null)
+                .targetCount(targets != null
+                        ? countTarget(t.getType(), targets.count(), targets.ap()) : null)
                 .targetXp(targets != null ? targets.xp() : null)
                 .targetThresholdAp(targets != null ? roundAp(targets.thresholdAp()) : null)
                 .targetStreak(targets != null ? targets.streak() : null)
                 .targetRankedBefore(targets != null ? targets.rankedBefore() : null)
                 .targetCuratedOnly(targets != null ? targets.curatedOnly() : null)
+                .targetValue(targets == null ? null
+                        : targetValue(t.getType(), targets.count(), targets.xp(), targets.ap()))
                 .xpReward(t.getFixedXp())
                 .itemReward(t.getAwardsItem() != null ? ItemMapper.toItemResponse(t.getAwardsItem()) : null)
                 .unlocksAt(unlocksAt)
@@ -149,6 +158,42 @@ public class MissionResponse {
                 .repeatable(t.isRepeatable())
                 .maxCompletions(t.getMaxCompletions())
                 .build();
+    }
+
+    private static Integer countTarget(MissionType type, Integer targetCount, BigDecimal targetAp) {
+        if (type != MissionType.AP_GAIN_OVERALL || targetCount != null || targetAp == null) {
+            return targetCount;
+        }
+        return targetAp.setScale(0, RoundingMode.CEILING).intValue();
+    }
+
+    private static Integer countProgress(MissionType type, Integer progressCount, BigDecimal progressAp) {
+        if (type != MissionType.AP_GAIN_OVERALL || progressAp == null) {
+            return progressCount;
+        }
+        return progressAp.setScale(0, RoundingMode.FLOOR).intValue();
+    }
+
+    private static BigDecimal targetValue(MissionType type, Integer targetCount, Integer targetXp,
+            BigDecimal targetAp) {
+        return switch (type) {
+            case AP_GAIN_OVERALL -> roundAp(targetAp);
+            case XP_IN_WINDOW -> targetXp == null ? null : BigDecimal.valueOf(targetXp);
+            case PLAY_N_MAPS, SCORES_N, STREAK_N_IN_CATEGORY, STREAK_SUM_N, PB_ABOVE_THRESHOLD,
+                    SNIPE_RIVAL_ANY_MAP, BATCH_PLAY_N, PB_RANKED_BEFORE_N, CAMPAIGN_COMPLETE_N ->
+                targetCount == null ? null : BigDecimal.valueOf(targetCount);
+            case ACC_ON_MAP, AP_ON_MAP, PB_SPECIFIC_MAP, COMEBACK_PB, SNIPE_PLAYER_ON_MAP, STREAK_ON_MAP -> null;
+        };
+    }
+
+    private static BigDecimal progressValue(MissionType type, Integer progressCount, BigDecimal progressAp) {
+        return switch (type) {
+            case AP_GAIN_OVERALL -> roundProgressAp(progressAp);
+            case XP_IN_WINDOW, PLAY_N_MAPS, SCORES_N, STREAK_N_IN_CATEGORY, STREAK_SUM_N, PB_ABOVE_THRESHOLD,
+                    SNIPE_RIVAL_ANY_MAP, BATCH_PLAY_N, PB_RANKED_BEFORE_N, CAMPAIGN_COMPLETE_N ->
+                progressCount == null ? null : BigDecimal.valueOf(progressCount);
+            case ACC_ON_MAP, AP_ON_MAP, PB_SPECIFIC_MAP, COMEBACK_PB, SNIPE_PLAYER_ON_MAP, STREAK_ON_MAP -> null;
+        };
     }
 
     private static BigDecimal roundAcc(BigDecimal acc) {

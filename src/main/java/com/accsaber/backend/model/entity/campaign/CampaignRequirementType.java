@@ -7,5 +7,11 @@ public enum CampaignRequirementType {
     STREAK_115,
     FC,
     RANK,
-    PASS
+    PASS,
+    COMBO,
+    BOMB_HITS;
+
+    public boolean isLowerBetter() {
+        return this == RANK;
+    }
 }

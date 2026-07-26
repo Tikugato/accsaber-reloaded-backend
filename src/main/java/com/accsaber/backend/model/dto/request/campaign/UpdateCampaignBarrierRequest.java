@@ -2,6 +2,7 @@ package com.accsaber.backend.model.dto.request.campaign;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import com.accsaber.backend.model.entity.campaign.BarrierConditionType;
@@ -21,6 +22,10 @@ public class UpdateCampaignBarrierRequest {
     private BarrierConditionType conditionType;
 
     private BigDecimal conditionValue;
+
+    private BigDecimal conditionValueMax;
+
+    private Set<CampaignBound> clear;
 
     private CampaignPrerequisiteMode prerequisiteMode;
 
@@ -53,9 +58,9 @@ public class UpdateCampaignBarrierRequest {
     @PositiveOrZero
     private Integer checkpointSize;
 
-    private Integer positionX;
+    private BigDecimal positionX;
 
-    private Integer positionY;
+    private BigDecimal positionY;
 
     private BigDecimal xp;
 

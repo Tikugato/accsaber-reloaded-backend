@@ -26,7 +26,7 @@ public class ModifierService {
                 .toList();
     }
 
-    private static ModifierResponse toResponse(Modifier modifier) {
+    public static ModifierResponse toResponse(Modifier modifier) {
         return ModifierResponse.builder()
                 .id(modifier.getId())
                 .name(modifier.getName())

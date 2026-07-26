@@ -13,6 +13,7 @@ import com.accsaber.backend.model.entity.staff.StaffUser;
 import com.accsaber.backend.model.entity.user.User;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -111,6 +112,9 @@ public class Campaign {
     @Column(name = "background_color")
     private String backgroundColor;
 
+    @Embedded
+    private CampaignBackgroundPlacement background;
+
     @Column(name = "icon_url")
     private String iconUrl;
 
@@ -126,6 +130,17 @@ public class Campaign {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "curated_by")
     private StaffUser curatedBy;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean loved = false;
+
+    @Column(name = "loved_at")
+    private Instant lovedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loved_by")
+    private StaffUser lovedBy;
 
     @Column(nullable = false)
     @Builder.Default

@@ -53,6 +53,7 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
         @EntityGraph(attributePaths = { "creator" })
         @Query("""
                         SELECT c FROM Campaign c
+                        LEFT JOIN CampaignRewardTotals rt ON rt.campaignId = c.id
                         WHERE c.active = true
                           AND (:hasStatus = false OR c.status IN :statuses)
                           AND (:creatorId IS NULL OR c.creator.id = :creatorId)
@@ -65,6 +66,7 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
                               SELECT 1 FROM CampaignTagLink ctl
                               WHERE ctl.campaign = c AND ctl.campaignTag.id IN :tagIds))
                           AND (:official IS NULL OR c.official = :official)
+                          AND (:loved IS NULL OR c.loved = :loved)
                           AND (CAST(:search AS string) IS NULL
                               OR LOWER(c.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))
                               OR LOWER(c.creator.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))
@@ -85,5 +87,6 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
                         @Param("collaboratorStatus") CampaignCollaboratorStatus collaboratorStatus,
                         @Param("search") String search,
                         @Param("official") Boolean official,
+                        @Param("loved") Boolean loved,
                         Pageable pageable);
 }

@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.accsaber.backend.model.entity.campaign.CampaignBackgroundPlacement;
 import com.accsaber.backend.model.entity.campaign.CampaignCompletionMode;
 import com.accsaber.backend.model.entity.campaign.CampaignStatus;
 import com.accsaber.backend.model.entity.campaign.CampaignVoteDirection;
@@ -35,13 +36,18 @@ public class CampaignDetailResponse {
     private boolean playlistExportEnabled;
     private String backgroundUrl;
     private String backgroundColor;
+    private CampaignBackgroundPlacement background;
     private String iconUrl;
     private int totalUpvotes;
     private int totalDownvotes;
     private double voteScore;
     private CampaignVoteDirection myVote;
+    private boolean loved;
+    private Instant lovedAt;
+    private String lovedById;
     private Instant submittedAt;
     private Instant curatedAt;
+    private String curatedById;
     private Instant publishedAt;
     private Instant createdAt;
     private List<CampaignTagResponse> tags;

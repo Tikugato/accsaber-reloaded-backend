@@ -49,6 +49,9 @@ import com.accsaber.backend.model.entity.campaign.CampaignCollaboratorStatus;
 import com.accsaber.backend.model.entity.campaign.CampaignDifficulty;
 import com.accsaber.backend.model.entity.campaign.CampaignRequirementType;
 import com.accsaber.backend.model.entity.campaign.CampaignStatus;
+import com.accsaber.backend.model.entity.campaign.CampaignTag;
+import com.accsaber.backend.model.entity.campaign.CampaignTagKind;
+import com.accsaber.backend.model.entity.campaign.CampaignTagLink;
 import com.accsaber.backend.model.entity.campaign.UserCampaign;
 import com.accsaber.backend.model.entity.campaign.UserCampaignStatus;
 import com.accsaber.backend.model.entity.item.Item;
@@ -283,16 +286,35 @@ class CampaignServiceTest {
                 }
 
                 @Test
-                void rejectsUpdateWhenCurated() {
+                void allowsAdminUpdateWhenCurated() {
                         campaign.setStatus(CampaignStatus.CURATED);
                         UpdateCampaignRequest request = new UpdateCampaignRequest();
-                        request.setName("Locked");
+                        request.setName("Renamed");
+                        stubUpdate();
 
-                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(Optional.of(campaign));
+                        CampaignResponse result = campaignService.updateCampaign(campaign.getId(), request);
 
-                        assertThatThrownBy(() -> campaignService.updateCampaign(campaign.getId(), request))
-                                        .isInstanceOf(ValidationException.class);
+                        assertThat(result.getName()).isEqualTo("Renamed");
+                }
+
+                @Test
+                void allowsAdminTagChangeWhenCurated() {
+                        campaign.setStatus(CampaignStatus.CURATED);
+                        CampaignTag tag = CampaignTag.builder()
+                                        .id(UUID.randomUUID())
+                                        .kind(CampaignTagKind.THEME)
+                                        .name("Jumps")
+                                        .build();
+                        UpdateCampaignRequest request = new UpdateCampaignRequest();
+                        request.setTagIds(List.of(tag.getId()));
+                        stubUpdate();
+                        when(campaignTagRepository.findByIdAndActiveTrue(tag.getId())).thenReturn(Optional.of(tag));
+                        when(campaignTagLinkRepository.save(any(CampaignTagLink.class)))
+                                        .thenAnswer(inv -> inv.getArgument(0));
+
+                        campaignService.updateCampaign(campaign.getId(), request);
+
+                        verify(campaignTagLinkRepository).save(any(CampaignTagLink.class));
                 }
 
                 @Test

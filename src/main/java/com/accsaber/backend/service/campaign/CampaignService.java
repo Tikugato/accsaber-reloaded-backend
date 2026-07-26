@@ -378,7 +378,6 @@ public class CampaignService {
     @Transactional
     public CampaignResponse updateCampaign(UUID campaignId, UpdateCampaignRequest request) {
         Campaign campaign = loadActiveCampaign(campaignId);
-        ensureEditable(campaign);
 
         if (request.getName() != null) {
             campaign.setName(request.getName());

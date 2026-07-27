@@ -27,6 +27,7 @@ import com.accsaber.backend.model.entity.item.Item;
 import com.accsaber.backend.model.entity.item.ItemSource;
 import com.accsaber.backend.model.entity.item.ItemType;
 import com.accsaber.backend.model.entity.item.UserItemLink;
+import com.accsaber.backend.model.entity.staff.StaffUser;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.item.UserItemLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
@@ -135,6 +136,21 @@ class ItemTransferServiceTest {
         transferService.transferEscrowed(escrowLink, BUYER_ID, ItemSource.market, "Purchased on the market");
 
         verify(itemService).clearEquippedIfLinkGone(SELLER_ID, escrowLink.getId(), "title");
+    }
+
+    @Test
+    void buyingAStaffAwardedItemDropsTheStaffAttribution() {
+        Item item = nonStackable();
+        UserItemLink escrowLink = link(SELLER_ID, item, 1L);
+        escrowLink.setEscrowed(true);
+        escrowLink.setSourceId("compensation");
+        escrowLink.setAwardedBy(StaffUser.builder().id(UUID.randomUUID()).build());
+
+        transferService.transferEscrowed(escrowLink, BUYER_ID, ItemSource.market, "Purchased on the market");
+
+        assertThat(escrowLink.getSource()).isEqualTo(ItemSource.market);
+        assertThat(escrowLink.getSourceId()).isNull();
+        assertThat(escrowLink.getAwardedBy()).isNull();
     }
 
     @Test

@@ -298,8 +298,8 @@ public class EventMissionService {
         }
         for (Item item : event.getBonusItems()) {
             try {
-                itemService.awardSystem(userId, item.getId(), ItemSource.manual,
-                        "event:" + event.getId(), "Event bonus: " + event.getTitle());
+                itemService.awardSystem(userId, item.getId(), ItemSource.event,
+                        event.getId().toString(), "Event bonus: " + event.getTitle());
             } catch (Exception e) {
                 log.warn("Failed to award event bonus item {} for event {}: {}",
                         item.getId(), event.getId(), e.getMessage());

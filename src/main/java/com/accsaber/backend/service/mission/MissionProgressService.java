@@ -361,7 +361,7 @@ public class MissionProgressService {
         if (mission.getItemReward() != null && !mission.isItemAwarded()) {
             try {
                 itemService.awardSystem(userId, mission.getItemReward().getId(),
-                        ItemSource.manual, "mission:" + mission.getId(),
+                        ItemSource.mission, mission.getId().toString(),
                         "Mission reward: " + mission.getTemplate().getName());
                 mission.setItemAwarded(true);
             } catch (Exception e) {

@@ -34,8 +34,7 @@ public class ItemTransferService {
             requireWholeLink(source, qty);
             source.setUser(userRepository.getReferenceById(newOwnerId));
             source.setEscrowed(false);
-            source.setSource(sourceKind);
-            source.setReason(reason);
+            ItemService.reattribute(source, sourceKind, null, null, reason);
             userItemLinkRepository.save(source);
             itemService.clearEquippedIfLinkGone(previousOwner, source.getId(), typeKey);
             return;
@@ -44,6 +43,7 @@ public class ItemTransferService {
         UserItemLink existing = findIdenticalStack(newOwnerId, source.getItem().getId(), source.getModifiers());
         if (existing != null) {
             existing.setQuantity(existing.getQuantity() + qty);
+            ItemService.reattribute(existing, sourceKind, null, null, reason);
             userItemLinkRepository.save(existing);
         } else {
             userItemLinkRepository.save(UserItemLink.builder()
@@ -94,6 +94,8 @@ public class ItemTransferService {
                 .escrowed(true)
                 .source(source.getSource())
                 .sourceId(source.getSourceId())
+                .awardedBy(source.getAwardedBy())
+                .awardedAt(source.getAwardedAt())
                 .reason(source.getReason())
                 .build());
     }
@@ -110,8 +112,7 @@ public class ItemTransferService {
 
         escrowLink.setUser(userRepository.getReferenceById(newOwnerId));
         escrowLink.setEscrowed(false);
-        escrowLink.setSource(sourceKind);
-        escrowLink.setReason(reason);
+        ItemService.reattribute(escrowLink, sourceKind, null, null, reason);
         absorbIdenticalStack(escrowLink, newOwnerId);
         userItemLinkRepository.save(escrowLink);
         itemService.clearEquippedIfLinkGone(previousOwner, escrowLink.getId(), typeKey);

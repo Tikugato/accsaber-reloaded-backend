@@ -7,8 +7,12 @@ public enum ItemSource {
     campaign_difficulty,
     campaign_completion,
     level,
+    mission,
+    event,
+    welcome,
     trade,
     manual,
+    system,
     crate_drop,
     supporter_tier,
     market

@@ -1,6 +1,7 @@
 package com.accsaber.backend.service.item;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -552,7 +553,7 @@ public class ItemService {
         for (Item item : itemRepository.findByWelcomeGrantTrueAndActiveTrueAndDeprecatedFalse()) {
             if (userItemLinkRepository.existsByUser_IdAndItem_Id(resolved, item.getId()))
                 continue;
-            awardOrMerge(resolved, item, null, 1L, ItemSource.manual, "welcome", null, "Welcome grant");
+            awardOrMerge(resolved, item, null, 1L, ItemSource.welcome, null, null, "Welcome grant");
         }
     }
 
@@ -676,6 +677,7 @@ public class ItemService {
             UserItemLink existing = findStackableMatch(userId, item.getId(), modifiers);
             if (existing != null) {
                 existing.setQuantity(existing.getQuantity() + quantity);
+                reattribute(existing, source, sourceId, staff, reason);
                 UserItemLink merged = userItemLinkRepository.save(existing);
                 notifyItemEarned(userId, merged, quantity, source);
                 return merged;
@@ -737,6 +739,14 @@ public class ItemService {
                 : "You received " + name + "!";
         notificationService.notify(userId, NotificationType.item_earned, null, title,
                 "/players/" + userId + "?inventoryHighlight=" + link.getId());
+    }
+
+    static void reattribute(UserItemLink link, ItemSource source, String sourceId, StaffUser staff, String reason) {
+        link.setSource(source);
+        link.setSourceId(sourceId);
+        link.setAwardedBy(staff);
+        link.setReason(reason);
+        link.setAwardedAt(Instant.now());
     }
 
     static boolean hasPerInstanceModifier(Set<ItemModifier> modifiers) {

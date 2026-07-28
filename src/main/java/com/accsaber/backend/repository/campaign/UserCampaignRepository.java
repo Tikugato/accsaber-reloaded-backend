@@ -45,4 +45,11 @@ public interface UserCampaignRepository extends JpaRepository<UserCampaign, UUID
             """)
     List<Long> findUserIdsByStatusAndCampaignReleased(@Param("status") UserCampaignStatus status,
             @Param("excludedCampaignStatus") CampaignStatus excludedCampaignStatus);
+
+    @Query("""
+            SELECT DISTINCT uc.user.id FROM UserCampaign uc
+            WHERE uc.campaign.id = :campaignId AND uc.active = true AND uc.status = :status
+            """)
+    List<Long> findUserIdsByCampaignAndStatus(@Param("campaignId") UUID campaignId,
+            @Param("status") UserCampaignStatus status);
 }

@@ -33,11 +33,15 @@ import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
 import com.accsaber.backend.model.entity.milestone.Milestone;
 import com.accsaber.backend.model.entity.milestone.MilestoneSet;
+import com.accsaber.backend.model.entity.campaign.Campaign;
 import com.accsaber.backend.model.entity.campaign.CampaignStatus;
 import com.accsaber.backend.model.entity.campaign.UserCampaignStatus;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.score.ScoreModifierLink;
+import com.accsaber.backend.exception.ResourceNotFoundException;
+import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.repository.ModifierRepository;
+import com.accsaber.backend.repository.campaign.CampaignRepository;
 import com.accsaber.backend.repository.campaign.UserCampaignRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.score.ScoreModifierLinkRepository;
@@ -82,6 +86,7 @@ public class ScoreImportService {
     private final MilestoneEvaluationService milestoneEvaluationService;
     private final CampaignEvaluationService campaignEvaluationService;
     private final UserCampaignRepository userCampaignRepository;
+    private final CampaignRepository campaignRepository;
     private final com.accsaber.backend.repository.campaign.CampaignDifficultyRepository campaignDifficultyRepository;
     private final MapDifficultyStatisticsService mapDifficultyStatisticsService;
     private final ScoreRankingService scoreRankingService;
@@ -373,6 +378,51 @@ public class ScoreImportService {
     public void onLegacyCampaignStarted(
             com.accsaber.backend.model.event.LegacyCampaignBackfillEvent event) {
         backfillAndSettleLegacyCampaign(event.userId(), event.campaignId());
+    }
+
+    public CompletableFuture<Void> recheckLegacyCampaign(UUID campaignId, Long userId) {
+        Campaign campaign = campaignRepository.findByIdAndActiveTrue(campaignId)
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
+        if (!campaign.isLegacy()) {
+            throw new ValidationException("Score re-check is only available for legacy campaigns");
+        }
+        List<Long> targets = userId != null
+                ? List.of(duplicateUserService.resolvePrimaryUserId(userId))
+                : userCampaignRepository.findUserIdsByCampaignAndStatus(campaignId, UserCampaignStatus.IN_PROGRESS);
+        if (targets.isEmpty()) {
+            log.info("Legacy campaign re-check for campaign {} has no in-progress participants", campaignId);
+            return CompletableFuture.completedFuture(null);
+        }
+        log.info("Legacy campaign re-check queued for campaign {} across {} user(s)", campaignId, targets.size());
+        return CompletableFuture.runAsync(() -> runLegacyRecheck(campaignId, targets), backfillExecutor);
+    }
+
+    private void runLegacyRecheck(UUID campaignId, List<Long> userIds) {
+        long start = System.currentTimeMillis();
+        Semaphore semaphore = new Semaphore(MAX_CONCURRENT_USERS);
+        List<Thread> threads = userIds.stream()
+                .map(userId -> Thread.startVirtualThread(() -> {
+                    semaphore.acquireUninterruptibly();
+                    try {
+                        backfillAndSettleLegacyCampaign(userId, campaignId);
+                    } catch (Exception e) {
+                        log.error("Legacy campaign re-check failed for user {} campaign {}: {}",
+                                userId, campaignId, e.getMessage());
+                    } finally {
+                        semaphore.release();
+                    }
+                }))
+                .toList();
+        threads.forEach(t -> {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        long elapsed = System.currentTimeMillis() - start;
+        log.info("Legacy campaign re-check complete for campaign {} across {} user(s) in {}s",
+                campaignId, userIds.size(), elapsed / 1000);
     }
 
     public void backfillAndSettleLegacyCampaign(Long userId, UUID campaignId) {

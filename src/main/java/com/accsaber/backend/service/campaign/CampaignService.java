@@ -1477,10 +1477,8 @@ public class CampaignService {
     private static CurrentMilestoneResponse furthestReachedMilestone(List<CampaignDifficulty> difficulties,
             Map<UUID, List<CampaignConnectionResponse>> prereqsByDifficulty, Set<UUID> pathCompletedIds) {
         Map<UUID, List<UUID>> prereqs = new HashMap<>();
-        for (CampaignDifficulty d : difficulties) {
-            prereqs.put(d.getId(), prereqsByDifficulty.getOrDefault(d.getId(), List.of()).stream()
-                    .map(CampaignConnectionResponse::getComesFromCampaignDifficultyId).toList());
-        }
+        prereqsByDifficulty.forEach((nodeId, connections) -> prereqs.put(nodeId, connections.stream()
+                .map(CampaignConnectionResponse::getComesFromCampaignDifficultyId).toList()));
         Map<UUID, Integer> depths = new HashMap<>();
         CampaignDifficulty furthest = null;
         int bestDepth = -1;

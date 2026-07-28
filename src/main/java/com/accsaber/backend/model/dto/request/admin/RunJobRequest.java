@@ -27,7 +27,11 @@ public class RunJobRequest {
     @Schema(description = "Required by BACKFILL_MILESTONE.")
     private UUID milestoneId;
 
-    @Schema(description = "Required by BACKFILL_SCORES_USER and BACKFILL_MILESTONES_USER.")
+    @Schema(description = "Required by BACKFILL_CAMPAIGN_LEGACY. The campaign must be flagged legacy.")
+    private UUID campaignId;
+
+    @Schema(description = "Required by BACKFILL_SCORES_USER and BACKFILL_MILESTONES_USER."
+            + " Optional for BACKFILL_CAMPAIGN_LEGACY - leave it off to sweep every in-progress participant.")
     private Long userId;
 
     @Schema(description = "Required by BACKFILL_SCORES_USERS.")

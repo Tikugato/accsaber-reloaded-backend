@@ -83,6 +83,8 @@ public class AdminJobService {
             case BACKFILL_SCORES_USERS -> scoreImportService.backfillUsersAsync(requireUserIds(request));
             case BACKFILL_SCORES_GAP_FILL ->
                 scoreIngestionService.gapFillSince(requireSince(request), request.getPlatform());
+            case BACKFILL_CAMPAIGN_LEGACY ->
+                scoreImportService.recheckLegacyCampaign(requireCampaignId(request), request.getUserId());
 
             case BACKFILL_CDN_MAP_COVERS -> cdnSyncService.backfillAllMapCovers(request.isForce());
             case BACKFILL_CDN_AVATARS -> cdnSyncService.backfillAllUserAvatars(request.isForce());
@@ -98,6 +100,11 @@ public class AdminJobService {
     private String describe(RunJobRequest request) {
         if (request.getDifficultyId() != null) {
             return "difficulty " + request.getDifficultyId();
+        }
+        if (request.getCampaignId() != null) {
+            return request.getUserId() != null
+                    ? "campaign " + request.getCampaignId() + " user " + request.getUserId()
+                    : "campaign " + request.getCampaignId();
         }
         if (request.getUserId() != null) {
             return "user " + request.getUserId();
@@ -133,6 +140,13 @@ public class AdminJobService {
             throw new ValidationException("milestoneId", "is required for " + request.getType());
         }
         return request.getMilestoneId();
+    }
+
+    private UUID requireCampaignId(RunJobRequest request) {
+        if (request.getCampaignId() == null) {
+            throw new ValidationException("campaignId", "is required for " + request.getType());
+        }
+        return request.getCampaignId();
     }
 
     private Long requireUserId(RunJobRequest request) {

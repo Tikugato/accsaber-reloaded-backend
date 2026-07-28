@@ -50,10 +50,14 @@ public class BeatLeaderClient {
         }
     }
 
-    public Optional<BeatLeaderScoreResponse> getPlayerScoreOnLeaderboard(String playerId, String leaderboardId) {
+    public Optional<BeatLeaderScoreResponse> getPlayerScoreOnLeaderboard(String playerId, String songHash,
+            String difficultyName, String modeName) {
+        if (songHash == null || songHash.isBlank() || difficultyName == null || modeName == null) {
+            return Optional.empty();
+        }
         try {
             return Optional.ofNullable(webClient.get()
-                    .uri("/score/{playerId}/{leaderboardId}", playerId, leaderboardId)
+                    .uri("/score/{playerId}/{hash}/{difficulty}/{mode}", playerId, songHash, difficultyName, modeName)
                     .retrieve()
                     .bodyToMono(BeatLeaderScoreResponse.class)
                     .retryWhen(rateLimitRetrySpec())
@@ -61,8 +65,8 @@ public class BeatLeaderClient {
         } catch (WebClientResponseException.NotFound e) {
             return Optional.empty();
         } catch (Exception e) {
-            log.error("Failed to fetch BL player score for player={} leaderboard={}: {}",
-                    playerId, leaderboardId, e.getMessage());
+            log.error("Failed to fetch BL player score for player={} hash={} {}/{}: {}",
+                    playerId, songHash, difficultyName, modeName, e.getMessage());
             return Optional.empty();
         }
     }

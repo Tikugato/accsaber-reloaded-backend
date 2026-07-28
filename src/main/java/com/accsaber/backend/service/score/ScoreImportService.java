@@ -456,12 +456,19 @@ public class ScoreImportService {
         campaignEvaluationService.importLegacyScores(resolved, campaignId);
     }
 
+    private Optional<BeatLeaderScoreResponse> fetchBeatLeaderScore(Long userId, MapDifficulty difficulty) {
+        return beatLeaderClient.getPlayerScoreOnLeaderboard(
+                String.valueOf(userId),
+                difficulty.getMap() != null ? difficulty.getMap().getSongHash() : null,
+                difficulty.getDifficulty() != null ? difficulty.getDifficulty().getDbValue() : null,
+                difficulty.getCharacteristic());
+    }
+
     private boolean recordCampaignScoreFromBeatLeader(Long userId, MapDifficulty md, Map<String, UUID> modifiers) {
         if (md.getBlLeaderboardId() == null || md.getBlLeaderboardId().isBlank()) {
             return false;
         }
-        Optional<BeatLeaderScoreResponse> opt = beatLeaderClient
-                .getPlayerScoreOnLeaderboard(String.valueOf(userId), md.getBlLeaderboardId());
+        Optional<BeatLeaderScoreResponse> opt = fetchBeatLeaderScore(userId, md);
         if (opt.isEmpty() || opt.get().getBaseScore() == null
                 || PlatformScoreMapper.hasBannedModifier(opt.get().getModifiers())) {
             return false;
@@ -489,8 +496,7 @@ public class ScoreImportService {
 
     private boolean reconcileUserScoreFromBeatLeader(Long userId, MapDifficulty difficulty,
             Map<String, UUID> modifiers) {
-        Optional<BeatLeaderScoreResponse> blOpt = beatLeaderClient.getPlayerScoreOnLeaderboard(
-                String.valueOf(userId), difficulty.getBlLeaderboardId());
+        Optional<BeatLeaderScoreResponse> blOpt = fetchBeatLeaderScore(userId, difficulty);
         if (blOpt.isEmpty())
             return false;
         BeatLeaderScoreResponse blScore = blOpt.get();

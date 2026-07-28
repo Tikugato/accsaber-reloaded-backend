@@ -138,6 +138,8 @@ class ScoreImportServiceTest {
 
                 difficulty = MapDifficulty.builder()
                                 .id(UUID.randomUUID())
+                                .map(com.accsaber.backend.model.entity.map.Map.builder()
+                                                .songHash("hash_123").build())
                                 .difficulty(Difficulty.EXPERT_PLUS)
                                 .characteristic("Standard")
                                 .status(MapDifficultyStatus.RANKED)
@@ -170,13 +172,13 @@ class ScoreImportServiceTest {
 
                         scoreImportService.backfillUser(STEAM_ID);
 
-                        verify(beatLeaderClient, never()).getPlayerScoreOnLeaderboard(any(), any());
+                        verify(beatLeaderClient, never()).getPlayerScoreOnLeaderboard(any(), any(), any(), any());
                         verify(scoreService, never()).submitForBackfill(any(), any(), any());
                 }
 
                 @Test
                 void skipsWhenBlReturnsNoScore() {
-                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "bl_123"))
+                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "hash_123", "ExpertPlus", "Standard"))
                                         .thenReturn(Optional.empty());
 
                         scoreImportService.backfillUser(STEAM_ID);
@@ -187,7 +189,7 @@ class ScoreImportServiceTest {
 
                 @Test
                 void importsScoreWhenNoneExists() {
-                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "bl_123"))
+                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "hash_123", "ExpertPlus", "Standard"))
                                         .thenReturn(Optional.of(buildBlScore("")));
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(STEAM_ID,
                                         difficulty.getId()))
@@ -205,7 +207,7 @@ class ScoreImportServiceTest {
 
                 @Test
                 void skipsWhenOurScoreIsHigher() {
-                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "bl_123"))
+                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "hash_123", "ExpertPlus", "Standard"))
                                         .thenReturn(Optional.of(buildBlScore("")));
                         Score existing = Score.builder()
                                         .id(UUID.randomUUID())
@@ -223,7 +225,7 @@ class ScoreImportServiceTest {
 
                 @Test
                 void importsWhenIncomingScoreIsHigher() {
-                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "bl_123"))
+                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "hash_123", "ExpertPlus", "Standard"))
                                         .thenReturn(Optional.of(buildBlScore("")));
                         Score existing = Score.builder()
                                         .id(UUID.randomUUID())
@@ -244,7 +246,7 @@ class ScoreImportServiceTest {
                 @Test
                 void enrichesWhenScoresAreEqual_andNoBlData() {
                         BeatLeaderScoreResponse bl = buildBlScore("");
-                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "bl_123"))
+                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "hash_123", "ExpertPlus", "Standard"))
                                         .thenReturn(Optional.of(bl));
                         Score existing = Score.builder()
                                         .id(UUID.randomUUID())
@@ -265,7 +267,7 @@ class ScoreImportServiceTest {
                         UUID ifId = UUID.randomUUID();
                         when(modifierCacheService.getModifierCodeToId()).thenReturn(Map.of("IF", ifId));
                         BeatLeaderScoreResponse bl = buildBlScore("IF");
-                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "bl_123"))
+                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "hash_123", "ExpertPlus", "Standard"))
                                         .thenReturn(Optional.of(bl));
 
                         Score existing = Score.builder()
@@ -292,7 +294,7 @@ class ScoreImportServiceTest {
                         UUID ifId = UUID.randomUUID();
                         when(modifierCacheService.getModifierCodeToId()).thenReturn(Map.of("IF", ifId));
                         BeatLeaderScoreResponse bl = buildBlScore("IF");
-                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "bl_123"))
+                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "hash_123", "ExpertPlus", "Standard"))
                                         .thenReturn(Optional.of(bl));
 
                         Score existing = Score.builder()
@@ -316,7 +318,7 @@ class ScoreImportServiceTest {
 
                 @Test
                 void skipsBannedModifier() {
-                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "bl_123"))
+                        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(STEAM_ID), "hash_123", "ExpertPlus", "Standard"))
                                         .thenReturn(Optional.of(buildBlScore("NO")));
 
                         scoreImportService.backfillUser(STEAM_ID);

@@ -31,6 +31,7 @@ import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.entity.campaign.Campaign;
 import com.accsaber.backend.model.entity.campaign.CampaignDifficulty;
 import com.accsaber.backend.model.entity.campaign.UserCampaignStatus;
+import com.accsaber.backend.model.entity.map.Difficulty;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
 import com.accsaber.backend.repository.campaign.CampaignDifficultyRepository;
@@ -93,20 +94,20 @@ class LegacyCampaignBackfillTest {
                 .thenReturn(List.of(new com.accsaber.backend.model.entity.score.Score()));
         when(scoreRepository.findEligibleCampaignRows(eq(USER), eq(List.of(toFetch.getId())), any()))
                 .thenReturn(List.of());
-        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(USER), "bl-fetch"))
+        when(beatLeaderClient.getPlayerScoreOnLeaderboard(String.valueOf(USER), "hash-bl-fetch", "Normal", "Standard"))
                 .thenReturn(Optional.of(blScore(900_000)));
         when(scoreSaberClient.getPlayerScoreOnLeaderboard(String.valueOf(USER), "ss-fetch"))
                 .thenReturn(Optional.empty());
 
         scoreImportService.backfillAndSettleLegacyCampaign(USER, CAMPAIGN);
 
-        verify(beatLeaderClient).getPlayerScoreOnLeaderboard(String.valueOf(USER), "bl-fetch");
+        verify(beatLeaderClient).getPlayerScoreOnLeaderboard(String.valueOf(USER), "hash-bl-fetch", "Normal", "Standard");
         verify(scoreSaberClient).getPlayerScoreOnLeaderboard(String.valueOf(USER), "ss-fetch");
-        verify(beatLeaderClient, never()).getPlayerScoreOnLeaderboard(anyString(), eq("bl-ranked"));
+        verify(beatLeaderClient, never()).getPlayerScoreOnLeaderboard(anyString(), eq("hash-bl-ranked"), anyString(), anyString());
         verify(scoreSaberClient, never()).getPlayerScoreOnLeaderboard(anyString(), eq("ss-ranked"));
-        verify(beatLeaderClient, never()).getPlayerScoreOnLeaderboard(anyString(), eq("bl-has"));
+        verify(beatLeaderClient, never()).getPlayerScoreOnLeaderboard(anyString(), eq("hash-bl-has"), anyString(), anyString());
         verify(scoreSaberClient, never()).getPlayerScoreOnLeaderboard(anyString(), eq("ss-has"));
-        verify(beatLeaderClient, never()).getPlayerScoreOnLeaderboard(anyString(), eq("bl-barrier"));
+        verify(beatLeaderClient, never()).getPlayerScoreOnLeaderboard(anyString(), eq("hash-bl-barrier"), anyString(), anyString());
         verify(scoreService, times(1)).recordCampaignBackfillScore(any());
         verify(campaignEvaluationService).importLegacyScores(USER, CAMPAIGN);
     }
@@ -138,15 +139,15 @@ class LegacyCampaignBackfillTest {
                 .thenReturn(List.of(node(toFetch, false)));
         when(scoreRepository.findEligibleCampaignRows(any(), eq(List.of(toFetch.getId())), any()))
                 .thenReturn(List.of());
-        when(beatLeaderClient.getPlayerScoreOnLeaderboard(anyString(), eq("bl-fetch")))
+        when(beatLeaderClient.getPlayerScoreOnLeaderboard(anyString(), eq("hash-bl-fetch"), anyString(), anyString()))
                 .thenReturn(Optional.of(blScore(900_000)));
         when(scoreSaberClient.getPlayerScoreOnLeaderboard(anyString(), eq("ss-fetch")))
                 .thenReturn(Optional.empty());
 
         assertThat(scoreImportService.recheckLegacyCampaign(CAMPAIGN, null)).isCompleted();
 
-        verify(beatLeaderClient).getPlayerScoreOnLeaderboard(String.valueOf(USER), "bl-fetch");
-        verify(beatLeaderClient).getPlayerScoreOnLeaderboard(String.valueOf(other), "bl-fetch");
+        verify(beatLeaderClient).getPlayerScoreOnLeaderboard(String.valueOf(USER), "hash-bl-fetch", "Normal", "Standard");
+        verify(beatLeaderClient).getPlayerScoreOnLeaderboard(String.valueOf(other), "hash-bl-fetch", "Normal", "Standard");
         verify(campaignEvaluationService).importLegacyScores(USER, CAMPAIGN);
         verify(campaignEvaluationService).importLegacyScores(other, CAMPAIGN);
     }
@@ -172,6 +173,10 @@ class LegacyCampaignBackfillTest {
         return MapDifficulty.builder()
                 .id(UUID.randomUUID())
                 .status(status)
+                .map(com.accsaber.backend.model.entity.map.Map.builder()
+                        .songHash("hash-" + blLeaderboardId).build())
+                .difficulty(Difficulty.NORMAL)
+                .characteristic("Standard")
                 .blLeaderboardId(blLeaderboardId)
                 .ssLeaderboardId(ssLeaderboardId)
                 .build();

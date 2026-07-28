@@ -70,6 +70,7 @@ management:
 springdoc:
   swagger-ui:
     path: /v1/docs
+    urls-primary-name: public
   api-docs:
     path: /v1/api-docs
 

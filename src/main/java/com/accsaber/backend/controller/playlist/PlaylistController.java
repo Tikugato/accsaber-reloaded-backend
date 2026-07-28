@@ -35,17 +35,18 @@ public class PlaylistController {
         private final BatchRepository batchRepository;
         private final CampaignRepository campaignRepository;
 
-        @Operation(summary = "Download category playlist", description = "Returns a Beat Saber playlist JSON file containing all ranked maps for the specified category. "
-                        + "The syncURL field allows mod managers to auto-refresh the playlist. "
-                        + "This path-based variant is compatible with standalone Beat Saber.")
+        @Operation(summary = "Download the playlist for a category", description = "Every ranked map in a category as a Beat "
+                        + "Saber playlist file. Drop it in your playlists folder or hand the URL to a mod manager, and the "
+                        + "syncURL inside it means it will keep itself up to date as more maps get ranked.")
         @GetMapping(value = "/{category}", produces = "application/json")
         public ResponseEntity<Map<String, Object>> getPlaylistByPath(
                         @Parameter(description = "Category code (e.g. true_acc, standard_acc, tech_acc)") @PathVariable String category) {
                 return buildPlaylistResponse(category);
         }
 
-        @Operation(summary = "Download missing maps playlist", description = "Returns a Beat Saber playlist JSON file containing every ranked map in the category that the user has not yet scored on. "
-                        + "Use category 'overall' for all categories. Path-only URL so the syncURL works with standalone Beat Saber.")
+        @Operation(summary = "Download the maps a player is missing", description = "The same idea as the category playlist but "
+                        + "only the ranked maps the player has not scored on yet, so it shrinks as they work through it. Pass "
+                        + "overall as the category if you want every category rather than just one.")
         @GetMapping(value = "/missing/{userId}/{category}", produces = "application/json")
         public ResponseEntity<Map<String, Object>> getMissingPlaylistByPath(
                         @Parameter(description = "User ID of the player") @PathVariable Long userId,
@@ -53,17 +54,18 @@ public class PlaylistController {
                 return buildMissingPlaylistResponse(category, userId);
         }
 
-        @Operation(summary = "Download category unranked playlist", description = "Returns a Beat Saber playlist JSON file containing all queued and qualified maps for the specified category. "
-                        + "The syncURL field allows mod managers to auto-refresh the playlist. "
-                        + "This path-based variant is compatible with standalone Beat Saber.")
+        @Operation(summary = "Download the queued and qualified maps", description = "Everything currently sitting in the queue "
+                        + "or qualified for a category, so the maps on their way to being ranked but not there yet. Worth "
+                        + "having if you like playing them before they start counting.")
         @GetMapping(value = "/unranked/{category}", produces = "application/json")
         public ResponseEntity<Map<String, Object>> getUnrankedPlaylistByPath(
                         @Parameter(description = "Category code (e.g. true_acc, standard_acc, tech_acc)") @PathVariable String category) {
                 return buildUnrankedPlaylistResponse(category);
         }
 
-        @Operation(summary = "Download snipe playlist (every snipable map, all categories)", description = "Returns a Beat Saber playlist JSON file containing every map where the target player outscores the sniper, ordered by closest accuracy gap first. "
-                        + "Playlist image is the target player's avatar. Path-only URL so the syncURL works with standalone Beat Saber.")
+        @Operation(summary = "Download a snipe playlist", description = "Every map where the target player is ahead of you, "
+                        + "closest gap first, so the ones you have the best shot at taking back come up early. The playlist "
+                        + "picture is the target's avatar. This form gives you all of them across every category.")
         @GetMapping(value = "/snipe/{sniperId}/{targetId}", produces = "application/json")
         public ResponseEntity<Map<String, Object>> getSnipePlaylist(
                         @Parameter(description = "User ID of the sniping player") @PathVariable Long sniperId,
@@ -71,7 +73,9 @@ public class PlaylistController {
                 return buildSnipePlaylistResponse(sniperId, targetId, 0, null);
         }
 
-        @Operation(summary = "Download snipe playlist (custom size)", description = "Same as the base snipe playlist but capped at the requested map count (1+). Pass 0 for unlimited. Path-only URL, standalone-compatible.")
+        @Operation(summary = "Download a snipe playlist with a size cap", description = "The same snipe playlist but stopping "
+                        + "after however many maps you ask for, which keeps it manageable when the target is a long way ahead "
+                        + "of you. Pass 0 if you actually want all of them.")
         @GetMapping(value = "/snipe/{sniperId}/{targetId}/{size}", produces = "application/json")
         public ResponseEntity<Map<String, Object>> getSnipePlaylistBySize(
                         @Parameter(description = "User ID of the sniping player") @PathVariable Long sniperId,
@@ -80,7 +84,9 @@ public class PlaylistController {
                 return buildSnipePlaylistResponse(sniperId, targetId, size, null);
         }
 
-        @Operation(summary = "Download snipe playlist (custom size + category)", description = "Snipe playlist filtered to a single category (e.g. true_acc, standard_acc, tech_acc, overall). Pass size=0 for unlimited. Path-only URL, standalone-compatible.")
+        @Operation(summary = "Download a snipe playlist for one category", description = "A snipe playlist narrowed to a single "
+                        + "category, still capped by size. Pass 0 for size to lift the cap, and overall as the category if you "
+                        + "wanted every category after all.")
         @GetMapping(value = "/snipe/{sniperId}/{targetId}/{size}/{category}", produces = "application/json")
         public ResponseEntity<Map<String, Object>> getSnipePlaylistBySizeAndCategory(
                         @Parameter(description = "User ID of the sniping player") @PathVariable Long sniperId,
@@ -90,16 +96,17 @@ public class PlaylistController {
                 return buildSnipePlaylistResponse(sniperId, targetId, size, category);
         }
 
-        @Operation(summary = "Download batch release playlist", description = "Returns a Beat Saber playlist JSON file containing all maps of the specified batch release.")
+        @Operation(summary = "Download a batch release as a playlist", description = "All the maps that went ranked together in "
+                        + "one batch. Handy right after a release when you want to play through the new set.")
         @GetMapping(value = "/batch/{batchId}", produces = "application/json")
         public ResponseEntity<Map<String, Object>> getBatchPlaylist(
                         @Parameter(description = "ID of batch") @PathVariable UUID batchId) {
                 return buildBatchPlaylistResponse(batchId);
         }
 
-        @Operation(summary = "Download campaign playlist", description = "Returns a Beat Saber playlist JSON file containing all maps of the specified campaign. "
-                        + "Only available when the campaign has playlist export enabled. "
-                        + "The syncURL field allows mod managers to auto-refresh the playlist. Path-only URL, standalone-compatible.")
+        @Operation(summary = "Download a campaign as a playlist", description = "Every map used in a campaign, so you can grab "
+                        + "the lot up front rather than downloading each one as you reach it. The person who made the campaign "
+                        + "has to have turned playlist export on, and you get a 422 back if they have not.")
         @GetMapping(value = "/campaign/{campaignId}", produces = "application/json")
         public ResponseEntity<Map<String, Object>> getCampaignPlaylist(
                         @Parameter(description = "ID of campaign") @PathVariable UUID campaignId) {

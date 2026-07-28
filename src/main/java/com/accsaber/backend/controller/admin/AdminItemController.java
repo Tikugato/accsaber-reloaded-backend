@@ -45,7 +45,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/admin")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin Items")
+@Tag(name = "Admin - Items and Crates")
 public class AdminItemController {
 
     private static final String ITEM_ICON_SUBDIR = "items";
@@ -63,6 +63,7 @@ public class AdminItemController {
     }
 
     @Operation(summary = "List items (admin)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CREATIVE')")
     @GetMapping("/items")
     public ResponseEntity<List<ItemResponse>> listItems(
             @RequestParam(required = false) UUID typeId,
@@ -95,17 +96,13 @@ public class AdminItemController {
         return ResponseEntity.ok(ItemMapper.toTypeResponse(type));
     }
 
-    @Operation(summary = "Deactivate an item type")
-    @DeleteMapping("/item-types/{id}")
-    public ResponseEntity<Void> deactivateType(@PathVariable UUID id) {
-        itemTypeService.deactivate(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @Operation(summary = "Reactivate a previously deactivated item type")
-    @PostMapping("/item-types/{id}/reactivate")
-    public ResponseEntity<ItemTypeResponse> reactivateType(@PathVariable UUID id) {
-        return ResponseEntity.ok(ItemMapper.toTypeResponse(itemTypeService.reactivate(id)));
+    @Operation(summary = "Activate or deactivate an item type", description = "Pass active=false to retire a type and "
+            + "active=true to bring it back. Deactivating never deletes anything, so items of that type keep existing and "
+            + "reactivating puts everything back as it was.")
+    @PatchMapping("/item-types/{id}/active")
+    public ResponseEntity<ItemTypeResponse> setTypeActive(@PathVariable UUID id,
+            @RequestParam boolean active) {
+        return ResponseEntity.ok(ItemMapper.toTypeResponse(itemTypeService.setActive(id, active)));
     }
 
     @Operation(summary = "Create an item")
@@ -131,17 +128,13 @@ public class AdminItemController {
         return ResponseEntity.ok(ItemMapper.toItemResponse(item));
     }
 
-    @Operation(summary = "Deactivate an item")
-    @DeleteMapping("/items/{id}")
-    public ResponseEntity<Void> deactivateItem(@PathVariable UUID id) {
-        itemService.deactivate(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @Operation(summary = "Reactivate a previously deactivated item")
-    @PostMapping("/items/{id}/reactivate")
-    public ResponseEntity<ItemResponse> reactivateItem(@PathVariable UUID id) {
-        return ResponseEntity.ok(ItemMapper.toItemResponse(itemService.reactivate(id)));
+    @Operation(summary = "Activate or deactivate an item", description = "Pass active=false to retire an item and active=true "
+            + "to bring it back. Nothing is deleted either way, so players holding it keep it and it simply stops appearing in "
+            + "the catalogue and in crate pools.")
+    @PatchMapping("/items/{id}/active")
+    public ResponseEntity<ItemResponse> setItemActive(@PathVariable UUID id,
+            @RequestParam boolean active) {
+        return ResponseEntity.ok(ItemMapper.toItemResponse(itemService.setActive(id, active)));
     }
 
     @Operation(summary = "Manually award an item to a user")

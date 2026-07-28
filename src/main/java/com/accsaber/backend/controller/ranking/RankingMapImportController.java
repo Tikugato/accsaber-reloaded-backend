@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/ranking/maps")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('RANKING')")
-@Tag(name = "Ranking - Map Import")
+@Tag(name = "Ranking")
 public class RankingMapImportController {
 
         private final MapImportService mapImportService;

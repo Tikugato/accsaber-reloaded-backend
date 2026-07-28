@@ -21,16 +21,18 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/users")
 @RequiredArgsConstructor
-@Tag(name = "Snipe")
+@Tag(name = "Players")
 public class SnipeController {
 
     private static final int MAX_PAGE_SIZE = 100;
 
     private final SnipeService snipeService;
 
-    @Operation(summary = "Get scores closest to a target player", description = "Returns paginated map difficulties where the target player outscores the sniper, ordered by smallest score gap first. "
-            + "Each entry includes both players' active scores so the frontend can render the comparison. "
-            + "Use `category` to limit results to a category (e.g. true_acc, standard_acc, tech_acc, overall).")
+    @Operation(summary = "Find where you are closest to catching someone", description = "The difficulties where a target "
+            + "player is ahead of the sniper, smallest gap first, so the ones worth going after come up first. Each row "
+            + "carries both players' current scores so you can show the comparison without a second call. Pass category to "
+            + "narrow it. This is the data behind the snipe playlists, if you want the same thing as a downloadable file "
+            + "instead.")
     @GetMapping("/{sniperId}/closest-to/{targetId}")
     public ResponseEntity<Page<SnipeComparisonResponse>> getClosestScores(
             @Parameter(description = "User ID of the sniping player") @PathVariable Long sniperId,

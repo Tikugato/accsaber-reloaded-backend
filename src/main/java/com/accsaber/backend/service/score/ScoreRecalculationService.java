@@ -69,19 +69,19 @@ public class ScoreRecalculationService {
     private Executor backfillExecutor;
 
     @Async("taskExecutor")
-    public void recalculateDifficultyAsync(UUID mapDifficultyId) {
+    public CompletableFuture<Void> recalculateDifficultyAsync(UUID mapDifficultyId) {
         MapDifficulty difficulty = mapDifficultyRepository.findByIdAndActiveTrueWithCategory(mapDifficultyId)
                 .orElse(null);
         if (difficulty == null) {
             log.warn("Cannot recalculate: difficulty {} not found or inactive", mapDifficultyId);
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
         Set<Long> affected = recalculateScoreApsParallel(difficulty);
 
         if (affected.isEmpty()) {
             log.info("No AP changes for difficulty {}", difficulty.getId());
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
         UUID categoryId = difficulty.getCategory().getId();
@@ -99,10 +99,11 @@ public class ScoreRecalculationService {
         }
         userRepository.recalculateTotalXpForAllActiveUsers();
         log.info("Recalculation complete for difficulty {} ({} users affected)", difficulty.getId(), affected.size());
+        return CompletableFuture.completedFuture(null);
     }
 
     @Async("taskExecutor")
-    public void recalculateBatchAsync(List<MapDifficulty> difficulties) {
+    public CompletableFuture<Void> recalculateBatchAsync(List<MapDifficulty> difficulties) {
         log.info("Starting batch recalculation for {} difficulties", difficulties.size());
         apCalculationService.evictAllCurveCaches();
 
@@ -144,11 +145,13 @@ public class ScoreRecalculationService {
                 difficulties.size(), totalUsers);
 
         songSuggestService.regenerateAsync();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Async("taskExecutor")
-    public void recalculateAllRawApAsync() {
+    public CompletableFuture<Void> recalculateAllRawApAsync() {
         doRecalculateAllRawAp();
+        return CompletableFuture.completedFuture(null);
     }
 
     private void doRecalculateAllRawAp() {
@@ -232,8 +235,9 @@ public class ScoreRecalculationService {
     }
 
     @Async("taskExecutor")
-    public void recalculateAllWeightedApAsync() {
+    public CompletableFuture<Void> recalculateAllWeightedApAsync() {
         doRecalculateAllWeightedAp();
+        return CompletableFuture.completedFuture(null);
     }
 
     private void doRecalculateAllWeightedAp() {
@@ -263,11 +267,12 @@ public class ScoreRecalculationService {
     }
 
     @Async("taskExecutor")
-    public void recalculateAllApAsync() {
+    public CompletableFuture<Void> recalculateAllApAsync() {
         log.info("Starting full AP recalculation (raw + weighted)");
         doRecalculateAllRawAp();
         doRecalculateAllWeightedAp();
         log.info("Full AP recalculation complete");
+        return CompletableFuture.completedFuture(null);
     }
 
     private Set<Long> recalculateScoreApsParallel(MapDifficulty difficulty) {

@@ -28,21 +28,23 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/events")
 @RequiredArgsConstructor
-@Tag(name = "Events")
+@Tag(name = "Missions and Events")
 public class EventController {
 
     private final EventService eventService;
     private final EventMissionService eventMissionService;
 
-    @Operation(summary = "List events", description = "Optional state filter: live, upcoming or past.")
+    @Operation(summary = "List the events", description = "Seasonal events, past and present. Pass state to narrow it to live, "
+            + "upcoming or past.")
     @GetMapping
     public ResponseEntity<List<EventResponse>> list(@RequestParam(required = false) String state) {
         return ResponseEntity.ok(eventService.listPublic(state).stream()
                 .map(EventResponse::from).toList());
     }
 
-    @Operation(summary = "Get the currently running event",
-            description = "204 when no event is live.")
+    @Operation(summary = "Get the event running right now",
+            description = "The one event that is live, as a single object rather than a list, which saves you picking it out "
+                    + "of the list yourself. You get a 204 with nothing in it when there is no event on.")
     @GetMapping("/current")
     public ResponseEntity<EventResponse> current() {
         return eventService.findCurrent()
@@ -51,17 +53,19 @@ public class EventController {
     }
 
     @Operation(summary = "List an event's missions",
-            description = "Accepts the event id or slug. Optional week filter, 1-based from the event start "
-                    + "(week 1 = first 7 days).")
+            description = "Every mission in an event, without anyone's progress attached. Address the event by id or by slug, "
+                    + "either works. Pass week to get just one week, counting from 1, where week 1 is the first seven days "
+                    + "after the event started.")
     @GetMapping("/{idOrSlug}/missions")
     public ResponseEntity<List<MissionResponse>> missions(@PathVariable String idOrSlug,
             @RequestParam(required = false) Integer week) {
         return ResponseEntity.ok(eventMissionService.getMissions(eventService.resolveId(idOrSlug), week));
     }
 
-    @Operation(summary = "List an event's missions with the authenticated player's progress",
-            description = "Accepts the event id or slug. Optional week filter. Lazily assigns any unlocked event "
-                    + "missions the player is missing.")
+    @Operation(summary = "List an event's missions with your progress",
+            description = "The same list but with how far you have got on each one. If any unlocked missions had not been "
+                    + "handed to you yet, calling this assigns them on the spot, so it is safe to poll rather than needing "
+                    + "something to have run beforehand. Id or slug both work.")
     @GetMapping("/{idOrSlug}/missions/me")
     public ResponseEntity<List<EventProgressResponse.EventMissionProgressResponse>> myMissions(
             @AuthenticationPrincipal PlayerUserDetails principal,
@@ -76,10 +80,10 @@ public class EventController {
         return ResponseEntity.ok(eventMissionService.getMissionsWithProgress(userId, id, week));
     }
 
-    @Operation(summary = "Begin an event for the authenticated player",
-            description = "Accepts the event id or slug. Opt-in: creates the player's event profile and rolls out "
-                    + "the first unlocked week of missions. Later weeks stay locked until the current week is "
-                    + "completed. Idempotent.")
+    @Operation(summary = "Join an event",
+            description = "Events are opt in, so nothing happens for a player until they call this. It sets them up and hands "
+                    + "them the first week of missions. Later weeks stay shut until the current one is finished, so you cannot "
+                    + "jump ahead. Calling it more than once is fine and will not reset anything.")
     @PostMapping("/{idOrSlug}/begin")
     public ResponseEntity<EventProgressResponse> begin(
             @AuthenticationPrincipal PlayerUserDetails principal,
@@ -90,15 +94,16 @@ public class EventController {
         return ResponseEntity.ok(eventMissionService.begin(principal.getUserId(), eventService.resolveId(idOrSlug)));
     }
 
-    @Operation(summary = "Get an event with its missions", description = "Accepts the event id or slug.")
+    @Operation(summary = "Get one event", description = "An event with its missions attached, by id or by slug. This is the "
+            + "public view with nobody's progress on it.")
     @GetMapping("/{idOrSlug}")
     public ResponseEntity<EventDetailResponse> get(@PathVariable String idOrSlug) {
         return ResponseEntity.ok(eventMissionService.getDetail(eventService.resolveId(idOrSlug)));
     }
 
-    @Operation(summary = "Get an event with the authenticated player's progress",
-            description = "Accepts the event id or slug. Lazily assigns any unlocked event missions the player is "
-                    + "missing.")
+    @Operation(summary = "Get an event with your progress",
+            description = "The event plus where you are in it, which week you are on and what you have finished. Like the "
+                    + "missions route, this hands you any unlocked missions you were missing rather than leaving gaps.")
     @GetMapping("/{idOrSlug}/me")
     public ResponseEntity<EventProgressResponse> getMyProgress(
             @AuthenticationPrincipal PlayerUserDetails principal,

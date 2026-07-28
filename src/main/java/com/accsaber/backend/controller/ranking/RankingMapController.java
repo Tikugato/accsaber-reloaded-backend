@@ -32,7 +32,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/ranking/maps")
 @PreAuthorize("hasRole('RANKING')")
 @RequiredArgsConstructor
-@Tag(name = "Ranking - Map Read")
+@Tag(name = "Ranking")
 public class RankingMapController {
 
     private final MapService mapService;
@@ -48,12 +48,6 @@ public class RankingMapController {
         return ResponseEntity.ok(mapService.findAll(categoryId, status, search, pageable));
     }
 
-    @Operation(summary = "List deactivated difficulties", description = "All map difficulties that have been removed from the ranking system (active=false), ordered by most recently updated")
-    @GetMapping("/difficulties/deactivated")
-    public ResponseEntity<List<MapDifficultyResponse>> listDeactivated() {
-        return ResponseEntity.ok(mapService.getDeactivated());
-    }
-
     @Operation(summary = "Estimate AI complexity", description = "Returns the AI-suggested complexity for an active RANKED difficulty identified by songHash + difficulty + characteristic. Returns a null complexity if BeatLeader has no AI accuracy for this map.")
     @GetMapping("/difficulties/ai-complexity")
     public ResponseEntity<AiComplexityResponse> getAiComplexity(
@@ -63,7 +57,11 @@ public class RankingMapController {
         return ResponseEntity.ok(mapImportService.estimateForRankedDifficulty(songHash, difficulty, characteristic));
     }
 
-    @Operation(summary = "List difficulties (staff)", description = "Full difficulty list including complexity, submitter, and all vote breakdowns. The status filter accepts multiple values (e.g. status=QUEUE,QUALIFIED). Pass batchId to scope the list to a single batch (e.g. status=RANKED&batchId=... for the reweight queue of one batch).")
+    @Operation(summary = "List difficulties (staff)", description = "Full difficulty list including complexity, submitter, and "
+            + "all vote breakdowns. The status filter accepts multiple values (e.g. status=QUEUE,QUALIFIED). Pass batchId to "
+            + "scope the list to a single batch (e.g. status=RANKED&batchId=... for the reweight queue of one batch). Pass "
+            + "active=false to see difficulties that have been removed from the ranking system instead of the live ones, which "
+            + "is usually paired with sort=updatedAt,desc to get the most recently removed first.")
     @GetMapping("/difficulties")
     public ResponseEntity<Page<MapDifficultyResponse>> listDifficulties(
             @RequestParam(required = false) UUID categoryId,
@@ -72,9 +70,10 @@ public class RankingMapController {
             @RequestParam(required = false) BigDecimal complexityMin,
             @RequestParam(required = false) BigDecimal complexityMax,
             @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "true") boolean active,
             @PageableDefault(size = 20, sort = "rankedAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(mapService.findDifficulties(categoryId, batchId, status, complexityMin, complexityMax,
-                search, null, pageable));
+                search, null, active, pageable));
     }
 
     @Operation(summary = "Get difficulty by ID (staff)")

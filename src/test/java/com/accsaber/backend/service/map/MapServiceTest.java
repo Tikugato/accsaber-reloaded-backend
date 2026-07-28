@@ -16,6 +16,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -482,5 +483,44 @@ class MapServiceTest {
                 request.setBlLeaderboardId(blLeaderboardId);
                 request.setSsLeaderboardId(ssLeaderboardId);
                 return request;
+        }
+
+        @Nested
+        class FindDifficultiesActiveFilter {
+
+                private final PageRequest pageable = PageRequest.of(0, 20);
+
+                @SuppressWarnings("unchecked")
+                private java.util.Collection<MapDifficultyStatus> capturedStatuses(boolean active,
+                                List<MapDifficultyStatus> requested) {
+                        when(mapDifficultyRepository.findWithComplexityFilters(any(), any(Boolean.class), any(), any(),
+                                        any(), any(), any(), any()))
+                                        .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+                        mapService.findDifficulties(null, null, requested, null, null, null, null, active, pageable);
+
+                        ArgumentCaptor<java.util.Collection<MapDifficultyStatus>> captor = ArgumentCaptor
+                                        .forClass(java.util.Collection.class);
+                        verify(mapDifficultyRepository).findWithComplexityFilters(any(), any(Boolean.class), any(),
+                                        captor.capture(), any(), any(), any(), any());
+                        return captor.getValue();
+                }
+
+                @Test
+                void activeListLeavesStatusesNullSoCampaignImportsStayHidden() {
+                        assertThat(capturedStatuses(true, null)).isNull();
+                }
+
+                @Test
+                void deactivatedListAsksForEveryStatusSoCampaignImportsAreVisible() {
+                        assertThat(capturedStatuses(false, null))
+                                        .containsExactlyInAnyOrder(MapDifficultyStatus.values());
+                }
+
+                @Test
+                void explicitStatusesArePassedThroughUntouched() {
+                        assertThat(capturedStatuses(false, List.of(MapDifficultyStatus.RANKED)))
+                                        .containsExactly(MapDifficultyStatus.RANKED);
+                }
         }
 }

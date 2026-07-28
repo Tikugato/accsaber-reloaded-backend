@@ -35,14 +35,16 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/users")
 @RequiredArgsConstructor
-@Tag(name = "User Relations")
+@Tag(name = "Players")
 public class UserRelationController {
 
     private final UserRelationService relationService;
     private final ScoreService scoreService;
     private final CategoryService categoryService;
 
-    @Operation(summary = "List authenticated player's relations (followers/rivals/blocked)")
+    @Operation(summary = "List your relations", description = "Everyone you have added, whether as someone you follow, a rival, "
+            + "or someone you have blocked. Pass type to narrow it to one kind. This is the only place your blocked list shows "
+            + "up, since it never appears on the public route.")
     @GetMapping("/me/relations")
     public ResponseEntity<Page<UserRelationResponse>> getMyRelations(
             @RequestParam(required = false) UserRelationType type,
@@ -52,7 +54,10 @@ public class UserRelationController {
         return ResponseEntity.ok(relationService.findByUser(userId, type, true, pageable));
     }
 
-    @Operation(summary = "Get scores from authenticated player's relations", description = "Paginated active scores from the players the authenticated user follows and/or rivals. Optional type filter (follower or rival; blocked is rejected). Set includePrincipal=true to include the authenticated player's own scores in the returned page. Supports the same categoryId and song-name search filters and sort options (ap, accuracy, rank, etc.) as the user scores endpoint.")
+    @Operation(summary = "Get scores from the people you follow", description = "A feed of current scores from the players you "
+            + "follow or have as rivals, best AP first, which is the basis of a friends activity view. Narrow it with type, "
+            + "though blocked is rejected here for obvious reasons. Set includePrincipal=true to fold your own scores in "
+            + "alongside theirs. Takes the same category, search and sort options as the player scores route.")
     @GetMapping("/me/relations/scores")
     public ResponseEntity<Page<ScoreResponse>> getRelationScores(
             @RequestParam(required = false) UserRelationType type,
@@ -66,7 +71,8 @@ public class UserRelationController {
                 categoryService.resolveId(categoryId), search, includePrincipal, pageable));
     }
 
-    @Operation(summary = "Create a relation (follower, rival, or blocked) targeting another player")
+    @Operation(summary = "Add a relation", description = "Follow someone, mark them as a rival, or block them, depending on the "
+            + "type you send. Relations are one directional, so adding someone does not add you to their list.")
     @PostMapping("/me/relations")
     public ResponseEntity<UserRelationResponse> createRelation(
             @Valid @RequestBody UserRelationRequest request,
@@ -76,7 +82,9 @@ public class UserRelationController {
         return ResponseEntity.status(201).body(response);
     }
 
-    @Operation(summary = "Delete (soft) one of the authenticated player's relations")
+    @Operation(summary = "Remove a relation", description = "Unfollow, drop a rival, or unblock, by the relation id rather than "
+            + "the other player's id. The row is only marked inactive rather than actually deleted, so re-adding the same "
+            + "person later picks the old one back up.")
     @DeleteMapping("/me/relations/{relationId}")
     public ResponseEntity<Void> deleteRelation(
             @PathVariable UUID relationId,
@@ -86,7 +94,11 @@ public class UserRelationController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "List a player's public relations", description = "direction=outgoing (default): users this player has added (follower/rival). direction=incoming: users who have added this player (follower/rival). Blocked relations are never exposed via this endpoint; use /me/relations for your own blocked list. Outgoing visibility is gated by the player's privacy settings (privacy.followingVisibility, privacy.rivalsVisibility).")
+    @Operation(summary = "List another player's relations", description = "Who a player has added, or who has added them, "
+            + "depending on direction. Outgoing is the default and means people they added; incoming means people who added "
+            + "them. Blocked never shows up here at all, so for your own blocked list use the me route. Bear in mind outgoing "
+            + "is gated by that player's own privacy settings, so an empty page can mean they have chosen to keep it to "
+            + "themselves rather than that they have nobody.")
     @GetMapping("/{userId}/relations")
     public ResponseEntity<Page<UserRelationResponse>> getUserRelations(
             @PathVariable Long userId,

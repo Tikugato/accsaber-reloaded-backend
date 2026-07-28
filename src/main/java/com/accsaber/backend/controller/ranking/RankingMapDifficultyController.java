@@ -43,7 +43,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/ranking/maps/difficulties")
 @RequiredArgsConstructor
-@Tag(name = "Ranking - Map Difficulty Management")
+@Tag(name = "Ranking")
 public class RankingMapDifficultyController {
 
         private final MapService mapService;

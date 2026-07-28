@@ -119,16 +119,9 @@ public class UnusualEffectService {
     }
 
     @Transactional
-    public void deactivate(UUID id) {
+    public UnusualEffect setActive(UUID id, boolean active) {
         UnusualEffect effect = findById(id);
-        effect.setActive(false);
-        unusualEffectRepository.save(effect);
-    }
-
-    @Transactional
-    public UnusualEffect reactivate(UUID id) {
-        UnusualEffect effect = findById(id);
-        effect.setActive(true);
+        effect.setActive(active);
         return unusualEffectRepository.save(effect);
     }
 }

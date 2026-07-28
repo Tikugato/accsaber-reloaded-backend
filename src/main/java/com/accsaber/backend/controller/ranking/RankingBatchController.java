@@ -39,7 +39,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/ranking/batches")
 @PreAuthorize("hasRole('RANKING_HEAD')")
 @RequiredArgsConstructor
-@Tag(name = "Ranking - Batches")
+@Tag(name = "Ranking")
 public class RankingBatchController {
 
     private final BatchService batchService;

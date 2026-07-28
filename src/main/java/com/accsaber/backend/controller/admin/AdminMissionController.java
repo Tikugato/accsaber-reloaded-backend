@@ -20,6 +20,7 @@ import com.accsaber.backend.model.dto.request.mission.MissionTemplateRequest;
 import com.accsaber.backend.model.dto.response.mission.MissionTemplateResponse;
 import com.accsaber.backend.model.dto.response.mission.MissionResponse;
 import com.accsaber.backend.model.entity.mission.MissionPool;
+import com.accsaber.backend.model.entity.mission.UserMission;
 import com.accsaber.backend.service.mission.MissionAssignmentService;
 import com.accsaber.backend.service.mission.MissionQueryService;
 import com.accsaber.backend.service.mission.MissionTemplateService;
@@ -33,7 +34,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/admin/missions")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin Missions")
+@Tag(name = "Admin - Milestones and Missions")
 public class AdminMissionController {
 
     private final MissionTemplateService templateService;
@@ -78,22 +79,24 @@ public class AdminMissionController {
                         .map(MissionResponse::from).toList());
     }
 
-    @Operation(summary = "List active missions for any user")
+    @Operation(summary = "List missions for any user",
+            description = "Active missions by default, or the finished ones with completed=true. Pool narrows the active list "
+                    + "and is ignored on the completed one.")
     @GetMapping("/users/{userId}")
     public ResponseEntity<List<MissionResponse>> listForUser(@PathVariable Long userId,
+            @RequestParam(defaultValue = "false") boolean completed,
             @RequestParam(required = false) MissionPool pool) {
-        var missions = pool == null
-                ? queryService.listActive(userId)
-                : queryService.listActiveByPool(userId, pool);
-        return ResponseEntity.ok(missions.stream().map(MissionResponse::from).toList());
+        return ResponseEntity.ok(resolveMissions(userId, completed, pool).stream()
+                .map(MissionResponse::from).toList());
     }
 
-    @Operation(summary = "List completed missions for any user")
-    @GetMapping("/users/{userId}/completed")
-    public ResponseEntity<List<MissionResponse>> listCompletedForUser(@PathVariable Long userId) {
-        return ResponseEntity.ok(
-                queryService.listCompleted(userId).stream()
-                        .map(MissionResponse::from).toList());
+    private List<UserMission> resolveMissions(Long userId, boolean completed, MissionPool pool) {
+        if (completed) {
+            return queryService.listCompleted(userId);
+        }
+        return pool == null
+                ? queryService.listActive(userId)
+                : queryService.listActiveByPool(userId, pool);
     }
 
     @Operation(summary = "Force a fresh mission rollout for ALL eligible users",

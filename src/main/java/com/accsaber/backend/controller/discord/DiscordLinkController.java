@@ -28,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/discord/links")
 @RequiredArgsConstructor
-@Tag(name = "Discord Links")
+@Tag(name = "Admin - Players")
 public class DiscordLinkController {
 
     private final DiscordLinkService discordLinkService;

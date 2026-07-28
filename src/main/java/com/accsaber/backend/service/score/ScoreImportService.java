@@ -146,14 +146,15 @@ public class ScoreImportService {
     }
 
     @Async("taskExecutor")
-    public void backfillDifficultyAsync(UUID mapDifficultyId) {
+    public CompletableFuture<Void> backfillDifficultyAsync(UUID mapDifficultyId) {
         MapDifficulty difficulty = mapDifficultyRepository.findByIdAndActiveTrueWithCategory(mapDifficultyId)
                 .orElse(null);
         if (difficulty == null) {
             log.warn("Cannot backfill: difficulty {} not found or inactive", mapDifficultyId);
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         backfillDifficulty(difficulty);
+        return CompletableFuture.completedFuture(null);
     }
 
     @Async("taskExecutor")
@@ -184,7 +185,7 @@ public class ScoreImportService {
     }
 
     @Async("taskExecutor")
-    public void backfillDifficultiesAsync(List<UUID> mapDifficultyIds) {
+    public CompletableFuture<Void> backfillDifficultiesAsync(List<UUID> mapDifficultyIds) {
         log.info("Starting parallel backfill for {} difficulties", mapDifficultyIds.size());
         long start = System.currentTimeMillis();
         Semaphore semaphore = new Semaphore(MAX_CONCURRENT_DIFFICULTIES);
@@ -220,10 +221,11 @@ public class ScoreImportService {
         log.info("Parallel backfill complete for {} difficulties in {}s", mapDifficultyIds.size(), elapsed / 1000);
 
         songSuggestService.regenerateAsync();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Async("taskExecutor")
-    public void backfillAllRankedDifficulties() {
+    public CompletableFuture<Void> backfillAllRankedDifficulties() {
         List<MapDifficulty> ranked = mapDifficultyRepository
                 .findByStatusAndActiveTrueWithCategory(MapDifficultyStatus.RANKED);
         log.info("Starting parallel backfill for {} ranked difficulties", ranked.size());
@@ -255,6 +257,7 @@ public class ScoreImportService {
         log.info("Parallel backfill of all {} ranked difficulties complete in {}s", ranked.size(), elapsed / 1000);
         log.info("Running post-backfill rank repair");
         scoreRankingService.reassignAllRanks();
+        return CompletableFuture.completedFuture(null);
     }
 
     private static void joinAll(List<Thread> threads) {
@@ -328,12 +331,13 @@ public class ScoreImportService {
     }
 
     @Async("taskExecutor")
-    public void backfillUserAsync(Long userId) {
+    public CompletableFuture<Void> backfillUserAsync(Long userId) {
         backfillUser(userId);
+        return CompletableFuture.completedFuture(null);
     }
 
     @Async("taskExecutor")
-    public void backfillUsersAsync(List<Long> userIds) {
+    public CompletableFuture<Void> backfillUsersAsync(List<Long> userIds) {
         log.info("Starting parallel user backfill for {} users", userIds.size());
         long start = System.currentTimeMillis();
         Semaphore semaphore = new Semaphore(MAX_CONCURRENT_USERS);
@@ -360,6 +364,7 @@ public class ScoreImportService {
         });
         long elapsed = System.currentTimeMillis() - start;
         log.info("Parallel user backfill complete for {} users in {}s", userIds.size(), elapsed / 1000);
+        return CompletableFuture.completedFuture(null);
     }
 
     @Async("taskExecutor")

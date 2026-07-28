@@ -1,5 +1,6 @@
 package com.accsaber.backend.service.songsuggest;
 
+import java.util.concurrent.CompletableFuture;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -72,12 +73,13 @@ public class SongSuggestService {
 
     @Async("taskExecutor")
     @Transactional(readOnly = true)
-    public void regenerateAsync() {
+    public CompletableFuture<Void> regenerateAsync() {
         try {
             generate();
         } catch (Exception e) {
             log.error("Song Suggest leaderboard regeneration failed", e);
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     @Transactional(readOnly = true)

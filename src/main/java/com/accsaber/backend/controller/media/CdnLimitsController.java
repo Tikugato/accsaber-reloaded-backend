@@ -19,12 +19,12 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/cdn")
 @RequiredArgsConstructor
-@Tag(name = "CDN")
+@Tag(name = "Platform")
 public class CdnLimitsController {
 
     private final CdnProperties cdn;
 
-    @Operation(summary = "Upload limits and accepted MIME types for the CDN")
+    @Operation(summary = "Get the upload limits", description = "How big a file can be and which types we accept, per kind of upload. Worth reading these before you send something rather than finding out from a 413.")
     @GetMapping("/limits")
     public ResponseEntity<CdnLimitsResponse> getLimits() {
         return ResponseEntity.ok(CdnLimitsResponse.builder()

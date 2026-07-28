@@ -43,62 +43,40 @@ public class LeaderboardService {
     private final LevelService levelService;
     private final SupporterService supporterService;
 
-    @Cacheable(value = "leaderboards", key = "'global:' + #categoryId + ':' + #search + ':' + #hmd + ':' + #includeInactive + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort.toString()")
-    public Page<LeaderboardResponse> getGlobal(UUID categoryId, String search, String hmd, boolean includeInactive,
-            Pageable pageable) {
-        return getGlobalFiltered(categoryId, search, hmd, includeInactive, null, pageable);
+    @Cacheable(value = "leaderboards", key = "'board:' + #categoryId + ':' + #country + ':' + #search + ':' + #hmd + ':' + #includeInactive + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort.toString()")
+    public Page<LeaderboardResponse> getBoard(UUID categoryId, String country, String search, String hmd,
+            boolean includeInactive, Pageable pageable) {
+        return getBoardFiltered(categoryId, country, search, hmd, includeInactive, null, pageable);
     }
 
-    public Page<LeaderboardResponse> getGlobalFiltered(UUID categoryId, String search, String hmd,
+    public Page<LeaderboardResponse> getBoardFiltered(UUID categoryId, String country, String search, String hmd,
             boolean includeInactive, Collection<Long> userIdFilter, Pageable pageable) {
         verifyCategory(categoryId);
         if (userIdFilter != null && userIdFilter.isEmpty()) {
             return Page.empty(pageable);
         }
+        boolean hasCountry = country != null && !country.isBlank();
         boolean hasSearch = search != null && !search.isBlank();
         String normalizedHmd = HmdMapper.normalize(hmd);
-        Pageable effective = withDefaultSort(pageable, Sort.by(Sort.Direction.ASC, "ranking"));
+        Pageable effective = withDefaultSort(pageable,
+                Sort.by(Sort.Direction.ASC, hasCountry ? "countryRanking" : "ranking"));
         Page<UserCategoryStatistics> page;
         if (userIdFilter != null) {
             page = statisticsRepository.findActiveByCategoryPagedFilteredByUserIds(
-                    categoryId, userIdFilter, null, hasSearch ? search.trim() : null,
+                    categoryId, userIdFilter, hasCountry ? country : null, hasSearch ? search.trim() : null,
                     includeInactive, normalizedHmd, effective);
+        } else if (hasCountry) {
+            page = hasSearch
+                    ? statisticsRepository.findActiveByCategoryAndCountryPagedWithSearch(
+                            categoryId, country, search.trim(), includeInactive, normalizedHmd, effective)
+                    : statisticsRepository.findActiveByCategoryAndCountryPaged(categoryId, country, includeInactive,
+                            normalizedHmd, effective);
         } else {
             page = hasSearch
                     ? statisticsRepository.findActiveByCategoryPagedWithSearch(categoryId, search.trim(),
                             includeInactive, normalizedHmd, effective)
                     : statisticsRepository.findActiveByCategoryPaged(categoryId, includeInactive, normalizedHmd,
                             effective);
-        }
-        return enrichWithLastWeekRanking(page, categoryId);
-    }
-
-    @Cacheable(value = "leaderboards", key = "'country:' + #categoryId + ':' + #country + ':' + #search + ':' + #hmd + ':' + #includeInactive + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort.toString()")
-    public Page<LeaderboardResponse> getByCountry(UUID categoryId, String country, String search, String hmd,
-            boolean includeInactive, Pageable pageable) {
-        return getByCountryFiltered(categoryId, country, search, hmd, includeInactive, null, pageable);
-    }
-
-    public Page<LeaderboardResponse> getByCountryFiltered(UUID categoryId, String country, String search, String hmd,
-            boolean includeInactive, Collection<Long> userIdFilter, Pageable pageable) {
-        verifyCategory(categoryId);
-        if (userIdFilter != null && userIdFilter.isEmpty()) {
-            return Page.empty(pageable);
-        }
-        boolean hasSearch = search != null && !search.isBlank();
-        String normalizedHmd = HmdMapper.normalize(hmd);
-        Pageable effective = withDefaultSort(pageable, Sort.by(Sort.Direction.ASC, "countryRanking"));
-        Page<UserCategoryStatistics> page;
-        if (userIdFilter != null) {
-            page = statisticsRepository.findActiveByCategoryPagedFilteredByUserIds(
-                    categoryId, userIdFilter, country, hasSearch ? search.trim() : null,
-                    includeInactive, normalizedHmd, effective);
-        } else {
-            page = hasSearch
-                    ? statisticsRepository.findActiveByCategoryAndCountryPagedWithSearch(
-                            categoryId, country, search.trim(), includeInactive, normalizedHmd, effective)
-                    : statisticsRepository.findActiveByCategoryAndCountryPaged(categoryId, country, includeInactive,
-                            normalizedHmd, effective);
         }
         return enrichWithLastWeekRanking(page, categoryId);
     }

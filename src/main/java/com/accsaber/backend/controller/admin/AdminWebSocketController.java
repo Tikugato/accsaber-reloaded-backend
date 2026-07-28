@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/admin/ws")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin WebSocket")
+@Tag(name = "Admin - Operations")
 public class AdminWebSocketController {
 
     private static final Set<String> VALID_PLATFORMS = Set.of("beatleader", "scoresaber");

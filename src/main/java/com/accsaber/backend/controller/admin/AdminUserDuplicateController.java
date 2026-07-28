@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/admin/users/duplicates")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin User Duplicates")
+@Tag(name = "Admin - Players")
 public class AdminUserDuplicateController {
 
     private final DuplicateUserService duplicateUserService;

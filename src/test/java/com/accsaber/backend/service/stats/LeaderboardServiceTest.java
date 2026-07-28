@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -15,11 +16,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.model.dto.response.player.LeaderboardResponse;
@@ -95,7 +98,7 @@ class LeaderboardServiceTest {
         }
 
         @Nested
-        class GetGlobal {
+        class GetBoardWithoutCountry {
 
                 @Test
                 void returnsPagedResults() {
@@ -109,7 +112,7 @@ class LeaderboardServiceTest {
                         when(statisticsRepository.findActiveByCategoryPaged(eq(category.getId()), eq(true), any(), any()))
                                         .thenReturn(page);
 
-                        Page<LeaderboardResponse> result = leaderboardService.getGlobal(category.getId(), null,
+                        Page<LeaderboardResponse> result = leaderboardService.getBoard(category.getId(), null, null,
                                         null, true, pageable);
 
                         assertThat(result.getTotalElements()).isEqualTo(3);
@@ -118,18 +121,35 @@ class LeaderboardServiceTest {
                 }
 
                 @Test
+                void defaultsToGlobalRankingSort() {
+                        PageRequest pageable = PageRequest.of(0, 20);
+                        when(categoryRepository.findByIdAndActiveTrue(category.getId()))
+                                        .thenReturn(Optional.of(category));
+                        when(statisticsRepository.findActiveByCategoryPaged(eq(category.getId()), eq(true), any(), any()))
+                                        .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+                        leaderboardService.getBoard(category.getId(), null, null, null, true, pageable);
+
+                        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+                        verify(statisticsRepository).findActiveByCategoryPaged(eq(category.getId()), eq(true), any(),
+                                        captor.capture());
+                        assertThat(captor.getValue().getSort().getOrderFor("ranking")).isNotNull();
+                }
+
+                @Test
                 void unknownCategoryThrows() {
                         UUID unknownId = UUID.randomUUID();
                         when(categoryRepository.findByIdAndActiveTrue(unknownId)).thenReturn(Optional.empty());
 
                         assertThatThrownBy(
-                                        () -> leaderboardService.getGlobal(unknownId, null, null, true, PageRequest.of(0, 20)))
+                                        () -> leaderboardService.getBoard(unknownId, null, null, null, true,
+                                                        PageRequest.of(0, 20)))
                                         .isInstanceOf(ResourceNotFoundException.class);
                 }
         }
 
         @Nested
-        class GetByCountry {
+        class GetBoardWithCountry {
 
                 @Test
                 void returnsFilteredPagedResults() {
@@ -144,11 +164,42 @@ class LeaderboardServiceTest {
                                         eq(category.getId()), eq("US"), eq(true), any(), any()))
                                         .thenReturn(page);
 
-                        Page<LeaderboardResponse> result = leaderboardService.getByCountry(
+                        Page<LeaderboardResponse> result = leaderboardService.getBoard(
                                         category.getId(), "US", null, null, true, pageable);
 
                         assertThat(result.getTotalElements()).isEqualTo(2);
                         assertThat(result.getContent()).allMatch(r -> "US".equals(r.getCountry()));
+                }
+
+                @Test
+                void defaultsToCountryRankingSort() {
+                        PageRequest pageable = PageRequest.of(0, 20);
+                        when(categoryRepository.findByIdAndActiveTrue(category.getId()))
+                                        .thenReturn(Optional.of(category));
+                        when(statisticsRepository.findActiveByCategoryAndCountryPaged(
+                                        eq(category.getId()), eq("US"), eq(true), any(), any()))
+                                        .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+                        leaderboardService.getBoard(category.getId(), "US", null, null, true, pageable);
+
+                        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+                        verify(statisticsRepository).findActiveByCategoryAndCountryPaged(eq(category.getId()), eq("US"),
+                                        eq(true), any(), captor.capture());
+                        assertThat(captor.getValue().getSort().getOrderFor("countryRanking")).isNotNull();
+                }
+
+                @Test
+                void blankCountryFallsBackToGlobalBoard() {
+                        PageRequest pageable = PageRequest.of(0, 20);
+                        when(categoryRepository.findByIdAndActiveTrue(category.getId()))
+                                        .thenReturn(Optional.of(category));
+                        when(statisticsRepository.findActiveByCategoryPaged(eq(category.getId()), eq(true), any(), any()))
+                                        .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+                        leaderboardService.getBoard(category.getId(), "  ", null, null, true, pageable);
+
+                        verify(statisticsRepository).findActiveByCategoryPaged(eq(category.getId()), eq(true), any(),
+                                        any());
                 }
 
                 @Test
@@ -157,7 +208,7 @@ class LeaderboardServiceTest {
                         when(categoryRepository.findByIdAndActiveTrue(unknownId)).thenReturn(Optional.empty());
 
                         assertThatThrownBy(
-                                        () -> leaderboardService.getByCountry(unknownId, "US", null, null, true,
+                                        () -> leaderboardService.getBoard(unknownId, "US", null, null, true,
                                                         PageRequest.of(0, 20)))
                                         .isInstanceOf(ResourceNotFoundException.class);
                 }

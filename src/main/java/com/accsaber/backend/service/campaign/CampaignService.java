@@ -2,6 +2,7 @@ package com.accsaber.backend.service.campaign;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.function.LongSupplier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.accsaber.backend.config.CdnProperties;
 import com.accsaber.backend.exception.ResourceNotFoundException;
+import com.accsaber.backend.exception.UnauthorizedException;
 import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.projection.UserMapDifficultyBests;
 import com.accsaber.backend.model.dto.request.campaign.AddCampaignBarrierRequest;
@@ -545,8 +547,8 @@ public class CampaignService {
     }
 
     @Transactional
-    public CampaignResponse setBackgroundUrlAsPlayer(Long playerId, UUID campaignId, String backgroundUrl) {
-        return applyBackgroundUrl(editableDraftCampaign(playerId, campaignId), backgroundUrl);
+    public CampaignResponse setBackgroundUrlAsEditor(CampaignEditor editor, UUID campaignId, String backgroundUrl) {
+        return applyBackgroundUrl(editableDraftCampaign(editor, campaignId), backgroundUrl);
     }
 
     private CampaignResponse applyBackgroundUrl(Campaign campaign, String backgroundUrl) {
@@ -604,40 +606,37 @@ public class CampaignService {
     }
 
     @Transactional
-    public CampaignResponse setIconUrlAsPlayer(Long playerId, UUID campaignId, String iconUrl) {
-        Campaign campaign = editableDraftCampaign(playerId, campaignId);
+    public CampaignResponse setIconUrlAsEditor(CampaignEditor editor, UUID campaignId, String iconUrl) {
+        Campaign campaign = editableDraftCampaign(editor, campaignId);
         campaign.setIconUrl(iconUrl);
         return toCampaignResponse(campaignRepository.save(campaign));
     }
 
     @Transactional
-    public CampaignResponse createCampaignAsPlayer(Long playerId, CreateCampaignRequest request) {
-        Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(playerId);
-        assertPlayerImageryIsCdnHosted(request.getBackgroundUrl(), request.getIconUrl());
-        request.setCreatorId(resolvedUserId);
+    public CampaignResponse createCampaignAsEditor(CampaignEditor editor, CreateCampaignRequest request) {
+        assertImageryIsCdnHosted(editor, request.getBackgroundUrl(), request.getIconUrl());
+        request.setCreatorId(resolveEditorId(editor));
         request.setCreatorAlias(null);
         return createCampaign(request);
     }
 
     @Transactional
-    public CampaignResponse updateCampaignAsPlayer(Long playerId, UUID campaignId, UpdateCampaignRequest request) {
-        Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(playerId);
-        assertPlayerImageryIsCdnHosted(request.getBackgroundUrl(), request.getIconUrl());
-        assertPlayerCanEditDraft(loadActiveCampaign(campaignId), resolvedUserId);
+    public CampaignResponse updateCampaignAsEditor(CampaignEditor editor, UUID campaignId, UpdateCampaignRequest request) {
+        assertImageryIsCdnHosted(editor, request.getBackgroundUrl(), request.getIconUrl());
+        assertCanEditDraft(loadActiveCampaign(campaignId), editor);
         return updateCampaign(campaignId, request);
     }
 
     @Transactional
-    public CampaignResponse publishAsPlayer(Long playerId, UUID campaignId) {
-        Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(playerId);
-        assertPlayerOwnsDraft(loadActiveCampaign(campaignId), resolvedUserId);
+    public CampaignResponse publishAsEditor(CampaignEditor editor, UUID campaignId) {
+        assertOwnsDraft(loadActiveCampaign(campaignId), editor);
         return publish(campaignId);
     }
 
     @Transactional
-    public CampaignResponse unpublishAsPlayer(Long playerId, UUID campaignId) {
-        Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(playerId);
+    public CampaignResponse unpublishAsEditor(CampaignEditor editor, UUID campaignId) {
         Campaign campaign = loadActiveCampaign(campaignId);
+        Long resolvedUserId = resolveEditorId(editor);
         if (campaign.getCreator() == null || !resolvedUserId.equals(campaign.getCreator().getId())) {
             throw new ValidationException("Only the campaign creator can perform this action");
         }
@@ -649,15 +648,15 @@ public class CampaignService {
     }
 
     @Transactional
-    public void deactivateCampaignAsPlayer(Long playerId, UUID campaignId) {
-        Campaign campaign = ownedDraftCampaign(playerId, campaignId);
+    public void deactivateCampaignAsEditor(CampaignEditor editor, UUID campaignId) {
+        Campaign campaign = ownedDraftCampaign(editor, campaignId);
         campaign.setActive(false);
         campaignRepository.save(campaign);
     }
 
     @Transactional
-    public CampaignResponse submitForCurationAsPlayer(Long playerId, UUID campaignId, boolean seeking) {
-        Campaign campaign = ownedDraftCampaign(playerId, campaignId);
+    public CampaignResponse submitForCurationAsEditor(CampaignEditor editor, UUID campaignId, boolean seeking) {
+        Campaign campaign = ownedDraftCampaign(editor, campaignId);
         campaign.setSeekingCuration(seeking);
         if (seeking && campaign.getSubmittedAt() == null) {
             campaign.setSubmittedAt(Instant.now());
@@ -666,57 +665,51 @@ public class CampaignService {
     }
 
     @Transactional
-    public CampaignDifficultyResponse addDifficultyAsPlayer(Long playerId, UUID campaignId,
+    public CampaignDifficultyResponse addDifficultyAsEditor(CampaignEditor editor, UUID campaignId,
             AddCampaignDifficultyRequest request) {
-        editableDraftCampaign(playerId, campaignId);
-        if (campaignDifficultyRepository.countByCampaign_IdAndBarrierFalseAndActiveTrue(campaignId) >= MAX_DIFFICULTIES_PER_CAMPAIGN) {
-            throw new ValidationException("Campaign has reached the maximum of "
-                    + MAX_DIFFICULTIES_PER_CAMPAIGN + " difficulties");
-        }
+        editableDraftCampaign(editor, campaignId);
+        assertUnderCap(editor, () -> campaignDifficultyRepository.countByCampaign_IdAndBarrierFalseAndActiveTrue(campaignId),
+                MAX_DIFFICULTIES_PER_CAMPAIGN, "difficulties");
         return addDifficulty(campaignId, request);
     }
 
     @Transactional
-    public CampaignDifficultyResponse updateDifficultyAsPlayer(Long playerId, UUID campaignDifficultyId,
+    public CampaignDifficultyResponse updateDifficultyAsEditor(CampaignEditor editor, UUID campaignDifficultyId,
             UpdateCampaignDifficultyRequest request) {
-        Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(playerId);
         CampaignDifficulty difficulty = loadActiveDifficulty(campaignDifficultyId);
-        assertPlayerCanEditDraft(difficulty.getCampaign(), resolvedUserId);
+        assertCanEditDraft(difficulty.getCampaign(), editor);
         return applyDifficultyUpdate(difficulty, request);
     }
 
     @Transactional
-    public void removeDifficultyAsPlayer(Long playerId, UUID campaignId, UUID campaignDifficultyId) {
-        editableDraftCampaign(playerId, campaignId);
+    public void removeDifficultyAsEditor(CampaignEditor editor, UUID campaignId, UUID campaignDifficultyId) {
+        editableDraftCampaign(editor, campaignId);
         removeDifficulty(campaignId, campaignDifficultyId);
     }
 
-    private Campaign ownedDraftCampaign(Long playerId, UUID campaignId) {
-        Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(playerId);
+    private Campaign ownedDraftCampaign(CampaignEditor editor, UUID campaignId) {
         Campaign campaign = loadActiveCampaign(campaignId);
-        assertPlayerOwnsDraft(campaign, resolvedUserId);
+        assertOwnsDraft(campaign, editor);
         return campaign;
     }
 
-    public void assertPlayerCanUploadCampaignMedia(Long playerId, UUID campaignId) {
-        editableDraftCampaign(playerId, campaignId);
+    public void assertCanUploadCampaignMedia(CampaignEditor editor, UUID campaignId) {
+        editableDraftCampaign(editor, campaignId);
     }
 
-    public void assertPlayerCanUploadDifficultyMedia(Long playerId, UUID campaignDifficultyId) {
-        editableDraftDifficulty(playerId, campaignDifficultyId);
+    public void assertCanUploadDifficultyMedia(CampaignEditor editor, UUID campaignDifficultyId) {
+        editableDraftDifficulty(editor, campaignDifficultyId);
     }
 
-    private Campaign editableDraftCampaign(Long playerId, UUID campaignId) {
-        Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(playerId);
+    private Campaign editableDraftCampaign(CampaignEditor editor, UUID campaignId) {
         Campaign campaign = loadActiveCampaign(campaignId);
-        assertPlayerCanEditDraft(campaign, resolvedUserId);
+        assertCanEditDraft(campaign, editor);
         return campaign;
     }
 
-    private CampaignDifficulty editableDraftDifficulty(Long playerId, UUID campaignDifficultyId) {
-        Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(playerId);
+    private CampaignDifficulty editableDraftDifficulty(CampaignEditor editor, UUID campaignDifficultyId) {
         CampaignDifficulty difficulty = loadActiveDifficulty(campaignDifficultyId);
-        assertPlayerCanEditDraft(difficulty.getCampaign(), resolvedUserId);
+        assertCanEditDraft(difficulty.getCampaign(), editor);
         return difficulty;
     }
 
@@ -725,7 +718,11 @@ public class CampaignService {
                 .orElseThrow(() -> new ResourceNotFoundException("CampaignDifficulty", campaignDifficultyId));
     }
 
-    private void assertPlayerOwnsDraft(Campaign campaign, Long playerId) {
+    private void assertOwnsDraft(Campaign campaign, CampaignEditor editor) {
+        if (editor.privileged()) {
+            return;
+        }
+        Long playerId = resolveEditorId(editor);
         if (campaign.getCreator() == null || !playerId.equals(campaign.getCreator().getId())) {
             throw new ValidationException("Only the campaign creator can perform this action");
         }
@@ -734,7 +731,11 @@ public class CampaignService {
         }
     }
 
-    private void assertPlayerCanEditDraft(Campaign campaign, Long playerId) {
+    private void assertCanEditDraft(Campaign campaign, CampaignEditor editor) {
+        if (editor.privileged()) {
+            return;
+        }
+        Long playerId = resolveEditorId(editor);
         boolean isOwner = campaign.getCreator() != null && playerId.equals(campaign.getCreator().getId());
         if (!isOwner && !isAcceptedCollaborator(campaign.getId(), playerId)) {
             throw new ValidationException("Only the campaign owner or a collaborator can perform this action");
@@ -744,17 +745,36 @@ public class CampaignService {
         }
     }
 
+    private Long resolveEditorId(CampaignEditor editor) {
+        if (editor.userId() == null) {
+            throw new UnauthorizedException("Player authentication required");
+        }
+        return duplicateUserService.resolvePrimaryUserId(editor.userId());
+    }
+
     private boolean isAcceptedCollaborator(UUID campaignId, Long playerId) {
         return campaignCollaboratorRepository.existsByCampaign_IdAndUser_IdAndStatusAndActiveTrue(
                 campaignId, playerId, CampaignCollaboratorStatus.ACCEPTED);
     }
 
-    private void assertPlayerImageryIsCdnHosted(String... urls) {
+    private void assertImageryIsCdnHosted(CampaignEditor editor, String... urls) {
+        if (editor.privileged()) {
+            return;
+        }
         for (String url : urls) {
             if (url != null && !url.isBlank() && !isCdnHosted(url)) {
                 throw new ValidationException(
                         "Campaign imagery must be uploaded through the campaign image endpoints");
             }
+        }
+    }
+
+    private void assertUnderCap(CampaignEditor editor, LongSupplier current, int cap, String what) {
+        if (editor.privileged()) {
+            return;
+        }
+        if (current.getAsLong() >= cap) {
+            throw new ValidationException("Campaign has reached the maximum of " + cap + " " + what);
         }
     }
 
@@ -833,12 +853,12 @@ public class CampaignService {
     }
 
     @Transactional
-    public CampaignDifficultyResponse updateDifficultyMapAsPlayer(Long playerId, UUID campaignDifficultyId,
+    public CampaignDifficultyResponse updateDifficultyMapAsEditor(CampaignEditor editor, UUID campaignDifficultyId,
             com.accsaber.backend.model.dto.request.map.ImportCampaignMapRequest request) {
-        Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(playerId);
         CampaignDifficulty difficulty = loadActiveDifficulty(campaignDifficultyId);
-        assertPlayerCanEditDraft(difficulty.getCampaign(), resolvedUserId);
-        return applyDifficultyMapUpdate(difficulty, request, resolvedUserId);
+        assertCanEditDraft(difficulty.getCampaign(), editor);
+        return applyDifficultyMapUpdate(difficulty, request,
+                editor.privileged() ? null : resolveEditorId(editor));
     }
 
     @Transactional
@@ -1043,29 +1063,29 @@ public class CampaignService {
     }
 
     @Transactional
-    public List<CampaignItemAwardResponse> setDifficultyItemAsPlayer(Long playerId, UUID campaignDifficultyId,
+    public List<CampaignItemAwardResponse> setDifficultyItemAsEditor(CampaignEditor editor, UUID campaignDifficultyId,
             SetCampaignItemRequest request) {
-        CampaignDifficulty difficulty = editableDraftDifficulty(playerId, campaignDifficultyId);
+        CampaignDifficulty difficulty = editableDraftDifficulty(editor, campaignDifficultyId);
         return setDifficultyItem(difficulty, request);
     }
 
     @Transactional
-    public List<CampaignItemAwardResponse> removeDifficultyItemAsPlayer(Long playerId, UUID campaignDifficultyId,
+    public List<CampaignItemAwardResponse> removeDifficultyItemAsEditor(CampaignEditor editor, UUID campaignDifficultyId,
             UUID itemId) {
-        CampaignDifficulty difficulty = editableDraftDifficulty(playerId, campaignDifficultyId);
+        CampaignDifficulty difficulty = editableDraftDifficulty(editor, campaignDifficultyId);
         campaignDifficultyItemRepository.deleteByCampaignDifficulty_IdAndItem_Id(difficulty.getId(), itemId);
         return loadDifficultyItems(difficulty.getId());
     }
 
     @Transactional
-    public List<CampaignItemAwardResponse> setCompletionItemAsPlayer(Long playerId, UUID campaignId,
+    public List<CampaignItemAwardResponse> setCompletionItemAsEditor(CampaignEditor editor, UUID campaignId,
             SetCampaignItemRequest request) {
-        return setCompletionItem(editableDraftCampaign(playerId, campaignId), request);
+        return setCompletionItem(editableDraftCampaign(editor, campaignId), request);
     }
 
     @Transactional
-    public List<CampaignItemAwardResponse> removeCompletionItemAsPlayer(Long playerId, UUID campaignId, UUID itemId) {
-        Campaign campaign = editableDraftCampaign(playerId, campaignId);
+    public List<CampaignItemAwardResponse> removeCompletionItemAsEditor(CampaignEditor editor, UUID campaignId, UUID itemId) {
+        Campaign campaign = editableDraftCampaign(editor, campaignId);
         campaignCompletionItemRepository.deleteByCampaign_IdAndItem_Id(campaign.getId(), itemId);
         return loadCompletionItems(campaign.getId());
     }
@@ -1679,13 +1699,10 @@ public class CampaignService {
     }
 
     @Transactional
-    public CampaignBarrierResponse addBarrierAsPlayer(Long playerId, UUID campaignId, AddCampaignBarrierRequest request) {
-        editableDraftCampaign(playerId, campaignId);
-        if (campaignDifficultyRepository.countByCampaign_IdAndBarrierTrueAndActiveTrue(campaignId)
-                >= MAX_BARRIERS_PER_CAMPAIGN) {
-            throw new ValidationException("Campaign has reached the maximum of "
-                    + MAX_BARRIERS_PER_CAMPAIGN + " barriers");
-        }
+    public CampaignBarrierResponse addBarrierAsEditor(CampaignEditor editor, UUID campaignId, AddCampaignBarrierRequest request) {
+        editableDraftCampaign(editor, campaignId);
+        assertUnderCap(editor, () -> campaignDifficultyRepository.countByCampaign_IdAndBarrierTrueAndActiveTrue(campaignId),
+                MAX_BARRIERS_PER_CAMPAIGN, "barriers");
         return addBarrier(campaignId, request);
     }
 
@@ -1738,11 +1755,10 @@ public class CampaignService {
     }
 
     @Transactional
-    public CampaignBarrierResponse updateBarrierAsPlayer(Long playerId, UUID barrierId,
+    public CampaignBarrierResponse updateBarrierAsEditor(CampaignEditor editor, UUID barrierId,
             UpdateCampaignBarrierRequest request) {
-        Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(playerId);
         CampaignDifficulty barrier = loadActiveBarrier(barrierId);
-        assertPlayerCanEditDraft(barrier.getCampaign(), resolvedUserId);
+        assertCanEditDraft(barrier.getCampaign(), editor);
         return applyBarrierUpdate(barrier, request);
     }
 
@@ -1752,8 +1768,8 @@ public class CampaignService {
     }
 
     @Transactional
-    public void removeBarrierAsPlayer(Long playerId, UUID campaignId, UUID barrierId) {
-        editableDraftCampaign(playerId, campaignId);
+    public void removeBarrierAsEditor(CampaignEditor editor, UUID campaignId, UUID barrierId) {
+        editableDraftCampaign(editor, campaignId);
         loadActiveBarrier(barrierId);
         removeDifficulty(campaignId, barrierId);
     }
@@ -2102,12 +2118,10 @@ public class CampaignService {
     }
 
     @Transactional
-    public CampaignTextResponse addTextAsPlayer(Long playerId, UUID campaignId, CampaignTextRequest request) {
-        editableDraftCampaign(playerId, campaignId);
-        if (campaignTextRepository.countByCampaign_IdAndActiveTrue(campaignId) >= MAX_TEXTS_PER_CAMPAIGN) {
-            throw new ValidationException("Campaign has reached the maximum of "
-                    + MAX_TEXTS_PER_CAMPAIGN + " text elements");
-        }
+    public CampaignTextResponse addTextAsEditor(CampaignEditor editor, UUID campaignId, CampaignTextRequest request) {
+        editableDraftCampaign(editor, campaignId);
+        assertUnderCap(editor, () -> campaignTextRepository.countByCampaign_IdAndActiveTrue(campaignId),
+                MAX_TEXTS_PER_CAMPAIGN, "text elements");
         return addText(campaignId, request);
     }
 
@@ -2129,10 +2143,9 @@ public class CampaignService {
     }
 
     @Transactional
-    public CampaignTextResponse updateTextAsPlayer(Long playerId, UUID textId, CampaignTextRequest request) {
-        Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(playerId);
+    public CampaignTextResponse updateTextAsEditor(CampaignEditor editor, UUID textId, CampaignTextRequest request) {
         CampaignText text = loadActiveText(textId);
-        assertPlayerCanEditDraft(text.getCampaign(), resolvedUserId);
+        assertCanEditDraft(text.getCampaign(), editor);
         return applyTextUpdate(text, request);
     }
 
@@ -2142,8 +2155,8 @@ public class CampaignService {
     }
 
     @Transactional
-    public void removeTextAsPlayer(Long playerId, UUID campaignId, UUID textId) {
-        editableDraftCampaign(playerId, campaignId);
+    public void removeTextAsEditor(CampaignEditor editor, UUID campaignId, UUID textId) {
+        editableDraftCampaign(editor, campaignId);
         removeText(campaignId, textId);
     }
 

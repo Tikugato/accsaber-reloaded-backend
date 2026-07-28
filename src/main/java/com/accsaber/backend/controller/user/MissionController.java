@@ -23,31 +23,33 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/users/me/missions")
 @RequiredArgsConstructor
-@Tag(name = "Missions")
+@Tag(name = "Missions and Events")
 public class MissionController {
 
     private final MissionQueryService missionQueryService;
 
-    @Operation(summary = "List the authenticated player's active missions")
+    @Operation(summary = "List your missions", description = "The missions currently open for whoever the token belongs to, "
+            + "with the target on each and how far along they are. Dailies roll over at 4AM server time and weeklies go on "
+            + "Monday, so anything not finished by then disappears. Pass completed=true to get the ones you have already "
+            + "finished instead, which are kept around after they roll over so you can look back at what you earned. Pool "
+            + "narrows the active list to one kind, and is ignored on the completed one.")
     @GetMapping
     public ResponseEntity<List<MissionResponse>> listMine(
             @AuthenticationPrincipal PlayerUserDetails principal,
+            @RequestParam(defaultValue = "false") boolean completed,
             @RequestParam(required = false) MissionPool pool) {
         Long userId = requirePrincipal(principal).getUserId();
-        List<UserMission> missions = pool == null
-                ? missionQueryService.listActive(userId)
-                : missionQueryService.listActiveByPool(userId, pool);
+        List<UserMission> missions = resolveMissions(userId, completed, pool);
         return ResponseEntity.ok(missions.stream().map(MissionResponse::from).toList());
     }
 
-    @Operation(summary = "List the authenticated player's completed missions")
-    @GetMapping("/completed")
-    public ResponseEntity<List<MissionResponse>> listCompleted(
-            @AuthenticationPrincipal PlayerUserDetails principal) {
-        Long userId = requirePrincipal(principal).getUserId();
-        return ResponseEntity.ok(
-                missionQueryService.listCompleted(userId).stream()
-                        .map(MissionResponse::from).toList());
+    private List<UserMission> resolveMissions(Long userId, boolean completed, MissionPool pool) {
+        if (completed) {
+            return missionQueryService.listCompleted(userId);
+        }
+        return pool == null
+                ? missionQueryService.listActive(userId)
+                : missionQueryService.listActiveByPool(userId, pool);
     }
 
     private PlayerUserDetails requirePrincipal(PlayerUserDetails principal) {

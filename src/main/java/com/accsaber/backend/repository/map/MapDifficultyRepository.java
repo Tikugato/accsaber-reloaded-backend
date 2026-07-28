@@ -119,8 +119,6 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         """)
         Optional<MapDifficulty> findBySsLeaderboardId(@Param("leaderboardId") String leaderboardId);
 
-        List<MapDifficulty> findByActiveFalseOrderByUpdatedAtDesc();
-
         List<MapDifficulty> findByStatusAndActiveTrue(MapDifficultyStatus status);
 
         @Query("""
@@ -220,7 +218,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         SELECT d FROM MapDifficulty d
                         LEFT JOIN MapDifficultyComplexity c ON c.mapDifficulty = d AND c.active = true
                         LEFT JOIN MapDifficultyStatistics mds ON mds.mapDifficulty = d AND mds.active = true
-                        WHERE d.active = true
+                        WHERE d.active = :active
                         AND (:categoryId IS NULL OR d.category.id = :categoryId)
                         AND (:batchId IS NULL OR d.batch.id = :batchId)
                         AND ((:statuses IS NULL AND d.status <> com.accsaber.backend.model.entity.map.MapDifficultyStatus.CAMPAIGN)
@@ -234,7 +232,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         SELECT COUNT(d) FROM MapDifficulty d
                         LEFT JOIN MapDifficultyComplexity c ON c.mapDifficulty = d AND c.active = true
                         LEFT JOIN MapDifficultyStatistics mds ON mds.mapDifficulty = d AND mds.active = true
-                        WHERE d.active = true
+                        WHERE d.active = :active
                         AND (:categoryId IS NULL OR d.category.id = :categoryId)
                         AND (:batchId IS NULL OR d.batch.id = :batchId)
                         AND ((:statuses IS NULL AND d.status <> com.accsaber.backend.model.entity.map.MapDifficultyStatus.CAMPAIGN)
@@ -247,6 +245,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         """)
         Page<MapDifficulty> findWithComplexityFilters(
                         @Param("categoryId") UUID categoryId,
+                        @Param("active") boolean active,
                         @Param("batchId") UUID batchId,
                         @Param("statuses") Collection<MapDifficultyStatus> statuses,
                         @Param("complexityMin") BigDecimal complexityMin,
@@ -258,7 +257,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         SELECT d FROM MapDifficulty d
                         LEFT JOIN MapDifficultyComplexity c ON c.mapDifficulty = d AND c.active = true
                         LEFT JOIN MapDifficultyStatistics mds ON mds.mapDifficulty = d AND mds.active = true
-                        WHERE d.active = true
+                        WHERE d.active = :active
                         AND (:categoryId IS NULL OR d.category.id = :categoryId)
                         AND (:batchId IS NULL OR d.batch.id = :batchId)
                         AND ((:statuses IS NULL AND d.status <> com.accsaber.backend.model.entity.map.MapDifficultyStatus.CAMPAIGN)
@@ -275,7 +274,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         SELECT COUNT(d) FROM MapDifficulty d
                         LEFT JOIN MapDifficultyComplexity c ON c.mapDifficulty = d AND c.active = true
                         LEFT JOIN MapDifficultyStatistics mds ON mds.mapDifficulty = d AND mds.active = true
-                        WHERE d.active = true
+                        WHERE d.active = :active
                         AND (:categoryId IS NULL OR d.category.id = :categoryId)
                         AND (:batchId IS NULL OR d.batch.id = :batchId)
                         AND ((:statuses IS NULL AND d.status <> com.accsaber.backend.model.entity.map.MapDifficultyStatus.CAMPAIGN)
@@ -291,6 +290,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         """)
         Page<MapDifficulty> findWithComplexityFiltersWithSearch(
                         @Param("categoryId") UUID categoryId,
+                        @Param("active") boolean active,
                         @Param("batchId") UUID batchId,
                         @Param("statuses") Collection<MapDifficultyStatus> statuses,
                         @Param("complexityMin") BigDecimal complexityMin,

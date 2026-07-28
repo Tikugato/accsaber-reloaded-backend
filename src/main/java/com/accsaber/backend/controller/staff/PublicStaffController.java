@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/staff/users-public")
 @RequiredArgsConstructor
-@Tag(name = "Staff Users")
+@Tag(name = "Staff Accounts")
 public class PublicStaffController {
 
     private final StaffUserService staffUserService;

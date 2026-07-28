@@ -34,12 +34,12 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/trades")
 @RequiredArgsConstructor
-@Tag(name = "Item Trades")
+@Tag(name = "Items and Market")
 public class ItemTradeController {
 
     private final ItemTradeService tradeService;
 
-    @Operation(summary = "Create a pending trade offer to another user")
+    @Operation(summary = "Offer a trade", description = "Sends a trade offer to another player. Nothing moves until they accept, and either of you can back out before then. Untradeable items cannot be included.")
     @PostMapping
     public ResponseEntity<TradeResponse> create(@Valid @RequestBody CreateTradeRequest req,
             @AuthenticationPrincipal PlayerUserDetails principal) {
@@ -50,7 +50,7 @@ public class ItemTradeController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ItemMapper.toTradeResponse(trade));
     }
 
-    @Operation(summary = "Accept a pending trade addressed to me")
+    @Operation(summary = "Accept a trade", description = "Takes an offer someone sent you, and the items swap over straight away.")
     @PostMapping("/{id}/accept")
     public ResponseEntity<TradeResponse> accept(@PathVariable UUID id,
             @AuthenticationPrincipal PlayerUserDetails principal) {
@@ -58,7 +58,7 @@ public class ItemTradeController {
         return ResponseEntity.ok(ItemMapper.toTradeResponse(tradeService.accept(id, me)));
     }
 
-    @Operation(summary = "Decline a pending trade addressed to me")
+    @Operation(summary = "Decline a trade", description = "Turns down an offer someone sent you. Nothing moves.")
     @PostMapping("/{id}/decline")
     public ResponseEntity<TradeResponse> decline(@PathVariable UUID id,
             @AuthenticationPrincipal PlayerUserDetails principal) {
@@ -66,7 +66,7 @@ public class ItemTradeController {
         return ResponseEntity.ok(ItemMapper.toTradeResponse(tradeService.decline(id, me)));
     }
 
-    @Operation(summary = "Cancel a pending trade I sent")
+    @Operation(summary = "Cancel a trade you sent", description = "Withdraws an offer you made before the other player has acted on it.")
     @PostMapping("/{id}/cancel")
     public ResponseEntity<TradeResponse> cancel(@PathVariable UUID id,
             @AuthenticationPrincipal PlayerUserDetails principal) {
@@ -74,7 +74,7 @@ public class ItemTradeController {
         return ResponseEntity.ok(ItemMapper.toTradeResponse(tradeService.cancel(id, me)));
     }
 
-    @Operation(summary = "List my trades with filters", description = "AIO endpoint. direction: incoming | outgoing | both (default both). status: comma-separated TradeStatus values, omit for all. Sorted by createdAt desc by default.")
+    @Operation(summary = "Get your trades", description = "Everything you have sent or been sent, newest first. Use direction for incoming, outgoing or both, and status to narrow to particular states, which takes several values at once. Leave both off and you get the lot.")
     @GetMapping
     public ResponseEntity<Page<TradeResponse>> listMine(
             @RequestParam(defaultValue = "both") String direction,

@@ -21,12 +21,12 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
-@Tag(name = "Supporters")
+@Tag(name = "Players")
 public class SupporterPublicController {
 
     private final SupporterService supporterService;
 
-    @Operation(summary = "Get a user's supporter status (tier, balance, lifetime). Returns an empty state for users who never supported.")
+    @Operation(summary = "Get a player's supporter status", description = "Their tier, current balance and lifetime total. Someone who has never supported still gets a normal response with everything empty rather than a 404, so you can render it without special casing.")
     @GetMapping("/v1/users/{userId}/supporter")
     public ResponseEntity<SupporterAccountResponse> get(@PathVariable Long userId) {
         SupporterAccount account = supporterService.findAccount(userId);
@@ -35,7 +35,7 @@ public class SupporterPublicController {
                 : SupporterAccountResponse.from(account));
     }
 
-    @Operation(summary = "Paginated supporters credits roll. Filter by status: all (default), active, past.")
+    @Operation(summary = "Get the supporters credits", description = "The roll of everyone who has supported AccSaber, past and present. Filter with status for all, active or past.")
     @GetMapping("/v1/supporters/credits")
     public ResponseEntity<Page<SupporterCreditsRowResponse>> credits(
             @RequestParam(required = false, defaultValue = "all") String status,

@@ -67,18 +67,10 @@ public class ItemTypeService {
     }
 
     @Transactional
-    public void deactivate(UUID id) {
+    public ItemType setActive(UUID id, boolean active) {
         ItemType type = itemTypeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ItemType", id));
-        type.setActive(false);
-        itemTypeRepository.save(type);
-    }
-
-    @Transactional
-    public ItemType reactivate(UUID id) {
-        ItemType type = itemTypeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("ItemType", id));
-        type.setActive(true);
+        type.setActive(active);
         return itemTypeRepository.save(type);
     }
 

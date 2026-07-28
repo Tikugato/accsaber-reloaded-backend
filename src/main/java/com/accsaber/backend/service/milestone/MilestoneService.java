@@ -1,5 +1,6 @@
 package com.accsaber.backend.service.milestone;
 
+import java.util.concurrent.CompletableFuture;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Comparator;
@@ -459,7 +460,7 @@ public class MilestoneService {
 
     @Async("taskExecutor")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public void backfillMilestone(UUID milestoneId) {
+    public CompletableFuture<Void> backfillMilestone(UUID milestoneId) {
         Milestone milestone = milestoneRepository.findByIdAndActiveTrueEager(milestoneId)
                 .orElseThrow(() -> new ResourceNotFoundException("Milestone", milestoneId));
         List<Long> userIds = userRepository.findByActiveTrue().stream()
@@ -482,26 +483,28 @@ public class MilestoneService {
         }
         log.info("Backfill complete for milestone '{}' ({}) - {} users processed", milestone.getTitle(), milestoneId,
                 processed);
+        return CompletableFuture.completedFuture(null);
     }
 
     @Async("taskExecutor")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public void backfillUser(Long userId) {
+    public CompletableFuture<Void> backfillUser(Long userId) {
         Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(userId);
         if (userRepository.findByIdAndActiveTrue(resolvedUserId).isEmpty()) {
             log.warn("Cannot backfill milestones: user {} not found or inactive", resolvedUserId);
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         log.info("Milestone backfill started for user {}", resolvedUserId);
         var evaluation = milestoneEvaluationService.evaluateAllForUser(resolvedUserId);
         awardMilestoneXp(resolvedUserId, evaluation);
         log.info("Milestone backfill complete for user {} - {} milestones, {} sets completed",
                 resolvedUserId, evaluation.completedMilestones().size(), evaluation.completedSets().size());
+        return CompletableFuture.completedFuture(null);
     }
 
     @Async("taskExecutor")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public void backfillAllMilestones() {
+    public CompletableFuture<Void> backfillAllMilestones() {
         List<Long> userIds = userRepository.findByActiveTrueOrderByTotalXpDesc().stream()
                 .map(User::getId)
                 .toList();
@@ -524,6 +527,7 @@ public class MilestoneService {
         }
         log.info("Bulk milestone backfill complete - {} users processed, {} milestones completed", processed,
                 totalCompleted);
+        return CompletableFuture.completedFuture(null);
     }
 
     private void awardMilestoneXp(Long userId, MilestoneEvaluationService.EvaluationResult evaluation) {

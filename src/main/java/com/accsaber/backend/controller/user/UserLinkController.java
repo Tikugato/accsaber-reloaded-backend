@@ -27,7 +27,10 @@ public class UserLinkController {
     private final DuplicateUserService duplicateUserService;
     private final ProfileUrlResolver profileUrlResolver;
 
-    @Operation(summary = "Get user profile by platform link", description = "Returns a player profile by BeatLeader URL, ScoreSaber URL, or numeric ID. Optionally include all category statistics.")
+    @Operation(summary = "Find a player from a profile link", description = "Give it a BeatLeader or ScoreSaber profile URL, or "
+            + "just the numeric id out of one, and it works out which player that is. Handy when someone pastes a link and you "
+            + "want the AccSaber profile behind it. If that account has been merged into another, you get the primary one "
+            + "back rather than a dead end. Pass statistics=true to bring the category stats along too.")
     @GetMapping("/link")
     public ResponseEntity<UserResponse> getUserByLink(
             @RequestParam String url,

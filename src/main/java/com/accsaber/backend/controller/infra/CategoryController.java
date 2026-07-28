@@ -18,18 +18,21 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/categories")
 @RequiredArgsConstructor
-@Tag(name = "Categories")
+@Tag(name = "Platform")
 public class CategoryController {
 
     private final CategoryService categoryService;
 
-    @Operation(summary = "List active categories", description = "Returns all active scoring categories with their associated curves")
+    @Operation(summary = "List the scoring categories", description = "The categories a map can be ranked in, so True Acc, "
+            + "Standard Acc, Tech Acc and the rest, each with the curves it uses to work out AP. Overall is in here too, and it "
+            + "aggregates across whichever categories are set to count toward it.")
     @GetMapping
     public ResponseEntity<List<CategoryResponse>> listCategories() {
         return ResponseEntity.ok(categoryService.findAllActive());
     }
 
-    @Operation(summary = "Get category", description = "Returns a single category with its associated curves, addressed by UUID or code (e.g. true_acc)")
+    @Operation(summary = "Get one category", description = "The same thing as the list but for a single category. You can address "
+            + "it either by its UUID or by its code, so /v1/categories/true_acc works just as well as passing the id.")
     @GetMapping("/{category}")
     public ResponseEntity<CategoryResponse> getCategory(@PathVariable String category) {
         return ResponseEntity.ok(categoryService.findById(categoryService.resolveId(category)));

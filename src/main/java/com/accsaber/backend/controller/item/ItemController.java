@@ -54,7 +54,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1")
 @RequiredArgsConstructor
-@Tag(name = "Items")
+@Tag(name = "Items and Market")
 public class ItemController {
 
     private final ItemService itemService;
@@ -63,7 +63,9 @@ public class ItemController {
     private final UnusualEffectService unusualEffectService;
     private final SiteStatisticsService siteStatisticsService;
 
-    @Operation(summary = "List all visible item types")
+    @Operation(summary = "List the item types", description = "The kinds of item there are, which is also what decides the slot "
+            + "an item goes in when it is equipped. Each type has a key, and that key is what you pass when equipping or "
+            + "clearing a slot.")
     @GetMapping("/item-types")
     public ResponseEntity<List<ItemTypeResponse>> listTypes() {
         return ResponseEntity.ok(itemTypeService.findAllActive().stream()
@@ -71,7 +73,9 @@ public class ItemController {
                 .toList());
     }
 
-    @Operation(summary = "List all active item modifiers")
+    @Operation(summary = "List the item modifiers", description = "Modifiers are the extra flourish an item instance can carry, "
+            + "rolled when a crate is opened. Two players can hold the same item and have it look different because of these. "
+            + "Not to be confused with score modifiers, which are a separate thing entirely.")
     @GetMapping("/item-modifiers")
     public ResponseEntity<List<ItemModifierResponse>> listModifiers() {
         return ResponseEntity.ok(itemService.findAllActiveModifiers().stream()
@@ -79,7 +83,8 @@ public class ItemController {
                 .toList());
     }
 
-    @Operation(summary = "List all active unusual effects")
+    @Operation(summary = "List the unusual effects", description = "Rarer visual effects that sit on a single item instance "
+            + "rather than on the item itself, so they belong to one specific copy someone owns.")
     @GetMapping("/unusual-effects")
     public ResponseEntity<List<UnusualEffectResponse>> listUnusualEffects() {
         return ResponseEntity.ok(unusualEffectService.findAll(false).stream()
@@ -87,13 +92,19 @@ public class ItemController {
                 .toList());
     }
 
-    @Operation(summary = "List active unusual effects grouped by the crate they drop from", description = "Effects attached to more than one crate appear under each. Effects attached to no crate land in 'ungrouped'. Effects that only drop from a hidden crate are omitted entirely.")
+    @Operation(summary = "List unusual effects by which crate drops them", description = "The same effects but arranged under "
+            + "the crate they come from, which is the shape you want for a collection screen. An effect that drops from "
+            + "several crates turns up under each of them, and anything attached to no crate at all lands in ungrouped. "
+            + "Effects that only come from a hidden crate are left out entirely, so this is not a complete list of what "
+            + "exists.")
     @GetMapping("/unusual-effects/grouped")
     public ResponseEntity<UnusualEffectGroupsResponse> listUnusualEffectsGrouped() {
         return ResponseEntity.ok(unusualEffectService.findAllGrouped(false));
     }
 
-    @Operation(summary = "List all visible items, optionally filtered by type")
+    @Operation(summary = "List the items", description = "The item catalogue, narrowed to one type if you pass typeId. Only "
+            + "items marked visible show up, so anything being held back for a future release will not appear here even "
+            + "though it exists.")
     @GetMapping("/items")
     public ResponseEntity<List<ItemResponse>> listItems(@RequestParam(required = false) UUID typeId) {
         var items = typeId == null
@@ -102,16 +113,17 @@ public class ItemController {
         return ResponseEntity.ok(items.stream().map(ItemMapper::toItemResponse).toList());
     }
 
-    @Operation(summary = "Get an item by id")
+    @Operation(summary = "Get one item", description = "A single item from the catalogue, with its type, rarity and worth.")
     @GetMapping("/items/{id}")
     public ResponseEntity<ItemResponse> getItem(@PathVariable UUID id) {
         return ResponseEntity.ok(ItemMapper.toItemResponse(itemService.findById(id)));
     }
 
-    @Operation(summary = "List the holders of an item", description = "Players who own the given item, aggregated one row per holder."
-            + " Filter by modifier keys (a holder qualifies only via instances carrying ALL requested modifiers) and by holder"
-            + " name search. Sort by RECENT (most recently acquired), RANK (best overall AccSaber rank), or FOLLOWING"
-            + " (players the authenticated viewer follows first — requires login).")
+    @Operation(summary = "List who owns an item", description = "The players holding an item, one row each however many copies "
+            + "they have. You can filter by modifier, though a holder only counts if they have a single copy carrying all the "
+            + "modifiers you asked for rather than spread across several. Search by name as well if you need. Sort is RECENT "
+            + "for most recently picked up, RANK for best overall AccSaber rank, or FOLLOWING to put people you follow first, "
+            + "and that last one needs you to be signed in.")
     @GetMapping("/items/{id}/holders")
     public ResponseEntity<Page<ItemHolderResponse>> getItemHolders(
             @PathVariable UUID id,
@@ -125,7 +137,9 @@ public class ItemController {
         return ResponseEntity.ok(siteStatisticsService.getItemHolders(id, modifier, search, sort, viewerId, pageable));
     }
 
-    @Operation(summary = "Preview an item, modifier, and unusual effect combo exactly as it renders equipped")
+    @Operation(summary = "Preview an item combination", description = "Renders an item with a modifier and an unusual effect "
+            + "exactly as it would look equipped, without anyone having to own it. Nothing is created or saved, it just gives "
+            + "you the rendered shape back, so it is safe to call as often as you like while trying combinations out.")
     @PostMapping("/items/preview")
     @PreAuthorize("hasAnyRole('ADMIN', 'CREATIVE')")
     public ResponseEntity<UserItemResponse> previewItem(@Valid @RequestBody ItemPreviewRequest request) {
@@ -136,7 +150,8 @@ public class ItemController {
                 request.getVariantKey()));
     }
 
-    @Operation(summary = "List a user's owned item collection")
+    @Operation(summary = "Get a player's collection", description = "Everything a player owns, as a flat list. Pass typeKey to "
+            + "narrow it to one kind. If you want paging and proper filtering, the inventory route below is the better one.")
     @GetMapping("/users/{userId}/items")
     public ResponseEntity<List<UserItemResponse>> getUserItems(
             @PathVariable Long userId,
@@ -147,13 +162,18 @@ public class ItemController {
         return ResponseEntity.ok(links.stream().map(ItemMapper::toUserItemResponse).toList());
     }
 
-    @Operation(summary = "Get a user's equipped items, keyed by type key")
+    @Operation(summary = "Get what a player has equipped", description = "The items a player is currently showing, as a map "
+            + "keyed by type so you can look up a slot directly instead of searching a list. This is what you want for "
+            + "rendering someone's profile.")
     @GetMapping("/users/{userId}/items/equipped")
     public ResponseEntity<Map<String, UserItemResponse>> getEquipped(@PathVariable Long userId) {
         return ResponseEntity.ok(itemService.findEquippedHydrated(userId));
     }
 
-    @Operation(summary = "Paginated user inventory with filtering and sorting")
+    @Operation(summary = "Get a player's inventory", description = "The same collection but paged and with a lot more to filter "
+            + "on, which is what an inventory screen wants. Narrow by type, rarity, modifier, whether something can be traded, "
+            + "where it came from, or whether it has been deprecated, and search by name. Most of the list filters take "
+            + "several values at once.")
     @GetMapping("/users/{userId}/inventory")
     public ResponseEntity<Page<UserItemResponse>> getInventory(
             @PathVariable Long userId,
@@ -171,7 +191,9 @@ public class ItemController {
                 .map(ItemMapper::toUserItemResponse));
     }
 
-    @Operation(summary = "Equip an owned item link to its corresponding profile slot")
+    @Operation(summary = "Equip an item", description = "Puts one of your items into its slot, which is decided by the item's "
+            + "type rather than by you. Whatever was in that slot before comes off automatically, so there is no need to "
+            + "unequip first.")
     @PostMapping("/users/me/items/equip")
     public ResponseEntity<Void> equip(
             @Valid @RequestBody EquipItemRequest request,
@@ -180,7 +202,8 @@ public class ItemController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "Clear the equipped item for a given item type")
+    @Operation(summary = "Clear a slot", description = "Takes off whatever you have equipped in one slot, addressed by the type "
+            + "key rather than by the item. The item stays in your inventory, it just stops being shown.")
     @DeleteMapping("/users/me/items/equip/{typeKey}")
     public ResponseEntity<Void> unequip(
             @PathVariable String typeKey,
@@ -189,7 +212,9 @@ public class ItemController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "Download an owned downloadable item's file, signed to the requesting player")
+    @Operation(summary = "Download an item's file", description = "Some items come with a file attached, and this hands you "
+            + "yours. The copy you get is signed to you specifically, so please do not pass it around expecting it to work for "
+            + "someone else. You have to own the item to get anything back.")
     @GetMapping("/users/me/items/{linkId}/download")
     public ResponseEntity<byte[]> downloadItemFile(
             @PathVariable UUID linkId,
@@ -201,7 +226,9 @@ public class ItemController {
                 .body(file.bytes());
     }
 
-    @Operation(summary = "Disintegrate an owned item link into item essence (destroys it for its worth)")
+    @Operation(summary = "Disintegrate an item for essence", description = "Destroys something you own and gives you essence "
+            + "worth its value instead. Pass quantity if you are holding a stack and only want to break some of it. This one "
+            + "does not come back, so make sure the player meant it before you call it.")
     @PostMapping("/users/me/items/{linkId}/disintegrate")
     public ResponseEntity<DisintegrationResponse> disintegrate(
             @PathVariable UUID linkId,
@@ -211,7 +238,8 @@ public class ItemController {
         return ResponseEntity.ok(itemService.disintegrate(me, linkId, quantity));
     }
 
-    @Operation(summary = "Get my current item essence balance")
+    @Operation(summary = "Get your essence balance", description = "How much item essence you are holding. Essence comes from "
+            + "disintegrating items and is what you spend on the market.")
     @GetMapping("/users/me/essence")
     public ResponseEntity<EssenceBalanceResponse> getEssenceBalance(
             @AuthenticationPrincipal PlayerUserDetails principal) {

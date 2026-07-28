@@ -50,7 +50,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/admin/milestones")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin Milestones")
+@Tag(name = "Admin - Milestones and Missions")
 public class AdminMilestoneController {
 
     private final MilestoneService milestoneService;
@@ -158,27 +158,6 @@ public class AdminMilestoneController {
     public ResponseEntity<Void> refreshStats() {
         milestoneService.refreshCompletionStats();
         return ResponseEntity.ok().build();
-    }
-
-    @Operation(summary = "Backfill a single milestone for all users")
-    @PostMapping("/{id}/backfill")
-    public ResponseEntity<Void> backfillMilestone(@PathVariable UUID id) {
-        milestoneService.backfillMilestone(id);
-        return ResponseEntity.accepted().build();
-    }
-
-    @Operation(summary = "Backfill all active milestones for all users (batched per user)")
-    @PostMapping("/backfill-all")
-    public ResponseEntity<Void> backfillAllMilestones() {
-        milestoneService.backfillAllMilestones();
-        return ResponseEntity.accepted().build();
-    }
-
-    @Operation(summary = "Recalculate (backfill) all active milestones for a single user")
-    @PostMapping("/backfill-user/{userId}")
-    public ResponseEntity<Void> backfillUserMilestones(@PathVariable Long userId) {
-        milestoneService.backfillUser(userId);
-        return ResponseEntity.accepted().build();
     }
 
     @Operation(summary = "Create a prerequisite link between milestones")

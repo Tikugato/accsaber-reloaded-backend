@@ -30,12 +30,12 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/campaigns")
 @RequiredArgsConstructor
-@Tag(name = "Campaign chat")
+@Tag(name = "Campaigns")
 public class CampaignChatController {
 
     private final CampaignChatService campaignChatService;
 
-    @Operation(summary = "List a campaign's chat messages (owner or collaborator)")
+    @Operation(summary = "Read a campaign's chat", description = "Messages between the people working on a campaign, newest last. Only the owner and collaborators can see it. There is a live version over the campaign presence socket if you would rather not poll.")
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/{campaignId}/chat")
     public ResponseEntity<Page<CampaignChatMessageResponse>> listMessages(
@@ -45,7 +45,7 @@ public class CampaignChatController {
         return ResponseEntity.ok(campaignChatService.getMessages(principal.getUserId(), campaignId, pageable));
     }
 
-    @Operation(summary = "Send a chat message to a campaign (owner or collaborator)")
+    @Operation(summary = "Send a chat message", description = "Posts to a campaign's chat. Owner and collaborators only, and there is a rate limit so do not lean on it.")
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/{campaignId}/chat")
     public ResponseEntity<CampaignChatMessageResponse> sendMessage(

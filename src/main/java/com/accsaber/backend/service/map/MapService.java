@@ -93,7 +93,7 @@ public class MapService {
             Collection<MapDifficultyStatus> statuses,
             BigDecimal complexityMin, BigDecimal complexityMax, String search, Long excludeUserId, Pageable pageable) {
         return findDifficulties(categoryId, null, statuses, complexityMin, complexityMax, search, excludeUserId,
-                pageable)
+                true, pageable)
                 .map(MapService::toPublicDifficultyResponse);
     }
 
@@ -262,16 +262,17 @@ public class MapService {
     public Page<MapDifficultyResponse> findDifficulties(UUID categoryId, UUID batchId,
             Collection<MapDifficultyStatus> statuses,
             BigDecimal complexityMin, BigDecimal complexityMax, String search, Long excludeUserId,
-            Pageable pageable) {
+            boolean active, Pageable pageable) {
         boolean hasSearch = search != null && !search.isBlank();
-        Collection<MapDifficultyStatus> statusFilter = statuses == null || statuses.isEmpty() ? null : statuses;
+        Collection<MapDifficultyStatus> statusFilter = resolveStatusFilter(statuses, active);
         Pageable effective = resolveDifficultySort(pageable);
         Page<MapDifficulty> difficulties = hasSearch
                 ? mapDifficultyRepository.findWithComplexityFiltersWithSearch(
-                        categoryId, batchId, statusFilter, complexityMin, complexityMax, excludeUserId, search.trim(),
-                        effective)
+                        categoryId, active, batchId, statusFilter, complexityMin, complexityMax, excludeUserId,
+                        search.trim(), effective)
                 : mapDifficultyRepository.findWithComplexityFilters(
-                        categoryId, batchId, statusFilter, complexityMin, complexityMax, excludeUserId, effective);
+                        categoryId, active, batchId, statusFilter, complexityMin, complexityMax, excludeUserId,
+                        effective);
 
         if (difficulties.isEmpty())
             return difficulties.map(d -> toDifficultyResponse(d, null, null, null));
@@ -354,19 +355,12 @@ public class MapService {
         return complexityService.getHistoryForMap(mapId);
     }
 
-    public List<MapDifficultyResponse> getDeactivated() {
-        List<MapDifficulty> deactivated = mapDifficultyRepository.findByActiveFalseOrderByUpdatedAtDesc();
-        if (deactivated.isEmpty())
-            return List.of();
-
-        java.util.Map<UUID, StaffInfo> staffInfo = loadStaffInfo(deactivated);
-        List<UUID> ids = deactivated.stream().map(MapDifficulty::getId).toList();
-        java.util.Map<UUID, BigDecimal> complexities = complexityService.findActiveComplexitiesForDifficulties(ids);
-
-        return deactivated.stream()
-                .map(d -> toDifficultyResponse(d, complexities.get(d.getId()), null,
-                        staffInfo.get(d.getLastUpdatedBy())))
-                .toList();
+    private Collection<MapDifficultyStatus> resolveStatusFilter(Collection<MapDifficultyStatus> statuses,
+            boolean active) {
+        if (statuses != null && !statuses.isEmpty()) {
+            return statuses;
+        }
+        return active ? null : List.of(MapDifficultyStatus.values());
     }
 
     @Cacheable(value = "rankedDifficulties")

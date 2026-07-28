@@ -19,18 +19,23 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/curves")
 @RequiredArgsConstructor
-@Tag(name = "Curves")
+@Tag(name = "Platform")
 public class CurveController {
 
     private final CurveService curveService;
 
-    @Operation(summary = "Get all active curves")
+    @Operation(summary = "List the scoring curves", description = "Curves come in two shapes. A point lookup curve is a set of "
+            + "accuracy to AP points that get interpolated between, which is what turns an accuracy into AP. A formula curve "
+            + "carries its parameters instead and handles the weighting that gives your later scores less pull. "
+            + "This gives you all the active ones.")
     @GetMapping
     public ResponseEntity<List<CurveResponse>> getAllCurves() {
         return ResponseEntity.ok(curveService.findAllActive());
     }
 
-    @Operation(summary = "Get a curve by ID")
+    @Operation(summary = "Get one curve", description = "A single curve by id, points included if it is a point lookup one. "
+            + "There are around a thousand points on each of the AP curves, so please do not fetch this every time you want to "
+            + "work out a score. Read it once and hold on to it.")
     @GetMapping("/{id}")
     public ResponseEntity<CurveResponse> getCurve(@PathVariable UUID id) {
         return ResponseEntity.ok(curveService.findById(id));

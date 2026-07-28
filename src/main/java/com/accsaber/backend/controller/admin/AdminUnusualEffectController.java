@@ -6,7 +6,6 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,12 +30,13 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/admin/unusual-effects")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin Unusual Effects")
+@Tag(name = "Admin - Items and Crates")
 public class AdminUnusualEffectController {
 
     private final UnusualEffectService unusualEffectService;
 
     @Operation(summary = "List unusual effects (admin)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CREATIVE')")
     @GetMapping
     public ResponseEntity<List<UnusualEffectResponse>> list(
             @RequestParam(defaultValue = "false") boolean includeInactive) {
@@ -67,16 +67,11 @@ public class AdminUnusualEffectController {
         return ResponseEntity.ok(ItemMapper.toUnusualEffectResponse(effect));
     }
 
-    @Operation(summary = "Deactivate an unusual effect")
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deactivate(@PathVariable UUID id) {
-        unusualEffectService.deactivate(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @Operation(summary = "Reactivate a previously deactivated unusual effect")
-    @PostMapping("/{id}/reactivate")
-    public ResponseEntity<UnusualEffectResponse> reactivate(@PathVariable UUID id) {
-        return ResponseEntity.ok(ItemMapper.toUnusualEffectResponse(unusualEffectService.reactivate(id)));
+    @Operation(summary = "Activate or deactivate an unusual effect", description = "Pass active=false to retire an effect and "
+            + "active=true to bring it back. Instances players already hold keep it, it just stops being rolled by crates.")
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<UnusualEffectResponse> setActive(@PathVariable UUID id,
+            @RequestParam boolean active) {
+        return ResponseEntity.ok(ItemMapper.toUnusualEffectResponse(unusualEffectService.setActive(id, active)));
     }
 }

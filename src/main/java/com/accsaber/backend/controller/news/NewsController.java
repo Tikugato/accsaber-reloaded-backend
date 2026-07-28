@@ -1,6 +1,5 @@
 package com.accsaber.backend.controller.news;
 
-import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,12 +22,14 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/news")
 @RequiredArgsConstructor
-@Tag(name = "News")
+@Tag(name = "Platform")
 public class NewsController {
 
     private final NewsService newsService;
 
-    @Operation(summary = "List published news", description = "Pinned posts first, newest published first. Optional ?type filter (BATCH, CAMPAIGN, MILESTONE_SET, CURVE, GENERAL).")
+    @Operation(summary = "List the news posts", description = "Published posts with anything pinned at the top and the rest "
+            + "newest first. Filter with type if you only care about one sort, which is one of BATCH, CAMPAIGN, MILESTONE_SET, "
+            + "CURVE or GENERAL. Drafts never appear here.")
     @GetMapping
     public ResponseEntity<Page<PublicNewsResponse>> list(
             @RequestParam(required = false) NewsType type,
@@ -36,15 +37,10 @@ public class NewsController {
         return ResponseEntity.ok(newsService.findPublic(type, pageable));
     }
 
-    @Operation(summary = "Get a published news post by id")
-    @GetMapping("/{id}")
-    public ResponseEntity<PublicNewsResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(newsService.findPublicById(id));
-    }
-
-    @Operation(summary = "Get a published news post by slug")
-    @GetMapping("/slug/{slug}")
-    public ResponseEntity<PublicNewsResponse> getBySlug(@PathVariable String slug) {
-        return ResponseEntity.ok(newsService.findPublicBySlug(slug));
+    @Operation(summary = "Get one news post", description = "A single published post. You can address it either by its id or "
+            + "by its slug, the readable version of the title, so whichever you happen to have works.")
+    @GetMapping("/{idOrSlug}")
+    public ResponseEntity<PublicNewsResponse> get(@PathVariable String idOrSlug) {
+        return ResponseEntity.ok(newsService.findPublic(idOrSlug));
     }
 }

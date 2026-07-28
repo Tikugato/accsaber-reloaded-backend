@@ -14,6 +14,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -50,7 +51,7 @@ public class CampaignCollaboratorController {
         return role == StaffRole.ADMIN || role == StaffRole.CAMPAIGN_CURATOR;
     }
 
-    @Operation(summary = "List collaborators on a campaign")
+    @Operation(summary = "List a campaign's collaborators", description = "Who else can edit this campaign alongside the owner.")
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/{campaignId}/collaborators")
     public ResponseEntity<List<CampaignCollaboratorResponse>> listCollaborators(
@@ -60,7 +61,7 @@ public class CampaignCollaboratorController {
                 viewerId(authentication), campaignId, isPrivileged(authentication)));
     }
 
-    @Operation(summary = "Invite a player to collaborate on a campaign you own")
+    @Operation(summary = "Invite a collaborator", description = "Asks another player to help edit your draft. They have to accept before they can change anything.")
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/{campaignId}/collaborators")
     public ResponseEntity<CampaignCollaboratorResponse> inviteCollaborator(
@@ -71,25 +72,18 @@ public class CampaignCollaboratorController {
                 collaboratorService.invite(principal.getUserId(), campaignId, request.getUserId()));
     }
 
-    @Operation(summary = "Accept a pending collaboration invite")
+    @Operation(summary = "Answer an invite", description = "Pass accept=true to take up an invitation to co-edit someone "
+            + "else's campaign, or accept=false to turn it down.")
     @PreAuthorize("isAuthenticated()")
-    @PostMapping("/{campaignId}/collaborators/accept")
-    public ResponseEntity<CampaignCollaboratorResponse> acceptInvite(
+    @PatchMapping("/{campaignId}/collaborators/me")
+    public ResponseEntity<CampaignCollaboratorResponse> respondToInvite(
             @PathVariable UUID campaignId,
+            @RequestParam boolean accept,
             @AuthenticationPrincipal PlayerUserDetails principal) {
-        return ResponseEntity.ok(collaboratorService.respond(principal.getUserId(), campaignId, true));
+        return ResponseEntity.ok(collaboratorService.respond(principal.getUserId(), campaignId, accept));
     }
 
-    @Operation(summary = "Decline a pending collaboration invite")
-    @PreAuthorize("isAuthenticated()")
-    @PostMapping("/{campaignId}/collaborators/decline")
-    public ResponseEntity<CampaignCollaboratorResponse> declineInvite(
-            @PathVariable UUID campaignId,
-            @AuthenticationPrincipal PlayerUserDetails principal) {
-        return ResponseEntity.ok(collaboratorService.respond(principal.getUserId(), campaignId, false));
-    }
-
-    @Operation(summary = "Remove a collaborator (owner) or leave a campaign (self)")
+    @Operation(summary = "Remove a collaborator", description = "The owner can use this to take someone off, and a collaborator can use it on themselves to step away.")
     @PreAuthorize("isAuthenticated()")
     @DeleteMapping("/{campaignId}/collaborators/{userId}")
     public ResponseEntity<Void> removeCollaborator(
@@ -100,7 +94,7 @@ public class CampaignCollaboratorController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "List the authenticated player's campaign collaborations and invites")
+    @Operation(summary = "List your collaborations", description = "Campaigns where you are a collaborator rather than the owner, including invitations you have not answered yet.")
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/me/collaborations")
     public ResponseEntity<Page<CampaignCollaboratorResponse>> listMyCollaborations(

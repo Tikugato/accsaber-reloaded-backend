@@ -161,7 +161,7 @@ public class CdnSyncService {
     // --- Backfill loops ---
 
     @Async("cdnBackfillExecutor")
-    public void backfillAllMapCovers(boolean force) {
+    public CompletableFuture<Void> backfillAllMapCovers(boolean force) {
         List<Map> maps = mapRepository.findByActiveTrue();
         log.info("CDN backfill: starting cover backfill for {} maps (force={})", maps.size(), force);
         AtomicInteger done = new AtomicInteger();
@@ -177,10 +177,11 @@ public class CdnSyncService {
             done.incrementAndGet();
         });
         log.info("CDN backfill: covers done ({} processed, {} skipped)", done.get(), skipped.get());
+        return CompletableFuture.completedFuture(null);
     }
 
     @Async("cdnBackfillExecutor")
-    public void backfillAllUserAvatars(boolean force) {
+    public CompletableFuture<Void> backfillAllUserAvatars(boolean force) {
         List<User> users = userRepository.findByActiveTrue();
         log.info("CDN backfill: starting avatar backfill for {} users (force={})", users.size(), force);
         AtomicInteger done = new AtomicInteger();
@@ -206,6 +207,7 @@ public class CdnSyncService {
             done.incrementAndGet();
         });
         log.info("CDN backfill: avatars done ({} processed, {} skipped)", done.get(), skipped.get());
+        return CompletableFuture.completedFuture(null);
     }
 
     // --- Internals ---

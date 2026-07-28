@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/v1/staff/auth")
 @RequiredArgsConstructor
-@Tag(name = "Staff Auth")
+@Tag(name = "Staff Accounts")
 public class StaffAuthController {
 
     private final StaffAuthService staffAuthService;

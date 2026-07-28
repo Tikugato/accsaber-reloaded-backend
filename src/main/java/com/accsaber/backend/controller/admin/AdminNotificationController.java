@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/admin/notifications")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin Notifications")
+@Tag(name = "Admin - Operations")
 public class AdminNotificationController {
 
     private final NotificationService notificationService;

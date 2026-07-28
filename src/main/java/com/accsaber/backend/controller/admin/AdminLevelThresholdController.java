@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/admin/level-thresholds")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin Level Thresholds")
+@Tag(name = "Admin - Milestones and Missions")
 public class AdminLevelThresholdController {
 
     private final LevelService levelService;

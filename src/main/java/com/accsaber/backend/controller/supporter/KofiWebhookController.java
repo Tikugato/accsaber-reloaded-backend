@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/v1/webhooks/kofi")
 @RequiredArgsConstructor
-@Tag(name = "Ko-fi Webhook")
+@Tag(name = "Platform")
 public class KofiWebhookController {
 
     private final SupporterService supporterService;
@@ -36,7 +36,7 @@ public class KofiWebhookController {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Operation(summary = "Ko-fi webhook receiver (form-encoded `data` payload)")
+    @Operation(summary = "Ko-fi webhook", description = "Where Ko-fi posts donation and subscription events. Not something you call yourself. It authenticates on the verification token inside the payload rather than on a bearer token, which is why it sits outside the normal auth.")
     @PostMapping(consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public ResponseEntity<Map<String, Object>> receive(@RequestParam("data") String data) {
         if (expectedToken == null || expectedToken.isBlank()) {

@@ -1,5 +1,6 @@
 package com.accsaber.backend.service.score;
 
+import java.util.concurrent.CompletableFuture;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
@@ -261,9 +262,10 @@ public class ScoreIngestionService {
     }
 
     @Async("backfillExecutor")
-    public void gapFillSince(Instant since, LeaderboardPlatform platform) {
+    public CompletableFuture<Void> gapFillSince(Instant since, LeaderboardPlatform platform) {
         String label = platform == null ? "all platforms" : platform.name().toLowerCase();
         runGapFill(label, since, platform, true);
+        return CompletableFuture.completedFuture(null);
     }
 
     private void runGapFill(String label, Instant since, LeaderboardPlatform platform, boolean enrichOnly) {

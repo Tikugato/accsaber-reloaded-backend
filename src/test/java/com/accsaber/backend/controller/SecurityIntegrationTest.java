@@ -2,6 +2,7 @@ package com.accsaber.backend.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -14,10 +15,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+import com.accsaber.backend.controller.admin.AdminCrateController;
+import com.accsaber.backend.controller.admin.AdminItemController;
+import com.accsaber.backend.controller.admin.AdminUnusualEffectController;
 import com.accsaber.backend.controller.ranking.RankingBatchController;
-import com.accsaber.backend.controller.staff.StaffCrateController;
-import com.accsaber.backend.controller.staff.StaffItemController;
-import com.accsaber.backend.controller.staff.StaffUnusualEffectController;
 import com.accsaber.backend.controller.staff.StaffUserController;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,27 +41,44 @@ class SecurityIntegrationTest {
         }
 
         @Test
-        void staffItemController_hasAdminOrCreativeClassLevelPreAuthorize() {
-                PreAuthorize annotation = StaffItemController.class.getAnnotation(PreAuthorize.class);
-
-                assertThat(annotation).isNotNull();
-                assertThat(annotation.value()).isEqualTo("hasAnyRole('ADMIN', 'CREATIVE')");
+        void adminItemController_listItemsReadableByCreative() {
+                assertThat(methodAuthorization(AdminItemController.class, "listItems"))
+                                .isEqualTo("hasAnyRole('ADMIN', 'CREATIVE')");
         }
 
         @Test
-        void staffUnusualEffectController_hasAdminOrCreativeClassLevelPreAuthorize() {
-                PreAuthorize annotation = StaffUnusualEffectController.class.getAnnotation(PreAuthorize.class);
-
-                assertThat(annotation).isNotNull();
-                assertThat(annotation.value()).isEqualTo("hasAnyRole('ADMIN', 'CREATIVE')");
+        void adminUnusualEffectController_listReadableByCreative() {
+                assertThat(methodAuthorization(AdminUnusualEffectController.class, "list"))
+                                .isEqualTo("hasAnyRole('ADMIN', 'CREATIVE')");
         }
 
         @Test
-        void staffCrateController_hasAdminOrCreativeClassLevelPreAuthorize() {
-                PreAuthorize annotation = StaffCrateController.class.getAnnotation(PreAuthorize.class);
+        void adminCrateController_readsAreReadableByCreative() {
+                assertThat(List.of("listCrates", "listContents"))
+                                .allSatisfy(method -> assertThat(
+                                                methodAuthorization(AdminCrateController.class, method))
+                                                .isEqualTo("hasAnyRole('ADMIN', 'CREATIVE')"));
+        }
 
-                assertThat(annotation).isNotNull();
-                assertThat(annotation.value()).isEqualTo("hasAnyRole('ADMIN', 'CREATIVE')");
+        @Test
+        void adminCrateController_writesStayAdminOnly() {
+                assertThat(List.of("upsertContent", "removeContent", "upsertModifier", "removeModifier",
+                                "attachUnusualEffect", "detachUnusualEffect"))
+                                .allSatisfy(method -> assertThat(
+                                                methodAuthorization(AdminCrateController.class, method))
+                                                .isNull());
+
+                assertThat(AdminCrateController.class.getAnnotation(PreAuthorize.class).value())
+                                .isEqualTo("hasRole('ADMIN')");
+        }
+
+        private String methodAuthorization(Class<?> controller, String methodName) {
+                return Arrays.stream(controller.getDeclaredMethods())
+                                .filter(method -> method.getName().equals(methodName))
+                                .findFirst()
+                                .map(method -> method.getAnnotation(PreAuthorize.class))
+                                .map(PreAuthorize::value)
+                                .orElse(null);
         }
 
         @Test

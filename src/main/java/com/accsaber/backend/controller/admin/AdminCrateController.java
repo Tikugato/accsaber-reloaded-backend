@@ -32,12 +32,13 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/admin/crates")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin Crates")
+@Tag(name = "Admin - Items and Crates")
 public class AdminCrateController {
 
     private final CrateService crateService;
 
     @Operation(summary = "List all crate items")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CREATIVE')")
     @GetMapping
     public ResponseEntity<List<ItemResponse>> listCrates() {
         return ResponseEntity.ok(crateService.listCrates().stream()
@@ -46,6 +47,7 @@ public class AdminCrateController {
     }
 
     @Operation(summary = "List the reward pool of a crate with drop weights and normalized drop chances")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CREATIVE')")
     @GetMapping("/{crateItemId}/contents")
     public ResponseEntity<List<CrateContentResponse>> listContents(@PathVariable UUID crateItemId) {
         return ResponseEntity.ok(ItemMapper.toCrateContentResponses(crateService.listContents(crateItemId)));
@@ -71,12 +73,6 @@ public class AdminCrateController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "List the modifiers attached to a crate with their per-crate drop chances")
-    @GetMapping("/{crateItemId}/modifiers")
-    public ResponseEntity<List<CrateModifierResponse>> listModifiers(@PathVariable UUID crateItemId) {
-        return ResponseEntity.ok(ItemMapper.toCrateModifierResponses(crateService.listModifiers(crateItemId)));
-    }
-
     @Operation(summary = "Attach a modifier to a crate, or update its per-crate drop chance")
     @PutMapping("/{crateItemId}/modifiers/{modifierId}")
     public ResponseEntity<CrateModifierResponse> upsertModifier(
@@ -94,14 +90,6 @@ public class AdminCrateController {
             @PathVariable UUID modifierId) {
         crateService.removeModifier(crateItemId, modifierId);
         return ResponseEntity.noContent().build();
-    }
-
-    @Operation(summary = "List the unusual effects a crate can roll (equal chance among them)")
-    @GetMapping("/{crateItemId}/unusual-effects")
-    public ResponseEntity<List<UnusualEffectResponse>> listUnusualEffects(@PathVariable UUID crateItemId) {
-        return ResponseEntity.ok(crateService.listUnusualEffects(crateItemId).stream()
-                .map(ItemMapper::toUnusualEffectResponse)
-                .toList());
     }
 
     @Operation(summary = "Attach an unusual effect to a crate's roll pool")

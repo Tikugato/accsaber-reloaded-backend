@@ -42,7 +42,7 @@ public class XPReweightService {
     private Executor backfillExecutor;
 
     @Async("taskExecutor")
-    public void reweightAllScores() {
+    public CompletableFuture<Void> reweightAllScores() {
         log.info("Starting full XP reweight");
         xpCalculationService.evictXpCurveCache();
 
@@ -63,6 +63,7 @@ public class XPReweightService {
 
         log.info("XP reweight complete. Updated {} scores across {} difficulties. Run /total-xp to update user totals.",
                 updated.get(), difficultyIds.size());
+        return CompletableFuture.completedFuture(null);
     }
 
     @Transactional
@@ -120,10 +121,11 @@ public class XPReweightService {
 
     @Async("taskExecutor")
     @Transactional
-    public void recalculateTotalXpForAllUsers() {
+    public CompletableFuture<Void> recalculateTotalXpForAllUsers() {
         log.info("Starting bulk total XP recalculation for all users");
         userRepository.recalculateTotalXpForAllActiveUsers();
         log.info("Bulk total XP recalculation complete");
+        return CompletableFuture.completedFuture(null);
     }
 
 }

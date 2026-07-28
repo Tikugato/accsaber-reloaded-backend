@@ -28,12 +28,14 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/notifications")
 @RequiredArgsConstructor
-@Tag(name = "Notifications")
+@Tag(name = "Players")
 public class NotificationController {
 
     private final NotificationService notificationService;
 
-    @Operation(summary = "List my notifications", description = "Newest first. Pass unreadOnly=true for the unread feed.")
+    @Operation(summary = "List your notifications", description = "Your feed, newest first, mixing the ones aimed at you "
+            + "personally with site wide announcements. Pass unreadOnly=true if you only want what you have not seen. There is "
+            + "a live feed over WebSocket as well, so you do not have to poll this to stay current.")
     @GetMapping
     public ResponseEntity<Page<NotificationResponse>> list(
             @RequestParam(defaultValue = "false") boolean unreadOnly,
@@ -43,7 +45,8 @@ public class NotificationController {
         return ResponseEntity.ok(notificationService.findFeed(me, unreadOnly, pageable));
     }
 
-    @Operation(summary = "Count my unread notifications", description = "Cheap endpoint for the badge.")
+    @Operation(summary = "Count your unread notifications", description = "Just the number, for putting on a badge. Kept "
+            + "separate from the list on purpose because it is far cheaper than fetching a page you are going to throw away.")
     @GetMapping("/unread-count")
     public ResponseEntity<Map<String, Long>> unreadCount(
             @AuthenticationPrincipal PlayerUserDetails principal) {
@@ -51,7 +54,8 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("count", notificationService.unreadCount(me)));
     }
 
-    @Operation(summary = "Mark one notification as read")
+    @Operation(summary = "Mark one as read", description = "Marks a single notification read. It stays in the feed, it just "
+            + "stops counting toward the badge.")
     @PatchMapping("/{id}/read")
     public ResponseEntity<Void> markRead(@PathVariable UUID id,
             @AuthenticationPrincipal PlayerUserDetails principal) {
@@ -60,7 +64,8 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "Mark every notification as read")
+    @Operation(summary = "Mark everything as read", description = "Clears the badge in one go. You get back how many were "
+            + "actually changed, so zero means there was nothing unread rather than that something went wrong.")
     @PatchMapping("/read")
     public ResponseEntity<Map<String, Integer>> markAllRead(
             @AuthenticationPrincipal PlayerUserDetails principal) {
@@ -68,7 +73,8 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("updated", notificationService.markAllRead(me)));
     }
 
-    @Operation(summary = "Delete all of my notifications")
+    @Operation(summary = "Clear your notifications", description = "Empties the feed rather than just marking it read. This one "
+            + "does not come back, so it is worth confirming with the player first.")
     @DeleteMapping
     public ResponseEntity<Void> clearAll(@AuthenticationPrincipal PlayerUserDetails principal) {
         Long me = requirePrincipal(principal).getUserId();

@@ -40,7 +40,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/admin/news")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin News")
+@Tag(name = "Admin - Events and News")
 public class AdminNewsController {
 
     private static final String NEWS_IMAGE_SUBDIR = "news";
@@ -48,22 +48,34 @@ public class AdminNewsController {
     private final NewsService newsService;
     private final MediaProcessingService mediaProcessingService;
 
-    @Operation(summary = "List all active news", description = "Optional ?status and ?type filters")
+    @Operation(summary = "List news posts", description = "Every post including drafts, filterable by status and type. Pass "
+            + "mine=true to see only the ones you wrote, which is what ranking heads use since they can author news but not "
+            + "read everyone else's.")
+    @PreAuthorize("#mine ? hasAnyRole('ADMIN', 'RANKING_HEAD') : hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<Page<NewsResponse>> list(
+            @RequestParam(defaultValue = "false") boolean mine,
             @RequestParam(required = false) NewsStatus status,
             @RequestParam(required = false) NewsType type,
-            @PageableDefault(size = 20) Pageable pageable) {
+            @PageableDefault(size = 20) Pageable pageable,
+            Authentication authentication) {
+        if (mine) {
+            return ResponseEntity.ok(newsService.findStaffByAuthor(
+                    StaffPrincipals.staffIdOf(authentication), status, type, pageable));
+        }
         return ResponseEntity.ok(newsService.findStaffAll(status, type, pageable));
     }
 
-    @Operation(summary = "Get any news post by id")
+    @Operation(summary = "Get any news post by id", description = "Works on drafts too, unlike the public route.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RANKING_HEAD')")
     @GetMapping("/{id}")
     public ResponseEntity<NewsResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(newsService.findStaffById(id));
     }
 
-    @Operation(summary = "Create a news post on behalf of the calling admin")
+    @Operation(summary = "Create a news post", description = "Whoever calls this becomes the author, which is what decides who "
+            + "can edit it afterwards.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RANKING_HEAD')")
     @PostMapping
     public ResponseEntity<NewsResponse> create(
             @Valid @RequestBody CreateNewsRequest request,
@@ -72,7 +84,9 @@ public class AdminNewsController {
         return ResponseEntity.created(URI.create("/v1/news/" + response.getId())).body(response);
     }
 
-    @Operation(summary = "Update any news post (overrides owner restriction)")
+    @Operation(summary = "Update a news post", description = "Admins can edit anything. Ranking heads can only edit posts they "
+            + "wrote themselves.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RANKING_HEAD')")
     @PatchMapping("/{id}")
     public ResponseEntity<NewsResponse> update(
             @PathVariable UUID id,
@@ -86,7 +100,9 @@ public class AdminNewsController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "Upload (or replace) the image for a news post")
+    @Operation(summary = "Upload a news image", description = "Sets the image on a post, replacing any existing one. Same "
+            + "ownership rule as updating.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RANKING_HEAD')")
     @PostMapping(value = "/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<NewsResponse> uploadImage(
             @PathVariable UUID id,
@@ -100,7 +116,8 @@ public class AdminNewsController {
                 StaffPrincipals.roleOf(authentication)));
     }
 
-    @Operation(summary = "Remove the image for a news post")
+    @Operation(summary = "Remove a news image", description = "Clears the image off a post. Same ownership rule as updating.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RANKING_HEAD')")
     @DeleteMapping("/{id}/image")
     public ResponseEntity<NewsResponse> deleteImage(
             @PathVariable UUID id,

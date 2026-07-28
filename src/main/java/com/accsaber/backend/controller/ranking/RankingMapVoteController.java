@@ -33,7 +33,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/ranking/maps/difficulties")
 @RequiredArgsConstructor
-@Tag(name = "Ranking - Map Votes")
+@Tag(name = "Ranking")
 public class RankingMapVoteController {
 
     private final MapVotingService mapVotingService;

@@ -62,7 +62,9 @@ public class UserController {
     private final CampaignService campaignService;
     private final CategoryService categoryService;
 
-    @Operation(summary = "Get user profile", description = "Returns a player profile by user ID. Optionally include all category statistics. Relation counts include `blockedCount` only when the authenticated viewer is the same user.")
+    @Operation(summary = "Get a player profile", description = "A player by their user ID. Pass statistics=true if you also want "
+            + "all their category stats in the same response, which saves you a second call. Relation counts come back either "
+            + "way, though blockedCount only appears when the player asking is the player being looked at.")
     @GetMapping("/{userId}")
     public ResponseEntity<UserResponse> getUser(
             @PathVariable Long userId,
@@ -76,7 +78,8 @@ public class UserController {
         return ResponseEntity.ok(user);
     }
 
-    @Operation(summary = "Get user name history", description = "Returns a player's previous names, most recent first")
+    @Operation(summary = "Get a player's name history", description = "The names a player has gone by before this one, most "
+            + "recent first. We pick these up whenever their profile gets refreshed from BeatLeader or ScoreSaber.")
     @GetMapping("/{userId}/name-history")
     public ResponseEntity<List<NameHistoryResponse>> getNameHistory(@PathVariable Long userId) {
         List<NameHistoryResponse> history = userService.getNameHistory(userId).stream()
@@ -85,7 +88,8 @@ public class UserController {
         return ResponseEntity.ok(history);
     }
 
-    @Operation(summary = "Get user pinned scores", description = "Returns a player's pinned scores in display order. Limited to 3 entries.")
+    @Operation(summary = "Get a player's pinned scores", description = "The scores a player has chosen to show off on their "
+            + "profile, in the order they want them displayed. They can pin three at most.")
     @GetMapping("/{userId}/pinned-scores")
     public ResponseEntity<List<PinnedScoreResponse>> getPinnedScores(@PathVariable Long userId) {
         List<PinnedScoreResponse> pinned = userService.getPinnedScores(userId).stream()
@@ -97,13 +101,16 @@ public class UserController {
         return ResponseEntity.ok(pinned);
     }
 
-    @Operation(summary = "Get all user statistics", description = "Returns all active category statistics plus XP breakdown for a player")
+    @Operation(summary = "Get a player's stats in every category", description = "One call that gives you the current stats for "
+            + "all categories at once, plus the XP breakdown. Reach for this rather than looping the single category route.")
     @GetMapping("/{userId}/statistics/all")
     public ResponseEntity<UserAllStatisticsResponse> getAllUserStatistics(@PathVariable Long userId) {
         return ResponseEntity.ok(statisticsService.findAllByUser(userId));
     }
 
-    @Operation(summary = "Get user category statistics", description = "Returns active category statistics for a player by category code (tech_acc, standard_acc, true_acc) (defaults to 'overall')")
+    @Operation(summary = "Get a player's stats in one category", description = "Where a player currently stands in a single "
+            + "category, so their AP, rank, country rank, average accuracy and ranked play count. Pass the category code, one of "
+            + "true_acc, standard_acc, tech_acc and so on. Leave it off and you get overall.")
     @GetMapping("/{userId}/statistics")
     public ResponseEntity<UserCategoryStatisticsResponse> getUserStatistics(
             @PathVariable Long userId,
@@ -111,8 +118,10 @@ public class UserController {
         return ResponseEntity.ok(statisticsService.findByUserAndCategoryCode(userId, category));
     }
 
-    @Operation(summary = "Get historic user category statistics", description = "Returns all versioned statistics for a player over a time range, sorted by time ascending. "
-            + "Units: h (hours), d (days), w (weeks), mo (months)")
+    @Operation(summary = "Get a player's stats over time", description = "Every version of a player's stats in a category across "
+            + "a time range, oldest first, which is what you want for charting progress. Nothing is ever overwritten here, so "
+            + "each entry is a real snapshot from the moment it changed. Unit is h for hours, d for days, w for weeks or mo for "
+            + "months, and amount is how many of those to go back.")
     @GetMapping("/{userId}/statistics/historic")
     public ResponseEntity<List<UserCategoryStatisticsResponse>> getUserStatisticsHistoric(
             @PathVariable Long userId,
@@ -122,8 +131,9 @@ public class UserController {
         return ResponseEntity.ok(statisticsService.findHistoric(userId, category, amount, unit));
     }
 
-    @Operation(summary = "Get user ranking history", description = "Returns daily ranking snapshots for a player in a category over a time range, sorted by time ascending. "
-            + "Units: h (hours), d (days), w (weeks), mo (months)")
+    @Operation(summary = "Get a player's rank over time", description = "Daily snapshots of where a player sat in a category, "
+            + "oldest first. This is the lighter option if all you want to draw is the rank line, since the full stats history "
+            + "carries a lot more with it. Same unit and amount parameters as the other history routes.")
     @GetMapping("/{userId}/ranking-history")
     public ResponseEntity<List<RankingHistoryResponse>> getUserRankingHistory(
             @PathVariable Long userId,
@@ -133,8 +143,10 @@ public class UserController {
         return ResponseEntity.ok(statisticsService.findRankingHistory(userId, category, amount, unit));
     }
 
-    @Operation(summary = "Get user stats diff", description = "Returns the difference between the most recent statistics and the last statistics before 24h ago. "
-            + "Returns 204 No Content if no baseline exists (new player or no activity before 24h ago)")
+    @Operation(summary = "Get a player's last 24 hours", description = "How much a player has moved since yesterday. We take "
+            + "their newest stats and subtract the last set from before the 24 hour mark, so you get the AP, rank and accuracy "
+            + "change without working it out yourself. You get a 204 with nothing in it when there is no baseline to compare "
+            + "against, which happens for a new player or one who was not active before then.")
     @GetMapping("/{userId}/stats-diff")
     public ResponseEntity<StatsDiffResponse> getStatsDiff(
             @PathVariable Long userId,
@@ -143,8 +155,9 @@ public class UserController {
         return diff.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
     }
 
-    @Operation(summary = "Get historic user scores", description = "Returns all versioned scores for a player on a specific map difficulty over a time range, sorted by time ascending. "
-            + "Units: h (hours), d (days), w (weeks), mo (months)")
+    @Operation(summary = "Get a player's score history on one difficulty", description = "Every score a player has had on a "
+            + "single difficulty across a time range, oldest first. Because scores are versioned rather than overwritten, this "
+            + "shows you each improvement as its own entry rather than only the current best.")
     @GetMapping("/{userId}/scores/historic")
     public ResponseEntity<List<ScoreResponse>> getUserScoresHistoric(
             @PathVariable Long userId,
@@ -154,7 +167,10 @@ public class UserController {
         return ResponseEntity.ok(scoreService.findHistoric(userId, mapDifficultyId, amount, unit));
     }
 
-    @Operation(summary = "Get user score by song hash", description = "Returns a player's active score on a specific map difficulty, looked up by song hash, difficulty (EASY, NORMAL, HARD, EXPERT, EXPERT_PLUS) and characteristic (defaults to Standard)")
+    @Operation(summary = "Get a player's score on one map", description = "A player's current score on a difficulty, looked up "
+            + "by song hash rather than by our difficulty id, which is handy when you are working from a local file. Difficulty "
+            + "is required and is one of EASY, NORMAL, HARD, EXPERT or EXPERT_PLUS. Characteristic defaults to Standard if you "
+            + "leave it off.")
     @GetMapping("/{userId}/scores/by-hash/{songHash}")
     public ResponseEntity<ScoreResponse> getUserScoreBySongHash(
             @PathVariable Long userId,
@@ -165,7 +181,9 @@ public class UserController {
                 .ok(scoreService.findActiveByUserAndSongHash(userId, songHash, difficulty, characteristic));
     }
 
-    @Operation(summary = "Get user scores", description = "Paginated list of a player's active scores, optionally filtered by category (UUID or code) and/or song name")
+    @Operation(summary = "Get a player's scores", description = "A page of a player's current scores, best AP first. You can "
+            + "narrow it to one category, passing either the UUID or the code, and search by song name. Only the active score "
+            + "per difficulty shows up here, so if you want the older attempts have a look at the score history route.")
     @GetMapping("/{userId}/scores")
     public ResponseEntity<Page<ScoreResponse>> getUserScores(
             @PathVariable Long userId,
@@ -176,13 +194,19 @@ public class UserController {
                 .ok(scoreService.findByUser(userId, categoryService.resolveId(categoryId), search, pageable));
     }
 
-    @Operation(summary = "Get all user scores (minimal)", description = "Flat, unpaginated list of all of a player's active scores with minimal fields (mapDifficultyId, songHash, songName, songAuthor, coverUrl, cdnCoverUrl, ssLeaderboardId, blLeaderboardId, ap, accuracy, score, maxScore, rank, blScoreId, ssScoreId, timeSet), ordered by AP descending. Intended for the plugin.")
+    @Operation(summary = "Get all of a player's scores at once", description = "Every current score a player has, in one flat "
+            + "list with no paging, best AP first. Each entry is trimmed down to the fields you need to identify the map and "
+            + "show the score, which keeps the payload sensible even for players with thousands of them. This is what the game "
+            + "plugin uses to fill its cache in a single request, and it is the right choice if you want the whole set rather "
+            + "than a page of it.")
     @GetMapping("/{userId}/scores/all")
     public ResponseEntity<List<UserScoreSummaryResponse>> getAllUserScores(@PathVariable Long userId) {
         return ResponseEntity.ok(scoreService.findAllSummariesByUser(userId));
     }
 
-    @Operation(summary = "Get user milestone progress")
+    @Operation(summary = "Get a player's milestone progress", description = "A page of every milestone with how far this player "
+            + "has got on each one, finished or not. If you only care about one side of that, the completed and uncompleted "
+            + "routes below give you those directly as flat lists.")
     @GetMapping("/{userId}/milestones")
     public ResponseEntity<Page<UserMilestoneProgressResponse>> getUserMilestones(
             @PathVariable Long userId,
@@ -190,28 +214,34 @@ public class UserController {
         return ResponseEntity.ok(milestoneService.findUserProgress(userId, pageable));
     }
 
-    @Operation(summary = "Get user completed milestones")
+    @Operation(summary = "Get the milestones a player has finished", description = "Just the ones they have completed, as a flat "
+            + "list rather than a page, each with when they got it.")
     @GetMapping("/{userId}/milestones/completed")
     public ResponseEntity<List<UserMilestoneProgressResponse>> getUserCompletedMilestones(
             @PathVariable Long userId) {
         return ResponseEntity.ok(milestoneService.findCompletedByUser(userId));
     }
 
-    @Operation(summary = "Get user uncompleted milestones")
+    @Operation(summary = "Get the milestones a player still has left", description = "The other side of the completed list, so "
+            + "everything they have not finished yet with their current progress toward each.")
     @GetMapping("/{userId}/milestones/uncompleted")
     public ResponseEntity<List<UserMilestoneProgressResponse>> getUserUncompletedMilestones(
             @PathVariable Long userId) {
         return ResponseEntity.ok(milestoneService.findUncompletedByUser(userId));
     }
 
-    @Operation(summary = "Get user level and XP")
+    @Operation(summary = "Get a player's level and XP", description = "What level a player is on, how much XP they have "
+            + "altogether, and how far they are through the current level. XP comes from scores, milestones and campaigns, and "
+            + "the thresholds between levels are configurable, so work them out from here rather than assuming a formula.")
     @GetMapping("/{userId}/level")
     public ResponseEntity<LevelResponse> getUserLevel(@PathVariable Long userId) {
         var totalXp = userService.getTotalXp(userId);
         return ResponseEntity.ok(levelService.calculateLevel(totalXp));
     }
 
-    @Operation(summary = "Get unplayed maps for a user", description = "Paginated list of ranked difficulties the user has no active score on, with the same filters as the maps/difficulties endpoint")
+    @Operation(summary = "Get the maps a player has not played", description = "Ranked difficulties this player has no score on "
+            + "yet, which is the basis of the missing maps playlist. Takes the same filters as the difficulty list, so you can "
+            + "scope it to one category or a complexity range.")
     @GetMapping("/{userId}/missing-maps")
     public ResponseEntity<Page<PublicMapDifficultyResponse>> getMissingMaps(
             @PathVariable Long userId,
@@ -225,7 +255,9 @@ public class UserController {
                 complexityMin, complexityMax, search, userId, pageable));
     }
 
-    @Operation(summary = "Get map difficulties where user has an active score at or above an AP threshold", description = "Flat list of difficulties on which the player has an active score with AP >= `apMin`. Optionally filter by category (UUID or code).")
+    @Operation(summary = "Get the maps where a player is above an AP threshold", description = "Every difficulty where this "
+            + "player already has a score worth at least apMin, as a flat list. Useful for building a practice set around the "
+            + "level someone is actually at. You can scope it to one category too.")
     @GetMapping("/{userId}/maps-above-ap")
     public ResponseEntity<List<PublicMapDifficultyResponse>> getMapsAboveAp(
             @PathVariable Long userId,
@@ -235,7 +267,9 @@ public class UserController {
                 categoryService.resolveId(categoryId)));
     }
 
-    @Operation(summary = "Get user progress in a campaign")
+    @Operation(summary = "Get a player's progress in a campaign", description = "How far a given player has got through one "
+            + "campaign, node by node, including which are unlocked and what their best is on each. If you want this for "
+            + "yourself rather than someone else, the campaign routes have a me variant that saves you looking up your own id.")
     @GetMapping("/{userId}/campaigns/{campaignId}")
     public ResponseEntity<CampaignProgressResponse> getUserCampaignProgress(
             @PathVariable Long userId,

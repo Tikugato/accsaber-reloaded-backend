@@ -1,6 +1,7 @@
 package com.accsaber.backend.service.campaign;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -799,7 +800,7 @@ class CampaignServiceTest {
                         when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
                         when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
 
-                        CampaignResponse result = campaignService.unpublishAsPlayer(creator.getId(), campaign.getId());
+                        CampaignResponse result = campaignService.unpublishAsEditor(CampaignEditor.player(creator.getId()), campaign.getId());
 
                         assertThat(result.getStatus()).isEqualTo(CampaignStatus.DRAFT);
                 }
@@ -810,7 +811,7 @@ class CampaignServiceTest {
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
 
-                        assertThatThrownBy(() -> campaignService.unpublishAsPlayer(999L, campaign.getId()))
+                        assertThatThrownBy(() -> campaignService.unpublishAsEditor(CampaignEditor.player(999L), campaign.getId()))
                                         .isInstanceOf(ValidationException.class);
                 }
 
@@ -819,7 +820,7 @@ class CampaignServiceTest {
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
 
-                        assertThatThrownBy(() -> campaignService.unpublishAsPlayer(creator.getId(), campaign.getId()))
+                        assertThatThrownBy(() -> campaignService.unpublishAsEditor(CampaignEditor.player(creator.getId()), campaign.getId()))
                                         .isInstanceOf(ValidationException.class);
                 }
 
@@ -829,7 +830,7 @@ class CampaignServiceTest {
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
 
-                        assertThatThrownBy(() -> campaignService.unpublishAsPlayer(creator.getId(), campaign.getId()))
+                        assertThatThrownBy(() -> campaignService.unpublishAsEditor(CampaignEditor.player(creator.getId()), campaign.getId()))
                                         .isInstanceOf(ValidationException.class);
 
                         assertThat(campaign.getStatus()).isEqualTo(CampaignStatus.CURATED);
@@ -1317,7 +1318,7 @@ class CampaignServiceTest {
                         when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
                         when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
 
-                        CampaignResponse result = campaignService.updateCampaignAsPlayer(collaboratorId,
+                        CampaignResponse result = campaignService.updateCampaignAsEditor(CampaignEditor.player(collaboratorId),
                                         campaign.getId(), request);
 
                         assertThat(result.getName()).isEqualTo("Renamed");
@@ -1335,7 +1336,7 @@ class CampaignServiceTest {
                                         campaign.getId(), strangerId, CampaignCollaboratorStatus.ACCEPTED))
                                         .thenReturn(false);
 
-                        assertThatThrownBy(() -> campaignService.updateCampaignAsPlayer(strangerId,
+                        assertThatThrownBy(() -> campaignService.updateCampaignAsEditor(CampaignEditor.player(strangerId),
                                         campaign.getId(), request))
                                         .isInstanceOf(ValidationException.class);
                 }
@@ -1353,8 +1354,52 @@ class CampaignServiceTest {
                                         campaign.getId(), collaboratorId, CampaignCollaboratorStatus.ACCEPTED))
                                         .thenReturn(true);
 
-                        assertThatThrownBy(() -> campaignService.updateCampaignAsPlayer(collaboratorId,
+                        assertThatThrownBy(() -> campaignService.updateCampaignAsEditor(CampaignEditor.player(collaboratorId),
                                         campaign.getId(), request))
+                                        .isInstanceOf(ValidationException.class);
+                }
+
+                @Test
+                void staffEditorSkipsOwnershipAndDraftChecks() {
+                        campaign.setStatus(CampaignStatus.PUBLISHED);
+                        UpdateCampaignRequest request = new UpdateCampaignRequest();
+                        request.setName("Curated rename");
+
+                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
+                                        .thenReturn(Optional.of(campaign));
+                        when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
+                        when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
+
+                        CampaignResponse result = campaignService.updateCampaignAsEditor(
+                                        CampaignEditor.staff(999L), campaign.getId(), request);
+
+                        assertThat(result.getName()).isEqualTo("Curated rename");
+                        verify(campaignCollaboratorRepository, never())
+                                        .existsByCampaign_IdAndUser_IdAndStatusAndActiveTrue(any(), any(), any());
+                }
+
+                @Test
+                void staffEditorIsNotHeldToTheCdnImageryRule() {
+                        UpdateCampaignRequest request = new UpdateCampaignRequest();
+                        request.setIconUrl("https://somewhere-else.example/icon.png");
+
+                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
+                                        .thenReturn(Optional.of(campaign));
+                        when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
+                        when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
+
+                        assertThatCode(() -> campaignService.updateCampaignAsEditor(
+                                        CampaignEditor.staff(999L), campaign.getId(), request))
+                                        .doesNotThrowAnyException();
+                }
+
+                @Test
+                void playerIsStillHeldToTheCdnImageryRule() {
+                        UpdateCampaignRequest request = new UpdateCampaignRequest();
+                        request.setIconUrl("https://somewhere-else.example/icon.png");
+
+                        assertThatThrownBy(() -> campaignService.updateCampaignAsEditor(
+                                        CampaignEditor.player(creator.getId()), campaign.getId(), request))
                                         .isInstanceOf(ValidationException.class);
                 }
         }
@@ -1424,8 +1469,8 @@ class CampaignServiceTest {
                         when(itemRepository.findByIdAndActiveTrue(untradeable.getId()))
                                         .thenReturn(Optional.of(untradeable));
 
-                        assertThatThrownBy(() -> campaignService.setDifficultyItemAsPlayer(
-                                        creator.getId(), node.getId(), request))
+                        assertThatThrownBy(() -> campaignService.setDifficultyItemAsEditor(
+                                        CampaignEditor.player(creator.getId()), node.getId(), request))
                                         .isInstanceOf(ValidationException.class);
                 }
 
@@ -1444,7 +1489,7 @@ class CampaignServiceTest {
                         when(campaignDifficultyItemRepository.findByCampaignDifficulty_Id(node.getId()))
                                         .thenReturn(List.of());
 
-                        campaignService.setDifficultyItemAsPlayer(creator.getId(), node.getId(), request);
+                        campaignService.setDifficultyItemAsEditor(CampaignEditor.player(creator.getId()), node.getId(), request);
 
                         verify(campaignDifficultyItemRepository).save(any());
                 }
@@ -1463,7 +1508,7 @@ class CampaignServiceTest {
                         when(campaignDifficultyItemRepository.findByCampaignDifficulty_Id(node.getId()))
                                         .thenReturn(List.of());
 
-                        campaignService.setDifficultyItemAsPlayer(creator.getId(), node.getId(), request);
+                        campaignService.setDifficultyItemAsEditor(CampaignEditor.player(creator.getId()), node.getId(), request);
 
                         verify(campaignDifficultyItemRepository).save(any());
                 }
@@ -1479,6 +1524,39 @@ class CampaignServiceTest {
 
                         assertThat(campaign.isOfficial()).isTrue();
                         assertThat(result.isOfficial()).isTrue();
+                }
+        }
+
+        @Nested
+        class EditorCaps {
+
+                @Test
+                void playerHitsTheDifficultyCap() {
+                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
+                                        .thenReturn(Optional.of(campaign));
+                        when(campaignDifficultyRepository
+                                        .countByCampaign_IdAndBarrierFalseAndActiveTrue(campaign.getId()))
+                                        .thenReturn(100L);
+
+                        assertThatThrownBy(() -> campaignService.addDifficultyAsEditor(
+                                        CampaignEditor.player(creator.getId()), campaign.getId(),
+                                        new AddCampaignDifficultyRequest()))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("maximum");
+                }
+
+                @Test
+                void staffEditorIsNotCappedOnDifficulties() {
+                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
+                                        .thenReturn(Optional.of(campaign));
+
+                        assertThatThrownBy(() -> campaignService.addDifficultyAsEditor(
+                                        CampaignEditor.staff(999L), campaign.getId(),
+                                        new AddCampaignDifficultyRequest()))
+                                        .isNotInstanceOf(ValidationException.class);
+
+                        verify(campaignDifficultyRepository, never())
+                                        .countByCampaign_IdAndBarrierFalseAndActiveTrue(any());
                 }
         }
 }

@@ -23,12 +23,16 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/users/me")
 @RequiredArgsConstructor
-@Tag(name = "Profile Customization")
+@Tag(name = "Players")
 public class ProfileCustomizationController {
 
     private final ProfileCustomizationService profileService;
 
-    @Operation(summary = "Update the authenticated player's customizable profile fields", description = "Patch any subset of {name, bio, pinnedScores}. Changing the name automatically disables platform name sync (re-enable via sync.name setting). Bio is sanitized server-side. Pinned scores are replaced atomically.")
+    @Operation(summary = "Update your profile", description = "Change your name, bio or pinned scores. Send only the fields you "
+            + "want to touch and the rest are left alone. Worth knowing that setting a name here turns off the sync that "
+            + "normally pulls your name across from BeatLeader or ScoreSaber, since otherwise the next refresh would undo "
+            + "your change. You can turn it back on through the sync.name setting. Bios get cleaned up server side, and "
+            + "pinned scores are replaced as a set rather than added to.")
     @PatchMapping("/profile")
     public ResponseEntity<Void> updateProfile(
             @RequestBody ProfileUpdateRequest request,
@@ -46,7 +50,10 @@ public class ProfileCustomizationController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "Upload (or replace) the authenticated player's avatar", description = "Uploading an avatar automatically disables platform avatar sync (re-enable via sync.avatar setting).")
+    @Operation(summary = "Upload your avatar", description = "Sets a custom avatar, replacing whatever was there before. Like "
+            + "the name, this switches off the sync that pulls your avatar from the platforms so a later refresh does not "
+            + "overwrite it. Turn it back on with the sync.avatar setting. You get the URL of the stored image back, and you "
+            + "should use that rather than guessing the extension, since what we store depends on what you sent.")
     @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadAvatar(
             @RequestPart("file") MultipartFile file,

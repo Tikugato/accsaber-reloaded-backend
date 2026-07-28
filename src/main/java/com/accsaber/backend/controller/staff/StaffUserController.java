@@ -37,7 +37,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/staff/users")
 @RequiredArgsConstructor
-@Tag(name = "Staff Users")
+@Tag(name = "Staff Accounts")
 @PreAuthorize("hasRole('ADMIN')")
 public class StaffUserController {
 

@@ -35,7 +35,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/admin/events")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin Events")
+@Tag(name = "Admin - Events and News")
 public class AdminEventController {
 
     private static final String EVENT_BACKGROUND_SUBDIR = "events";

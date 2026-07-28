@@ -24,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/admin/supporters")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin Supporters")
+@Tag(name = "Admin - Players")
 public class AdminSupporterController {
 
     private final SupporterService supporterService;

@@ -15,10 +15,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/v1/health")
-@Tag(name = "Health")
+@Tag(name = "Platform")
 public class HealthController {
 
-    @Operation(summary = "Ping the service", description = "Returns service status and current timestamp")
+    @Operation(summary = "Check the API is up", description = "Comes back with the service status and the current server time. "
+            + "Handy as a quick connectivity check before you start firing real requests at anything.")
     @GetMapping("/ping")
     public ResponseEntity<Map<String, Object>> ping() {
         log.info("Ping received");

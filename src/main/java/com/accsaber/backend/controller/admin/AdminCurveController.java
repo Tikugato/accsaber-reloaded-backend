@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/v1/admin/curves")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin Curves")
+@Tag(name = "Admin - Operations")
 public class AdminCurveController {
 
     private final CurveService curveService;

@@ -24,13 +24,15 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/songsuggest")
 @RequiredArgsConstructor
-@Tag(name = "Song Suggest")
+@Tag(name = "Maps")
 public class SongSuggestController {
 
         private final SongSuggestService songSuggestService;
 
-        @Operation(summary = "Download the Song Suggest top-player leaderboard", description = "Returns a JSON file with each qualifying player's top 30 scores by raw AP. "
-                        + "Regenerated weekly. Use /refresh-time to decide whether to re-download.")
+        @Operation(summary = "Download the Song Suggest data", description = "A JSON file holding each qualifying player's top "
+                        + "30 scores by raw AP, which is what Song Suggest uses to work out recommendations. It is rebuilt "
+                        + "weekly rather than on demand, so check the refresh time first and only pull it again when it has "
+                        + "actually changed. This comes back as a file download rather than an inline body.")
         @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
         public ResponseEntity<Resource> getLeaderboard() {
                 Path file = songSuggestService.getOutputFile();
@@ -48,7 +50,8 @@ public class SongSuggestController {
                                 .body(new FileSystemResource(file));
         }
 
-        @Operation(summary = "Get Song Suggest leaderboard refresh time", description = "Returns the last-generated timestamp so clients only re-download when the file changed.")
+        @Operation(summary = "Check when the Song Suggest data was last built", description = "Just the timestamp of the last "
+                        + "rebuild. Cheap to call, so use it to decide whether the file above is worth downloading again.")
         @GetMapping("/refresh-time")
         public ResponseEntity<SongSuggestRefreshTimeResponse> getRefreshTime() {
                 Instant mtime = songSuggestService.getRefreshTime()

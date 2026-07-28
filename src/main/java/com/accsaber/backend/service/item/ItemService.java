@@ -434,18 +434,10 @@ public class ItemService {
     }
 
     @Transactional
-    public void deactivate(UUID id) {
+    public Item setActive(UUID id, boolean active) {
         Item item = itemRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Item", id));
-        item.setActive(false);
-        itemRepository.save(item);
-    }
-
-    @Transactional
-    public Item reactivate(UUID id) {
-        Item item = itemRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Item", id));
-        item.setActive(true);
+        item.setActive(active);
         return itemRepository.save(item);
     }
 

@@ -55,18 +55,22 @@ public class NewsService {
                 .map(NewsService::toPublicResponse);
     }
 
-    public PublicNewsResponse findPublicBySlug(String slug) {
-        News news = newsRepository.findBySlugAndActiveTrue(slug)
+    public PublicNewsResponse findPublic(String idOrSlug) {
+        UUID id = tryParseUuid(idOrSlug);
+        News news = (id != null
+                ? newsRepository.findByIdAndActiveTrue(id)
+                : newsRepository.findBySlugAndActiveTrue(idOrSlug))
                 .filter(n -> n.getStatus() == NewsStatus.PUBLISHED)
-                .orElseThrow(() -> new ResourceNotFoundException("News", slug));
+                .orElseThrow(() -> new ResourceNotFoundException("News", idOrSlug));
         return toPublicResponse(news);
     }
 
-    public PublicNewsResponse findPublicById(UUID id) {
-        News news = newsRepository.findByIdAndActiveTrue(id)
-                .filter(n -> n.getStatus() == NewsStatus.PUBLISHED)
-                .orElseThrow(() -> new ResourceNotFoundException("News", id));
-        return toPublicResponse(news);
+    private UUID tryParseUuid(String value) {
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     public Page<NewsResponse> findStaffAll(NewsStatus status, NewsType type, Pageable pageable) {

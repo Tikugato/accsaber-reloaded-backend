@@ -365,7 +365,12 @@ public class CampaignEvaluationService {
             }
             return true;
         }
-        return graph.terminalId != null && hasCompletedPath(graph.terminalId, graph, completedIds);
+        for (UUID terminalId : graph.terminalIds) {
+            if (hasCompletedPath(terminalId, graph, completedIds)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Transactional
@@ -811,20 +816,18 @@ public class CampaignEvaluationService {
             prereqs.computeIfAbsent(to, k -> new ArrayList<>()).add(from);
             withOutgoing.add(from);
         }
-        UUID terminalId = null;
+        Set<UUID> gatedByBarrier = barrierIds.isEmpty()
+                ? Collections.emptySet()
+                : barrierAffectedRepository.findByBarrier_IdIn(List.copyOf(barrierIds)).stream()
+                        .map(link -> link.getAffectedDifficulty().getId())
+                        .collect(Collectors.toSet());
+        Set<UUID> terminalIds = new HashSet<>();
         for (UUID id : byId.keySet()) {
-            if (!withOutgoing.contains(id)) {
-                if (terminalId != null) {
-                    terminalId = null;
-                    break;
-                }
-                terminalId = id;
+            if (!withOutgoing.contains(id) && !barrierIds.contains(id) && !gatedByBarrier.contains(id)) {
+                terminalIds.add(id);
             }
         }
-        if (terminalId != null && barrierIds.contains(terminalId)) {
-            terminalId = null;
-        }
-        return new Graph(byId, prereqs, modes, barrierIds, terminalId);
+        return new Graph(byId, prereqs, modes, barrierIds, terminalIds);
     }
 
     private Set<UUID> loadCompletedIds(Long userId, UUID campaignId) {
@@ -910,7 +913,7 @@ public class CampaignEvaluationService {
             Map<UUID, List<UUID>> prereqs,
             Map<UUID, CampaignPrerequisiteMode> modes,
             Set<UUID> barrierIds,
-            UUID terminalId) {
+            Set<UUID> terminalIds) {
     }
 
     private void payDifficultyRewards(Long userId, CampaignDifficulty difficulty) {

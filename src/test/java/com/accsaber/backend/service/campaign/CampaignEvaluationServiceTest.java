@@ -1082,6 +1082,53 @@ class CampaignEvaluationServiceTest {
                                 .noneMatch(u -> u.getCampaignDifficulty().getId().equals(b.getId()));
         }
 
+        @Test
+        void settleCompletesWhenBarrierFedLeavesLookLikeTerminals() {
+                campaign.setStatus(CampaignStatus.PUBLISHED);
+                MapDifficulty mdA = mapDifficulty(1_000_000);
+                MapDifficulty mdSide = mapDifficulty(1_000_000);
+                MapDifficulty mdTerminal = mapDifficulty(1_000_000);
+                a.setMapDifficulty(mdA);
+                a.setRequirementType(CampaignRequirementType.ACC);
+                a.setRequirementValue(new BigDecimal("0.80"));
+                CampaignDifficulty side = CampaignDifficulty.builder()
+                                .id(UUID.randomUUID()).campaign(campaign).active(true).mapDifficulty(mdSide)
+                                .requirementType(CampaignRequirementType.ACC)
+                                .requirementValue(new BigDecimal("0.80")).build();
+                CampaignDifficulty terminal = CampaignDifficulty.builder()
+                                .id(UUID.randomUUID()).campaign(campaign).active(true).mapDifficulty(mdTerminal)
+                                .requirementType(CampaignRequirementType.ACC)
+                                .requirementValue(new BigDecimal("0.80")).build();
+                CampaignDifficulty bar = CampaignDifficulty.builder()
+                                .id(UUID.randomUUID()).campaign(campaign).active(true).barrier(true)
+                                .barrierConditionType(BarrierConditionType.AVERAGE_ACC)
+                                .barrierConditionValue(new BigDecimal("0.99"))
+                                .prerequisiteMode(CampaignPrerequisiteMode.AND).build();
+                UserCampaign uc = inProgressCampaign();
+
+                when(userCampaignRepository.findByUser_IdAndStatusAndActiveTrue(user.getId(),
+                                UserCampaignStatus.IN_PROGRESS)).thenReturn(List.of(uc));
+                when(campaignDifficultyRepository.findActiveWithMapByCampaignId(campaign.getId()))
+                                .thenReturn(List.of(a, side, terminal));
+                when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
+                                .thenReturn(List.of(a, side, terminal, bar));
+                when(campaignDifficultyPathRepository
+                                .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
+                                .thenReturn(List.of(edge(a, side), edge(a, bar), edge(a, terminal)));
+                when(barrierAffectedRepository.findByBarrier_IdIn(anyList()))
+                                .thenReturn(List.of(affected(bar, side)));
+                when(scoreRepository.findEligibleCampaignRows(eq(user.getId()), any(), any()))
+                                .thenReturn(List.of(row(mdA, 900_000, EARLIER_PLAY),
+                                                row(mdTerminal, 900_000, PLAYED)));
+                stubEmptyProgress();
+                when(userCampaignScoreRepository.findByUser_IdAndCampaignDifficulty_IdAndActiveTrue(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+
+                service.evaluateInProgressForUser(user.getId());
+
+                assertThat(uc.getStatus()).isEqualTo(UserCampaignStatus.COMPLETED);
+        }
+
         private UserCampaign singleNodeCompletingFixture(UserCampaignStatus initialStatus) {
                 campaign.setStatus(CampaignStatus.PUBLISHED);
                 MapDifficulty mdA = mapDifficulty(1_000_000);

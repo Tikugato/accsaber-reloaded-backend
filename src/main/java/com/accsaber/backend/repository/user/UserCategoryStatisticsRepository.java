@@ -96,6 +96,19 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                                     AND created_at <= NOW() - INTERVAL '24 hours'
                                 ) sub WHERE sub.rn = 1
                             ) picked ON ucs.id = picked.id
+                            UNION ALL
+                            (SELECT ucs.id, ucs.user_id, ucs.category_id,
+                                ucs.ranking, ucs.country_ranking,
+                                ucs.ap, ucs.average_acc, ucs.average_ap, ucs.score_xp,
+                                ucs.ranked_plays, ucs.top_play_id, ucs.supersedes_id,
+                                ucs.supersedes_reason, ucs.supersedes_author, ucs.active,
+                                ucs.created_at, ucs.updated_at
+                            FROM user_category_statistics ucs
+                            JOIN categories c ON ucs.category_id = c.id
+                            WHERE ucs.user_id = :userId AND c.code = :categoryCode
+                            AND ucs.created_at <= CAST(:since AS timestamptz)
+                            ORDER BY ucs.created_at DESC
+                            LIMIT 1)
                         ) combined
                         ORDER BY created_at ASC
                         """, nativeQuery = true)

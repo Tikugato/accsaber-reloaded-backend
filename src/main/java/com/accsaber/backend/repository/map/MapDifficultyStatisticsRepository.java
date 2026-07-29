@@ -44,6 +44,12 @@ public interface MapDifficultyStatisticsRepository extends JpaRepository<MapDiff
                         AND created_at <= NOW() - INTERVAL '24 hours'
                     ) sub WHERE sub.rn = 1
                 ) picked ON s.id = picked.id
+                UNION ALL
+                (SELECT * FROM map_difficulty_statistics
+                WHERE map_difficulty_id = :difficultyId
+                AND created_at <= CAST(:since AS timestamptz)
+                ORDER BY created_at DESC
+                LIMIT 1)
             ) combined
             ORDER BY created_at ASC
             """, nativeQuery = true)

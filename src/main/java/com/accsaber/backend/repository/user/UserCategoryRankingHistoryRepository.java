@@ -34,11 +34,20 @@ public interface UserCategoryRankingHistoryRepository extends JpaRepository<User
         void snapshotChangedRankings();
 
         @Query(value = """
-                        SELECT h.* FROM user_category_ranking_history h
-                        JOIN categories c ON c.id = h.category_id
-                        WHERE h.user_id = :userId AND c.code = :categoryCode
-                        AND h.recorded_at >= CAST(:since AS timestamptz)
-                        ORDER BY h.recorded_at ASC
+                        SELECT * FROM (
+                            SELECT h.* FROM user_category_ranking_history h
+                            JOIN categories c ON c.id = h.category_id
+                            WHERE h.user_id = :userId AND c.code = :categoryCode
+                            AND h.recorded_at >= CAST(:since AS timestamptz)
+                            UNION ALL
+                            (SELECT h.* FROM user_category_ranking_history h
+                            JOIN categories c ON c.id = h.category_id
+                            WHERE h.user_id = :userId AND c.code = :categoryCode
+                            AND h.recorded_at < CAST(:since AS timestamptz)
+                            ORDER BY h.recorded_at DESC
+                            LIMIT 1)
+                        ) combined
+                        ORDER BY recorded_at ASC
                         """, nativeQuery = true)
         List<UserCategoryRankingHistory> findByUserAndCategoryCodeSince(
                         @Param("userId") Long userId,

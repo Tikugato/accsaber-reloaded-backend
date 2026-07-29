@@ -653,9 +653,17 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
         List<UUID> findDistinctActiveDifficultyIds();
 
         @Query(value = """
-                        SELECT * FROM scores
-                        WHERE user_id = :userId AND map_difficulty_id = :difficultyId
-                        AND time_set >= CAST(:since AS timestamptz)
+                        SELECT * FROM (
+                            SELECT * FROM scores
+                            WHERE user_id = :userId AND map_difficulty_id = :difficultyId
+                            AND time_set >= CAST(:since AS timestamptz)
+                            UNION ALL
+                            (SELECT * FROM scores
+                            WHERE user_id = :userId AND map_difficulty_id = :difficultyId
+                            AND time_set < CAST(:since AS timestamptz)
+                            ORDER BY time_set DESC
+                            LIMIT 1)
+                        ) combined
                         ORDER BY time_set ASC
                         """, nativeQuery = true)
         List<Score> findHistoric(

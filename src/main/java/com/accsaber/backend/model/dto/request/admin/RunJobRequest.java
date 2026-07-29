@@ -14,7 +14,8 @@ import lombok.Data;
 @Data
 public class RunJobRequest {
 
-        @Schema(description = "Which job to run. The other fields are only read by the types that need them.")
+        @Schema(description = "Which job to run. The other fields are only read by the types that need them, and"
+                        + " GET /v1/admin/jobs/types tells you which ones those are.")
         @NotNull
         private JobType type;
 

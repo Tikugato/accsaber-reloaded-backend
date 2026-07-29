@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.model.dto.request.admin.RunJobRequest;
 import com.accsaber.backend.model.dto.response.admin.JobResponse;
+import com.accsaber.backend.model.dto.response.admin.JobTypeResponse;
 import com.accsaber.backend.service.admin.AdminJobService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,6 +32,14 @@ import lombok.RequiredArgsConstructor;
 public class AdminJobController {
 
     private final AdminJobService jobService;
+
+    @Operation(summary = "List the job catalogue", description = "Every job you can start, with the inputs each one takes. "
+            + "A field tells you its key, what kind of thing it points at, whether it is required and whether it takes more "
+            + "than one. Read this rather than hardcoding a list, because a new job type shows up here on its own.")
+    @GetMapping("/types")
+    public ResponseEntity<List<JobTypeResponse>> types() {
+        return ResponseEntity.ok(jobService.catalogue());
+    }
 
     @Operation(summary = "Start a background job", description = "Kicks off one of the heavy maintenance jobs and hands you "
             + "back its id straight away. Which extra fields you need depends on the type, and you get a 422 telling you which "

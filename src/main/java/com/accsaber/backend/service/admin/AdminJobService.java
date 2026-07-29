@@ -1,5 +1,7 @@
 package com.accsaber.backend.service.admin;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.request.admin.RunJobRequest;
+import com.accsaber.backend.model.dto.response.admin.JobTypeResponse;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.service.media.CdnSyncService;
@@ -35,7 +38,12 @@ public class AdminJobService {
     private final SongSuggestService songSuggestService;
     private final MapDifficultyRepository mapDifficultyRepository;
 
+    public List<JobTypeResponse> catalogue() {
+        return Arrays.stream(JobType.values()).map(JobTypeResponse::from).toList();
+    }
+
     public JobRecord run(RunJobRequest request) {
+        validate(request);
         JobRecord job = registry.start(request.getType(), describe(request));
         CompletableFuture<Void> work;
         try {
@@ -62,10 +70,22 @@ public class AdminJobService {
         return registry.find(jobId);
     }
 
+    private void validate(RunJobRequest request) {
+        for (JobField field : request.getType().getFields()) {
+            if (!field.required()) {
+                continue;
+            }
+            Object value = field.reader().apply(request);
+            if (value == null || (value instanceof Collection<?> values && values.isEmpty())) {
+                throw new ValidationException(field.key(), "is required for " + request.getType());
+            }
+        }
+    }
+
     private CompletableFuture<Void> dispatch(RunJobRequest request) {
         return switch (request.getType()) {
             case RECALCULATE_AP_DIFFICULTY ->
-                scoreRecalculationService.recalculateDifficultyAsync(requireDifficultyId(request));
+                scoreRecalculationService.recalculateDifficultyAsync(request.getDifficultyId());
             case RECALCULATE_AP_DIFFICULTIES ->
                 scoreRecalculationService.recalculateBatchAsync(loadDifficulties(request));
             case RECALCULATE_AP_RAW -> scoreRecalculationService.recalculateAllRawApAsync();
@@ -76,24 +96,24 @@ public class AdminJobService {
 
             case BACKFILL_SCORES_ALL -> scoreImportService.backfillAllRankedDifficulties();
             case BACKFILL_SCORES_DIFFICULTY ->
-                scoreImportService.backfillDifficultyAsync(requireDifficultyId(request));
+                scoreImportService.backfillDifficultyAsync(request.getDifficultyId());
             case BACKFILL_SCORES_DIFFICULTIES ->
-                scoreImportService.backfillDifficultiesAsync(requireDifficultyIds(request));
-            case BACKFILL_SCORES_USER -> scoreImportService.backfillUserAsync(requireUserId(request));
-            case BACKFILL_SCORES_USERS -> scoreImportService.backfillUsersAsync(requireUserIds(request));
+                scoreImportService.backfillDifficultiesAsync(request.getDifficultyIds());
+            case BACKFILL_SCORES_USER -> scoreImportService.backfillUserAsync(request.getUserId());
+            case BACKFILL_SCORES_USERS -> scoreImportService.backfillUsersAsync(request.getUserIds());
             case BACKFILL_SCORES_GAP_FILL ->
-                scoreIngestionService.gapFillSince(requireSince(request), request.getPlatform());
+                scoreIngestionService.gapFillSince(request.getSince(), request.getPlatform());
             case BACKFILL_CAMPAIGN_LEGACY ->
-                scoreImportService.recheckLegacyCampaign(requireCampaignId(request), request.getUserId());
+                scoreImportService.recheckLegacyCampaign(request.getCampaignId(), request.getUserId());
             case RESETTLE_CAMPAIGN ->
-                scoreImportService.resettleCampaign(requireCampaignId(request), request.getUserId());
+                scoreImportService.resettleCampaign(request.getCampaignId(), request.getUserId());
 
             case BACKFILL_CDN_MAP_COVERS -> cdnSyncService.backfillAllMapCovers(request.isForce());
             case BACKFILL_CDN_AVATARS -> cdnSyncService.backfillAllUserAvatars(request.isForce());
 
-            case BACKFILL_MILESTONE -> milestoneService.backfillMilestone(requireMilestoneId(request));
+            case BACKFILL_MILESTONE -> milestoneService.backfillMilestone(request.getMilestoneId());
             case BACKFILL_MILESTONES_ALL -> milestoneService.backfillAllMilestones();
-            case BACKFILL_MILESTONES_USER -> milestoneService.backfillUser(requireUserId(request));
+            case BACKFILL_MILESTONES_USER -> milestoneService.backfillUser(request.getUserId());
 
             case REGENERATE_SONG_SUGGEST -> songSuggestService.regenerateAsync();
         };
@@ -123,56 +143,7 @@ public class AdminJobService {
         return null;
     }
 
-    private UUID requireDifficultyId(RunJobRequest request) {
-        if (request.getDifficultyId() == null) {
-            throw new ValidationException("difficultyId", "is required for " + request.getType());
-        }
-        return request.getDifficultyId();
-    }
-
-    private List<UUID> requireDifficultyIds(RunJobRequest request) {
-        if (request.getDifficultyIds() == null || request.getDifficultyIds().isEmpty()) {
-            throw new ValidationException("difficultyIds", "is required for " + request.getType());
-        }
-        return request.getDifficultyIds();
-    }
-
-    private UUID requireMilestoneId(RunJobRequest request) {
-        if (request.getMilestoneId() == null) {
-            throw new ValidationException("milestoneId", "is required for " + request.getType());
-        }
-        return request.getMilestoneId();
-    }
-
-    private UUID requireCampaignId(RunJobRequest request) {
-        if (request.getCampaignId() == null) {
-            throw new ValidationException("campaignId", "is required for " + request.getType());
-        }
-        return request.getCampaignId();
-    }
-
-    private Long requireUserId(RunJobRequest request) {
-        if (request.getUserId() == null) {
-            throw new ValidationException("userId", "is required for " + request.getType());
-        }
-        return request.getUserId();
-    }
-
-    private List<Long> requireUserIds(RunJobRequest request) {
-        if (request.getUserIds() == null || request.getUserIds().isEmpty()) {
-            throw new ValidationException("userIds", "is required for " + request.getType());
-        }
-        return request.getUserIds();
-    }
-
-    private java.time.Instant requireSince(RunJobRequest request) {
-        if (request.getSince() == null) {
-            throw new ValidationException("since", "is required for " + request.getType());
-        }
-        return request.getSince();
-    }
-
     private List<MapDifficulty> loadDifficulties(RunJobRequest request) {
-        return mapDifficultyRepository.findAllByIdInAndActiveTrueWithCategory(requireDifficultyIds(request));
+        return mapDifficultyRepository.findAllByIdInAndActiveTrueWithCategory(request.getDifficultyIds());
     }
 }

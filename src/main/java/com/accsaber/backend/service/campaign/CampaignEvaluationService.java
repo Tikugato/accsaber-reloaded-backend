@@ -384,6 +384,14 @@ public class CampaignEvaluationService {
     }
 
     @Transactional
+    public void resettleForUser(Long userId, UUID campaignId) {
+        userCampaignRepository.findByUser_IdAndCampaign_IdAndActiveTrue(userId, campaignId)
+                .filter(uc -> uc.getStatus() == UserCampaignStatus.IN_PROGRESS)
+                .filter(uc -> uc.getCampaign().isActive() && uc.getCampaign().getStatus() != CampaignStatus.DRAFT)
+                .ifPresent(uc -> settleCampaignFromCurrentScores(uc, false));
+    }
+
+    @Transactional
     public void evaluateInProgressForUser(Long userId) {
         List<UserCampaign> inProgress = userCampaignRepository
                 .findByUser_IdAndStatusAndActiveTrue(userId, UserCampaignStatus.IN_PROGRESS);

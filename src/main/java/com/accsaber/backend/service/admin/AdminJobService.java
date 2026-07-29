@@ -85,6 +85,8 @@ public class AdminJobService {
                 scoreIngestionService.gapFillSince(requireSince(request), request.getPlatform());
             case BACKFILL_CAMPAIGN_LEGACY ->
                 scoreImportService.recheckLegacyCampaign(requireCampaignId(request), request.getUserId());
+            case RESETTLE_CAMPAIGN ->
+                scoreImportService.resettleCampaign(requireCampaignId(request), request.getUserId());
 
             case BACKFILL_CDN_MAP_COVERS -> cdnSyncService.backfillAllMapCovers(request.isForce());
             case BACKFILL_CDN_AVATARS -> cdnSyncService.backfillAllUserAvatars(request.isForce());

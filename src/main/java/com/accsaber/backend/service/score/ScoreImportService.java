@@ -22,24 +22,24 @@ import org.springframework.stereotype.Service;
 
 import com.accsaber.backend.client.BeatLeaderClient;
 import com.accsaber.backend.client.ScoreSaberClient;
+import com.accsaber.backend.exception.ResourceNotFoundException;
+import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.platform.beatleader.BeatLeaderScoreResponse;
 import com.accsaber.backend.model.dto.platform.scoresaber.ScoreSaberScoreResponse;
 import com.accsaber.backend.model.dto.platform.scoresaber.ScoreSaberScoreStats;
 import com.accsaber.backend.model.dto.platform.scoresaber.ScoreSaberScoresPage;
 import com.accsaber.backend.model.dto.request.score.SubmitScoreRequest;
 import com.accsaber.backend.model.entity.Modifier;
+import com.accsaber.backend.model.entity.campaign.Campaign;
+import com.accsaber.backend.model.entity.campaign.CampaignStatus;
+import com.accsaber.backend.model.entity.campaign.UserCampaignStatus;
 import com.accsaber.backend.model.entity.map.LeaderboardPlatform;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
 import com.accsaber.backend.model.entity.milestone.Milestone;
 import com.accsaber.backend.model.entity.milestone.MilestoneSet;
-import com.accsaber.backend.model.entity.campaign.Campaign;
-import com.accsaber.backend.model.entity.campaign.CampaignStatus;
-import com.accsaber.backend.model.entity.campaign.UserCampaignStatus;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.score.ScoreModifierLink;
-import com.accsaber.backend.exception.ResourceNotFoundException;
-import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.repository.ModifierRepository;
 import com.accsaber.backend.repository.campaign.CampaignRepository;
 import com.accsaber.backend.repository.campaign.UserCampaignRepository;
@@ -373,8 +373,7 @@ public class ScoreImportService {
     }
 
     @Async("taskExecutor")
-    @org.springframework.transaction.event.TransactionalEventListener(
-            phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
+    @org.springframework.transaction.event.TransactionalEventListener(phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
     public void onLegacyCampaignStarted(
             com.accsaber.backend.model.event.LegacyCampaignBackfillEvent event) {
         backfillAndSettleLegacyCampaign(event.userId(), event.campaignId());
@@ -395,6 +394,34 @@ public class ScoreImportService {
         }
         log.info("Legacy campaign re-check queued for campaign {} across {} user(s)", campaignId, targets.size());
         return CompletableFuture.runAsync(() -> runLegacyRecheck(campaignId, targets), backfillExecutor);
+    }
+
+    public CompletableFuture<Void> resettleCampaign(UUID campaignId, Long userId) {
+        campaignRepository.findByIdAndActiveTrue(campaignId)
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
+        List<Long> targets = userId != null
+                ? List.of(duplicateUserService.resolvePrimaryUserId(userId))
+                : userCampaignRepository.findUserIdsByCampaignAndStatus(campaignId, UserCampaignStatus.IN_PROGRESS);
+        if (targets.isEmpty()) {
+            log.info("Campaign re-settle for campaign {} has no in-progress participants", campaignId);
+            return CompletableFuture.completedFuture(null);
+        }
+        log.info("Campaign re-settle queued for campaign {} across {} user(s)", campaignId, targets.size());
+        return CompletableFuture.runAsync(() -> runResettle(campaignId, targets), backfillExecutor);
+    }
+
+    private void runResettle(UUID campaignId, List<Long> userIds) {
+        long start = System.currentTimeMillis();
+        for (Long userId : userIds) {
+            try {
+                campaignEvaluationService.resettleForUser(userId, campaignId);
+            } catch (Exception e) {
+                log.error("Campaign re-settle failed for user {} campaign {}: {}", userId, campaignId, e.getMessage());
+            }
+        }
+        long elapsed = System.currentTimeMillis() - start;
+        log.info("Campaign re-settle complete for campaign {} across {} user(s) in {}s",
+                campaignId, userIds.size(), elapsed / 1000);
     }
 
     private void runLegacyRecheck(UUID campaignId, List<Long> userIds) {

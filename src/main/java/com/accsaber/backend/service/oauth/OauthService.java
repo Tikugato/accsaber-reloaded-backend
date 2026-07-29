@@ -93,8 +93,10 @@ public class OauthService {
 
         return oauthConnectionRepository
                 .findByProviderAndProviderUserIdAndActiveTrue(PROVIDER_DISCORD, identity.getId())
-                .map(conn -> {
+                .map(found -> {
+                    OauthConnection conn = repointToPrimary(found);
                     rejectIfBanned(conn.getUser());
+                    conn.setProviderUserId(identity.getId());
                     conn.setProviderUsername(identity.displayName());
                     conn.setProviderAvatarUrl(identity.avatarUrl());
                     oauthConnectionRepository.save(conn);
@@ -152,7 +154,14 @@ public class OauthService {
             oauthSessionRepository.delete(session);
             throw new UnauthorizedException("The linked account for this session was removed");
         }
-        rejectIfBanned(session.getUser());
+
+        Long primaryId = duplicateUserService.resolvePrimaryUserId(session.getUser().getId());
+        User user = userRepository.findByIdAndActiveTrue(primaryId)
+                .orElseThrow(() -> new UnauthorizedException("The account for this session is no longer active"));
+        rejectIfBanned(user);
+        if (!user.getId().equals(session.getUser().getId())) {
+            session.setUser(user);
+        }
         return rotateSession(session);
     }
 
@@ -181,7 +190,7 @@ public class OauthService {
                         .orElse(null);
 
         return AuthMeResponse.builder()
-                .userId(user.getId())
+                .userId(String.valueOf(user.getId()))
                 .name(user.getName())
                 .avatarUrl(user.getAvatarUrl())
                 .cdnAvatarUrl(user.getCdnAvatarUrl())
@@ -210,7 +219,7 @@ public class OauthService {
     private PlayerAuthResponse completeProviderLogin(User user, String provider, String providerUserId,
             String providerUsername, String providerAvatarUrl, Long linkUserId, String pendingLinkToken,
             String scope) {
-        if (linkUserId != null && !linkUserId.equals(user.getId())) {
+        if (linkUserId != null && !duplicateUserService.resolvePrimaryUserId(linkUserId).equals(user.getId())) {
             throw new ForbiddenException("Provider account belongs to a different player");
         }
         rejectIfBanned(user);
@@ -229,23 +238,52 @@ public class OauthService {
 
     private OauthConnection addOrRefreshConnection(User user, String provider, String providerUserId,
             String providerUsername, String providerAvatarUrl) {
-        oauthConnectionRepository.findByProviderAndProviderUserIdAndActiveTrue(provider, providerUserId)
-                .filter(c -> !c.getUser().getId().equals(user.getId()))
-                .ifPresent(c -> {
-                    throw new ConflictException(provider + " account is linked to a different player");
-                });
+        OauthConnection byIdentity = oauthConnectionRepository
+                .findByProviderAndProviderUserIdAndActiveTrue(provider, providerUserId)
+                .orElse(null);
+        if (byIdentity != null
+                && !duplicateUserService.resolvePrimaryUserId(byIdentity.getUser().getId()).equals(user.getId())) {
+            throw new ConflictException(provider + " account is linked to a different player");
+        }
 
-        OauthConnection conn = oauthConnectionRepository
-                .findByUserIdAndProviderAndActiveTrue(user.getId(), provider)
-                .orElseGet(() -> OauthConnection.builder()
-                        .user(user)
-                        .provider(provider)
-                        .active(true)
-                        .build());
+        OauthConnection conn = byIdentity != null
+                ? repointToPrimary(byIdentity)
+                : oauthConnectionRepository
+                        .findByUserIdAndProviderAndActiveTrue(user.getId(), provider)
+                        .orElseGet(() -> OauthConnection.builder()
+                                .user(user)
+                                .provider(provider)
+                                .active(true)
+                                .build());
         conn.setProviderUserId(providerUserId);
         conn.setProviderUsername(providerUsername);
         conn.setProviderAvatarUrl(providerAvatarUrl);
         return oauthConnectionRepository.save(conn);
+    }
+
+    private OauthConnection repointToPrimary(OauthConnection conn) {
+        Long ownerId = conn.getUser().getId();
+        Long primaryId = duplicateUserService.resolvePrimaryUserId(ownerId);
+        if (primaryId.equals(ownerId)) {
+            return conn;
+        }
+
+        User primary = userRepository.findByIdAndActiveTrue(primaryId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", primaryId));
+        OauthConnection onPrimary = oauthConnectionRepository
+                .findByUserIdAndProviderAndActiveTrue(primaryId, conn.getProvider())
+                .filter(existing -> !existing.getId().equals(conn.getId()))
+                .orElse(null);
+
+        if (onPrimary == null) {
+            conn.setUser(primary);
+            return oauthConnectionRepository.saveAndFlush(conn);
+        }
+
+        conn.setActive(false);
+        oauthConnectionRepository.saveAndFlush(conn);
+        oauthSessionRepository.deleteByConnection_Id(conn.getId());
+        return onPrimary;
     }
 
     private PlayerAuthResponse issueSession(OauthConnection anchor, String scope) {
@@ -289,7 +327,7 @@ public class OauthService {
                 .accessToken(accessToken)
                 .refreshToken(session.getRefreshToken())
                 .expiresIn(jwtService.getPlayerAccessTokenTtl())
-                .userId(userId)
+                .userId(String.valueOf(userId))
                 .build();
     }
 
@@ -300,8 +338,9 @@ public class OauthService {
     }
 
     private User requireUser(Long userId) {
-        return userRepository.findByIdAndActiveTrue(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
+        return userRepository.findByIdAndActiveTrue(resolved)
+                .orElseThrow(() -> new ResourceNotFoundException("User", resolved));
     }
 
     private StaffContext toStaffContext(StaffUser staffUser) {

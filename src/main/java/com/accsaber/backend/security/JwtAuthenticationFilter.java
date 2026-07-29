@@ -22,6 +22,7 @@ import com.accsaber.backend.model.entity.staff.StaffUser;
 import com.accsaber.backend.model.entity.staff.StaffUserStatus;
 import com.accsaber.backend.repository.staff.StaffUserRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.player.DuplicateUserService;
 import com.accsaber.backend.service.staff.JwtService;
 
 import io.jsonwebtoken.JwtException;
@@ -46,6 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final StaffUserRepository staffUserRepository;
     private final UserRepository userRepository;
+    private final DuplicateUserService duplicateUserService;
 
     @Value("${accsaber.service.api-key}")
     private String serviceApiKey;
@@ -99,7 +101,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private UserDetails loadUserDetails(String token, List<StaffRole> surfacedRoles) {
         String type = jwtService.extractTokenType(token);
         if (JwtService.TYPE_PLAYER.equals(type)) {
-            Long userId = jwtService.extractPlayerId(token);
+            Long userId = duplicateUserService.resolvePrimaryUserId(jwtService.extractPlayerId(token));
             String scope = jwtService.extractPlayerScope(token);
             return userRepository.findByIdAndActiveTrue(userId)
                     .map(user -> {

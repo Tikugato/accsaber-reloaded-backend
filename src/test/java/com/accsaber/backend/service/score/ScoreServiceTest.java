@@ -59,6 +59,8 @@ import com.accsaber.backend.service.stats.StatisticsService;
 @ExtendWith(MockitoExtension.class)
 class ScoreServiceTest {
 
+        private static final UUID SLOWER_SONG_ID = UUID.randomUUID();
+
         @Mock
         private ScoreRepository scoreRepository;
         @Mock
@@ -93,6 +95,8 @@ class ScoreServiceTest {
         private com.accsaber.backend.service.item.LevelUpAwardService levelUpAwardService;
         @Mock
         private com.accsaber.backend.service.campaign.CampaignEvaluationService campaignEvaluationService;
+        @Mock
+        private com.accsaber.backend.service.infra.ModifierCacheService modifierCacheService;
         @Mock
         private ApplicationEventPublisher eventPublisher;
         @Mock
@@ -517,6 +521,74 @@ class ScoreServiceTest {
                         assertThatThrownBy(() -> scoreService.findHistoric(
                                         activeUser.getId(), rankedDifficulty.getId(), 7, "x"))
                                         .isInstanceOf(IllegalArgumentException.class);
+                }
+        }
+
+        @Nested
+        class SubmitPlayerWithBannedModifier {
+
+                private SubmitScoreRequest bannedRequest() {
+                        SubmitScoreRequest req = buildRequest(950_000);
+                        req.setModifierIds(List.of(SLOWER_SONG_ID));
+                        when(modifierCacheService.containsBannedModifier(req.getModifierIds()))
+                                        .thenReturn(true);
+                        when(mapDifficultyRepository.findByIdAndActiveTrue(rankedDifficulty.getId()))
+                                        .thenReturn(Optional.of(rankedDifficulty));
+                        return req;
+                }
+
+                @Test
+                void onRankedMap_recordsCampaignAttempt_insteadOfRankedScore() {
+                        SubmitScoreRequest req = bannedRequest();
+                        when(campaignEvaluationService.isRecordable(activeUser.getId(), rankedDifficulty.getId()))
+                                        .thenReturn(true);
+                        when(userRepository.findById(activeUser.getId()))
+                                        .thenReturn(Optional.of(activeUser));
+                        when(scoreRepository.findRecentCampaignAttempt(any(), any(), any(), any(), any()))
+                                        .thenReturn(Collections.emptyList());
+                        when(modifierRepository.findAllById(req.getModifierIds()))
+                                        .thenReturn(List.of(slowerSong()));
+                        when(scoreRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
+                        when(modifierLinkRepository.findByScore_Id(any()))
+                                        .thenReturn(Collections.emptyList());
+
+                        scoreService.submitPlayer(req);
+
+                        ArgumentCaptor<Score> captor = ArgumentCaptor.forClass(Score.class);
+                        verify(scoreRepository).saveAndFlush(captor.capture());
+                        Score saved = captor.getValue();
+                        assertThat(saved.isActive()).isFalse();
+                        assertThat(saved.getSupersedesReason()).isEqualTo("Campaign attempt");
+                        assertThat(saved.getAp()).isEqualByComparingTo(BigDecimal.ZERO);
+                        assertThat(saved.getWeightedAp()).isEqualByComparingTo(BigDecimal.ZERO);
+                        assertThat(saved.getXpGained()).isEqualByComparingTo(BigDecimal.ZERO);
+                        assertThat(saved.getRank()).isZero();
+                        assertThat(saved.getRankWhenSet()).isZero();
+                        verify(apCalculationService, never()).calculateRawAP(any(), any(), any());
+                        verify(statisticsService, never()).recalculate(any(), any());
+                        verify(eventPublisher, never()).publishEvent(any(ScoreSubmittedEvent.class));
+                }
+
+                @Test
+                void onRankedMap_withoutUnlockedCampaignNode_throws() {
+                        SubmitScoreRequest req = bannedRequest();
+                        when(campaignEvaluationService.isRecordable(activeUser.getId(), rankedDifficulty.getId()))
+                                        .thenReturn(false);
+
+                        assertThatThrownBy(() -> scoreService.submitPlayer(req))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("No in-progress campaign");
+                        verify(scoreRepository, never()).saveAndFlush(any());
+                }
+
+                private com.accsaber.backend.model.entity.Modifier slowerSong() {
+                        return com.accsaber.backend.model.entity.Modifier.builder()
+                                        .id(SLOWER_SONG_ID)
+                                        .name("Slower Song")
+                                        .code("SS")
+                                        .multiplier(BigDecimal.ONE)
+                                        .active(true)
+                                        .build();
                 }
         }
 }

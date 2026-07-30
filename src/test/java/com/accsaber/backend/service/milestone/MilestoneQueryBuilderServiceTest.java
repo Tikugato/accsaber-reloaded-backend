@@ -310,6 +310,39 @@ class MilestoneQueryBuilderServiceTest {
                 }
 
                 @Test
+                void scoresTable_alwaysExcludesCampaignAttempts() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("MAX", "ap"),
+                                        "scores",
+                                        List.of(new FilterSpec("active", "=", true)));
+
+                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.valueOf(850));
+
+                        service.evaluate(spec, 123L, null);
+
+                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
+                        verify(entityManager).createQuery(jpqlCaptor.capture());
+                        assertThat(jpqlCaptor.getValue()).contains(
+                                        "(s.supersedesReason IS NULL OR s.supersedesReason <> 'Campaign attempt')");
+                }
+
+                @Test
+                void nonScoreTable_doesNotGetCampaignAttemptExclusion() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("MAX", "total_xp"),
+                                        "users",
+                                        null);
+
+                        when(mockQuery.getSingleResult()).thenReturn(new BigDecimal("5000"));
+
+                        service.evaluate(spec, 999L, null);
+
+                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
+                        verify(entityManager).createQuery(jpqlCaptor.capture());
+                        assertThat(jpqlCaptor.getValue()).doesNotContain("Campaign attempt");
+                }
+
+                @Test
                 void userIdIsInjectedForUserTable() {
                         MilestoneQuerySpec spec = new MilestoneQuerySpec(
                                         new SelectSpec("MAX", "total_xp"),

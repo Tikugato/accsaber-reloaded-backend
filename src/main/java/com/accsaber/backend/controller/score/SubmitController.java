@@ -17,7 +17,6 @@ import com.accsaber.backend.exception.ConflictException;
 import com.accsaber.backend.exception.ForbiddenException;
 import com.accsaber.backend.exception.TooManyRequestsException;
 import com.accsaber.backend.exception.UnauthorizedException;
-import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.request.score.PluginSubmitRequest;
 import com.accsaber.backend.model.dto.request.score.SubmitScoreRequest;
 import com.accsaber.backend.model.dto.response.score.ScoreResponse;
@@ -27,7 +26,6 @@ import com.accsaber.backend.service.score.ScoreService;
 import com.accsaber.backend.service.staff.JwtService;
 import com.accsaber.backend.service.score.SubmitNonceService;
 import com.accsaber.backend.service.score.SubmitRateLimitService;
-import com.accsaber.backend.util.PlatformScoreMapper;
 
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.validation.Valid;
@@ -55,7 +53,6 @@ public class SubmitController {
             throw new ForbiddenException(
                     "Score submission requires a game session; website tokens cannot submit scores");
         }
-        validateModifiers(body.getModifierCodes());
         if (!nonceService.tryConsume(principal.getUserId(), body.getNonce())) {
             throw new ConflictException("Duplicate submission: nonce already used");
         }
@@ -64,18 +61,6 @@ public class SubmitController {
         }
         SubmitScoreRequest request = toServiceRequest(body, principal.getUserId());
         return ResponseEntity.ok(scoreService.submitPlayer(request));
-    }
-
-    private void validateModifiers(List<String> codes) {
-        if (codes == null || codes.isEmpty()) {
-            return;
-        }
-        for (String code : codes) {
-            if (code == null) continue;
-            if (PlatformScoreMapper.BANNED_MODIFIER_CODES.contains(code.trim())) {
-                throw new ValidationException("Banned modifier: " + code.trim());
-            }
-        }
     }
 
     private SubmitScoreRequest toServiceRequest(PluginSubmitRequest body, Long userId) {

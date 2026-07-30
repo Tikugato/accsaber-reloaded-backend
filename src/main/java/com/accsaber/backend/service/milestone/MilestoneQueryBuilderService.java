@@ -152,6 +152,8 @@ public class MilestoneQueryBuilderService {
             String categoryIdPath, String rankedStatusPath) {
     }
 
+    private static final String CAMPAIGN_ATTEMPT_PATH = "s.supersedesReason";
+
     private static final Map<String, TableConfig> TABLE_CONFIG = new LinkedHashMap<>();
 
     static {
@@ -719,6 +721,9 @@ public class MilestoneQueryBuilderService {
         if (table.rankedStatusPath() != null) {
             conditions.add(table.rankedStatusPath() + " = :rankedStatus");
         }
+        if ("scores".equals(spec.from())) {
+            conditions.add(excludeCampaignAttempts(CAMPAIGN_ATTEMPT_PATH));
+        }
 
         List<FilterSpec> filters = spec.filters() != null ? spec.filters() : List.of();
         for (FilterSpec filter : filters) {
@@ -876,6 +881,10 @@ public class MilestoneQueryBuilderService {
         return JPQL_TO_SQL.getOrDefault(jpqlExpr, jpqlExpr);
     }
 
+    private String excludeCampaignAttempts(String reasonExpr) {
+        return "(" + reasonExpr + " IS NULL OR " + reasonExpr + " <> 'Campaign attempt')";
+    }
+
     private BigDecimal evaluateNativeSql(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
         TableConfig table = TABLE_CONFIG.get(spec.from());
         Map<String, ColumnDef> columns = COLUMN_ALLOWLIST.get(spec.from());
@@ -898,6 +907,9 @@ public class MilestoneQueryBuilderService {
         }
         if (table.rankedStatusPath() != null) {
             conditions.add(toNativeSql(table.rankedStatusPath()) + " = 'ranked'");
+        }
+        if ("scores".equals(spec.from())) {
+            conditions.add(excludeCampaignAttempts(toNativeSql(CAMPAIGN_ATTEMPT_PATH)));
         }
 
         for (FilterSpec filter : spec.filters() != null ? spec.filters() : List.<FilterSpec>of()) {
@@ -1027,6 +1039,10 @@ public class MilestoneQueryBuilderService {
         if (table.rankedStatusPath() != null) {
             String statusExpr = toNativeSql(table.rankedStatusPath()).replace("md.", "md2.");
             conditions.add(statusExpr + " = 'ranked'");
+        }
+        if ("scores".equals(spec.from())) {
+            conditions.add(excludeCampaignAttempts(toNativeSql(CAMPAIGN_ATTEMPT_PATH)
+                    .replace(table.alias() + ".", subAlias + ".")));
         }
 
         for (FilterSpec filter : spec.filters() != null ? spec.filters() : List.<FilterSpec>of()) {
@@ -1327,6 +1343,9 @@ public class MilestoneQueryBuilderService {
         }
         if (table.rankedStatusPath() != null) {
             conditions.add(rewrite.apply(table.rankedStatusPath()) + " = :rankedStatus");
+        }
+        if ("scores".equals(spec.from())) {
+            conditions.add(excludeCampaignAttempts(rewrite.apply(CAMPAIGN_ATTEMPT_PATH)));
         }
 
         List<FilterSpec> filters = spec.filters() != null ? spec.filters() : List.of();

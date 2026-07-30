@@ -98,8 +98,10 @@ public class ScoreIngestionService {
     }
 
     public void handleBeatLeaderScore(BeatLeaderScoreResponse blScore) {
-        boolean ranked = rankedBlIds.contains(blScore.getLeaderboardId());
-        if (!ranked && !campaignScoreGate.matchesBlLeaderboard(blScore.getLeaderboardId())) {
+        boolean banned = PlatformScoreMapper.hasBannedModifier(blScore.getModifiers());
+        boolean onRankedLeaderboard = rankedBlIds.contains(blScore.getLeaderboardId());
+        boolean ranked = onRankedLeaderboard && !banned;
+        if (!onRankedLeaderboard && !campaignScoreGate.matchesBlLeaderboard(blScore.getLeaderboardId())) {
             return;
         }
 
@@ -107,12 +109,6 @@ public class ScoreIngestionService {
             if (blScore.getPlayer() == null || blScore.getPlayer().getId() == null) {
                 log.warn("Received BL score with missing player data for leaderboard {}, skipping",
                         blScore.getLeaderboardId());
-                return;
-            }
-
-            if (PlatformScoreMapper.hasBannedModifier(blScore.getModifiers())) {
-                log.debug("Skipping BL score on {} - banned modifier(s): {}", blScore.getLeaderboardId(),
-                        blScore.getModifiers());
                 return;
             }
 
@@ -128,7 +124,7 @@ public class ScoreIngestionService {
                 return;
             MapDifficulty difficulty = diffOpt.get();
 
-            String playKey = userId + "_" + difficulty.getId();
+            String playKey = playKey(userId, difficulty.getId(), banned);
 
             PendingSsScore pending = pendingSsScores.remove(playKey);
             if (pending != null) {
@@ -154,6 +150,10 @@ public class ScoreIngestionService {
         }
     }
 
+    private String playKey(Long userId, java.util.UUID difficultyId, boolean banned) {
+        return banned ? userId + "_" + difficultyId + "_banned" : userId + "_" + difficultyId;
+    }
+
     private void submitCampaignScoreQuietly(SubmitScoreRequest request, String platform, Long userId,
             java.util.UUID difficultyId) {
         try {
@@ -168,25 +168,22 @@ public class ScoreIngestionService {
     public void handleScoreSaberScore(ScoreSaberScoreResponse ssScore, ScoreSaberScoreStats scoreStats,
             Long userId, String ssLeaderboardId) {
         Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(userId);
-        boolean ranked = rankedSsIds.contains(ssLeaderboardId);
-        if (!ranked && (!campaignScoreGate.matchesSsLeaderboard(ssLeaderboardId)
+        boolean banned = PlatformScoreMapper.hasBannedModifier(ssScore.getMods());
+        boolean onRankedLeaderboard = rankedSsIds.contains(ssLeaderboardId);
+        boolean ranked = onRankedLeaderboard && !banned;
+        if (!ranked && ((!onRankedLeaderboard && !campaignScoreGate.matchesSsLeaderboard(ssLeaderboardId))
                 || !campaignScoreGate.isParticipant(resolvedUserId))) {
             return;
         }
 
         try {
-            if (PlatformScoreMapper.hasBannedModifier(ssScore.getMods())) {
-                log.debug("Skipping SS score on {} - banned modifier(s): {}", ssLeaderboardId, ssScore.getMods());
-                return;
-            }
-
             Optional<MapDifficulty> diffOpt = mapDifficultyRepository
                     .findBySsLeaderboardId(ssLeaderboardId);
             if (diffOpt.isEmpty())
                 return;
             MapDifficulty difficulty = diffOpt.get();
 
-            String playKey = resolvedUserId + "_" + difficulty.getId();
+            String playKey = playKey(resolvedUserId, difficulty.getId(), banned);
 
             int delaySeconds = properties.getSsWaitForBlSeconds();
             ScheduledFuture<?> future = ingestionScheduler.schedule(() -> {

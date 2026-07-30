@@ -496,8 +496,7 @@ public class ScoreImportService {
             return false;
         }
         Optional<BeatLeaderScoreResponse> opt = fetchBeatLeaderScore(userId, md);
-        if (opt.isEmpty() || opt.get().getBaseScore() == null
-                || PlatformScoreMapper.hasBannedModifier(opt.get().getModifiers())) {
+        if (opt.isEmpty() || opt.get().getBaseScore() == null) {
             return false;
         }
         scoreService.recordCampaignBackfillScore(
@@ -511,8 +510,7 @@ public class ScoreImportService {
         }
         Optional<ScoreSaberScoreResponse> opt = scoreSaberClient
                 .getPlayerScoreOnLeaderboard(String.valueOf(userId), md.getSsLeaderboardId());
-        if (opt.isEmpty() || opt.get().getUnmodifiedScore() == null
-                || PlatformScoreMapper.hasBannedModifier(opt.get().getMods())) {
+        if (opt.isEmpty() || opt.get().getUnmodifiedScore() == null) {
             return false;
         }
         ScoreSaberScoreStats stats = fetchScoreSaberStats(opt.get());

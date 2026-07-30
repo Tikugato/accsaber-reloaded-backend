@@ -84,6 +84,7 @@ public class ScoreService {
         private final com.accsaber.backend.service.skill.SkillService skillService;
         private final LevelUpAwardService levelUpAwardService;
         private final CampaignEvaluationService campaignEvaluationService;
+        private final com.accsaber.backend.service.infra.ModifierCacheService modifierCacheService;
         private final ApplicationEventPublisher eventPublisher;
         private final TransactionTemplate transactionTemplate;
         private final com.accsaber.backend.service.supporter.SupporterService supporterService;
@@ -203,7 +204,7 @@ public class ScoreService {
                 MapDifficulty difficulty = mapDifficultyRepository.findByIdAndActiveTrue(request.getMapDifficultyId())
                                 .orElseThrow(() -> new ResourceNotFoundException("MapDifficulty",
                                                 request.getMapDifficultyId()));
-                if (difficulty.getStatus() == MapDifficultyStatus.RANKED) {
+                if (difficulty.getStatus() == MapDifficultyStatus.RANKED && !carriesBannedModifier(request)) {
                         return submit(request);
                 }
                 return submitCampaignScore(request);
@@ -215,7 +216,8 @@ public class ScoreService {
                         throw new ValidationException("Partial attempts are not recorded for campaign maps");
                 }
                 acquireSubmitLock(request.getUserId(), request.getMapDifficultyId());
-                MapDifficulty difficulty = loadCampaignDifficulty(request.getMapDifficultyId());
+                MapDifficulty difficulty = loadCampaignDifficulty(request.getMapDifficultyId(),
+                                carriesBannedModifier(request));
                 validateScoreBounds(request, difficulty, true);
                 if (!campaignEvaluationService.isRecordable(request.getUserId(), difficulty.getId())) {
                         throw new ValidationException(
@@ -261,7 +263,8 @@ public class ScoreService {
                 if (request.isPartial()) {
                         return;
                 }
-                MapDifficulty difficulty = loadCampaignDifficulty(request.getMapDifficultyId());
+                MapDifficulty difficulty = loadCampaignDifficulty(request.getMapDifficultyId(),
+                                carriesBannedModifier(request));
                 validateScoreBounds(request, difficulty, true);
                 User user = loadUserForBackfill(request.getUserId());
 
@@ -278,10 +281,14 @@ public class ScoreService {
                 saveModifierLinks(saved, modifiers);
         }
 
-        private MapDifficulty loadCampaignDifficulty(UUID id) {
+        private boolean carriesBannedModifier(SubmitScoreRequest request) {
+                return modifierCacheService.containsBannedModifier(request.getModifierIds());
+        }
+
+        private MapDifficulty loadCampaignDifficulty(UUID id, boolean allowRanked) {
                 MapDifficulty difficulty = mapDifficultyRepository.findByIdAndActiveTrue(id)
                                 .orElseThrow(() -> new ResourceNotFoundException("MapDifficulty", id));
-                if (difficulty.getStatus() == MapDifficultyStatus.RANKED) {
+                if (difficulty.getStatus() == MapDifficultyStatus.RANKED && !allowRanked) {
                         throw new ValidationException("Ranked difficulties use the standard submission path");
                 }
                 if (difficulty.getMaxScore() == null || difficulty.getMaxScore() <= 0) {

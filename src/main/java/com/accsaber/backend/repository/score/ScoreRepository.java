@@ -590,6 +590,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         JOIN FETCH d.category c
                         LEFT JOIN FETCH c.scoreCurve
                         WHERE d.id = :mapDifficultyId
+                          AND (s.supersedesReason IS NULL OR s.supersedesReason <> 'Campaign attempt')
                         ORDER BY s.user.id, s.timeSet ASC NULLS LAST
                         """)
         List<Score> findAllByDifficultyOrderedByUserAndTime(@Param("mapDifficultyId") UUID mapDifficultyId);
@@ -656,10 +657,12 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         SELECT * FROM (
                             SELECT * FROM scores
                             WHERE user_id = :userId AND map_difficulty_id = :difficultyId
+                            AND (supersedes_reason IS NULL OR supersedes_reason <> 'Campaign attempt')
                             AND time_set >= CAST(:since AS timestamptz)
                             UNION ALL
                             (SELECT * FROM scores
                             WHERE user_id = :userId AND map_difficulty_id = :difficultyId
+                            AND (supersedes_reason IS NULL OR supersedes_reason <> 'Campaign attempt')
                             AND time_set < CAST(:since AS timestamptz)
                             ORDER BY time_set DESC
                             LIMIT 1)

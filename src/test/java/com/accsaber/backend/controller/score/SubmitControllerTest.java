@@ -9,11 +9,13 @@ import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -21,9 +23,9 @@ import com.accsaber.backend.exception.ConflictException;
 import com.accsaber.backend.exception.ForbiddenException;
 import com.accsaber.backend.exception.TooManyRequestsException;
 import com.accsaber.backend.exception.UnauthorizedException;
-import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.service.staff.JwtService;
 import com.accsaber.backend.model.dto.request.score.PluginSubmitRequest;
+import com.accsaber.backend.model.dto.request.score.SubmitScoreRequest;
 import com.accsaber.backend.model.dto.response.score.ScoreResponse;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.security.PlayerUserDetails;
@@ -82,13 +84,19 @@ class SubmitControllerTest {
     }
 
     @Test
-    void rejectsWhenModifierIsBanned() {
+    void forwardsBannedModifier_soCampaignRoutingCanDecide() {
+        UUID nfId = UUID.randomUUID();
+        UUID noId = UUID.randomUUID();
+        when(modifierCacheService.getModifierCodeToId()).thenReturn(Map.of("NF", nfId, "NO", noId));
         PluginSubmitRequest r = baseRequest();
         r.setModifierCodes(List.of("NF", "NO"));
-        assertThatThrownBy(() -> controller.submit(r, principal))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Banned modifier");
-        verify(scoreService, never()).submitPlayer(any());
+        when(scoreService.submitPlayer(any())).thenReturn(ScoreResponse.builder().build());
+
+        controller.submit(r, principal);
+
+        ArgumentCaptor<SubmitScoreRequest> captor = ArgumentCaptor.forClass(SubmitScoreRequest.class);
+        verify(scoreService).submitPlayer(captor.capture());
+        assertThat(captor.getValue().getModifierIds()).containsExactlyInAnyOrder(nfId, noId);
     }
 
     @Test

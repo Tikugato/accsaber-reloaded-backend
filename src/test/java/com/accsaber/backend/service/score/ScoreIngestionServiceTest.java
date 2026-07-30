@@ -156,14 +156,55 @@ class ScoreIngestionServiceTest {
                 }
 
                 @Test
-                void skipsScore_withBannedModifier() {
+                void skipsScore_withBannedModifier_whenNotACampaignParticipant() {
                         BeatLeaderScoreResponse blScore = buildBlScore("bl_123", "NO");
                         when(mapDifficultyRepository.findByBlLeaderboardId("bl_123"))
                                         .thenReturn(Optional.of(difficulty));
+                        when(campaignScoreGate.isParticipant(STEAM_ID)).thenReturn(false);
 
                         ingestionService.handleBeatLeaderScore(blScore);
 
                         verify(scoreService, never()).submit(any());
+                        verify(scoreService, never()).submitCampaignScore(any());
+                }
+
+                @Test
+                void bannedModifierScore_doesNotCancelPendingCleanSsScore() throws Exception {
+                        ScoreSaberScoreResponse ssScore = buildSsScore("");
+                        when(mapDifficultyRepository.findBySsLeaderboardId("ss_456"))
+                                        .thenReturn(Optional.of(difficulty));
+                        when(playerImportService.ensurePlayerExists(STEAM_ID))
+                                        .thenReturn(User.builder().id(STEAM_ID).name("Player").build());
+                        when(scoreService.submit(any())).thenReturn(buildScoreResponse());
+
+                        ingestionService.handleScoreSaberScore(ssScore, null, STEAM_ID, "ss_456");
+
+                        BeatLeaderScoreResponse bannedBl = buildBlScore("bl_123", "NO");
+                        when(mapDifficultyRepository.findByBlLeaderboardId("bl_123"))
+                                        .thenReturn(Optional.of(difficulty));
+                        when(campaignScoreGate.isParticipant(STEAM_ID)).thenReturn(true);
+
+                        ingestionService.handleBeatLeaderScore(bannedBl);
+
+                        scheduler.awaitTermination(2, TimeUnit.SECONDS);
+                        Thread.sleep(300);
+
+                        verify(scoreService).submitCampaignScore(any());
+                        verify(scoreService).submit(any());
+                }
+
+                @Test
+                void recordsBannedModifierScore_asCampaignAttempt_forParticipantOnRankedMap() {
+                        BeatLeaderScoreResponse blScore = buildBlScore("bl_123", "NO");
+                        when(mapDifficultyRepository.findByBlLeaderboardId("bl_123"))
+                                        .thenReturn(Optional.of(difficulty));
+                        when(campaignScoreGate.isParticipant(STEAM_ID)).thenReturn(true);
+
+                        ingestionService.handleBeatLeaderScore(blScore);
+
+                        verify(scoreService, never()).submit(any());
+                        verify(scoreService).submitCampaignScore(any());
+                        verifyNoInteractions(playerImportService);
                 }
 
                 @Test
@@ -319,12 +360,30 @@ class ScoreIngestionServiceTest {
                 }
 
                 @Test
-                void skipsScore_withBannedModifier() {
+                void skipsScore_withBannedModifier_whenNotACampaignParticipant() {
                         ScoreSaberScoreResponse ssScore = buildSsScore("NO");
+                        when(campaignScoreGate.isParticipant(STEAM_ID)).thenReturn(false);
 
                         ingestionService.handleScoreSaberScore(ssScore, null, STEAM_ID, "ss_456");
 
                         verify(scoreService, never()).submit(any());
+                        verify(scoreService, never()).submitCampaignScore(any());
+                }
+
+                @Test
+                void recordsBannedModifierScore_asCampaignAttempt_forParticipantOnRankedMap() throws Exception {
+                        ScoreSaberScoreResponse ssScore = buildSsScore("NO");
+                        when(mapDifficultyRepository.findBySsLeaderboardId("ss_456"))
+                                        .thenReturn(Optional.of(difficulty));
+                        when(campaignScoreGate.isParticipant(STEAM_ID)).thenReturn(true);
+
+                        ingestionService.handleScoreSaberScore(ssScore, null, STEAM_ID, "ss_456");
+
+                        scheduler.awaitTermination(2, TimeUnit.SECONDS);
+                        Thread.sleep(200);
+
+                        verify(scoreService, never()).submit(any());
+                        verify(scoreService).submitCampaignScore(any());
                 }
         }
 

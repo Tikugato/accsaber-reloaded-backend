@@ -200,7 +200,44 @@ public class ItemService {
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
 
         Map<String, Object> rawSettings = userSettingsService.getGroup(resolved, UserSettingKey.GROUP_EQUIPPED);
+        Map<String, UserItemLink> pickedByType = resolveEquippedLinksByType(resolved, rawSettings);
 
+        Set<UUID> linkIds = pickedByType.values().stream()
+                .filter(Objects::nonNull)
+                .map(UserItemLink::getId)
+                .collect(Collectors.toSet());
+        Map<UUID, Map<String, Long>> countersByLink = loadCounters(linkIds);
+
+        Map<String, UserItemResponse> result = new LinkedHashMap<>();
+        pickedByType.forEach((typeKey, picked) -> {
+            UserItemResponse response = picked == null
+                    ? null
+                    : ItemMapper.toUserItemResponse(picked, countersByLink.get(picked.getId()));
+            boolean explicit = UserSettingKey.forEquippedItemType(typeKey)
+                    .map(slot -> rawSettings.get(slot.key()) != null)
+                    .orElse(false);
+            if (response != null && explicit) {
+                UserSettingKey.forEquippedItemVariant(typeKey).ifPresent(variantSlot -> {
+                    Object variant = rawSettings.get(variantSlot.key());
+                    if (variant != null) {
+                        response.setVariantKey(variant.toString());
+                    }
+                });
+            }
+            result.put(typeKey, response);
+        });
+        return result;
+    }
+
+    public List<UserItemLink> findEffectiveEquippedLinks(Long userId) {
+        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
+        Map<String, Object> rawSettings = userSettingsService.getGroup(resolved, UserSettingKey.GROUP_EQUIPPED);
+        return resolveEquippedLinksByType(resolved, rawSettings).values().stream()
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private Map<String, UserItemLink> resolveEquippedLinksByType(Long resolved, Map<String, Object> rawSettings) {
         Map<String, UUID> equippedLinkIdByType = new LinkedHashMap<>();
         for (UserSettingKey key : UserSettingKey.values()) {
             String typeKey = key.equippedTypeKey().orElse(null);
@@ -233,31 +270,10 @@ public class ItemService {
                         .filter(l -> l.getUser().getId().equals(resolved))
                         .collect(Collectors.toMap(UserItemLink::getId, Function.identity()));
 
-        Set<UUID> linkIds = new HashSet<>();
-        equippedLinkIdByType.forEach((typeKey, linkId) -> {
-            UserItemLink picked = linkId != null ? explicitLinks.get(linkId) : fallbacksByType.get(typeKey);
-            if (picked != null)
-                linkIds.add(picked.getId());
-        });
-        Map<UUID, Map<String, Long>> countersByLink = loadCounters(linkIds);
-
-        Map<String, UserItemResponse> result = new LinkedHashMap<>();
-        equippedLinkIdByType.forEach((typeKey, linkId) -> {
-            UserItemLink picked = linkId != null ? explicitLinks.get(linkId) : fallbacksByType.get(typeKey);
-            UserItemResponse response = picked == null
-                    ? null
-                    : ItemMapper.toUserItemResponse(picked, countersByLink.get(picked.getId()));
-            if (response != null && linkId != null) {
-                UserSettingKey.forEquippedItemVariant(typeKey).ifPresent(variantSlot -> {
-                    Object variant = rawSettings.get(variantSlot.key());
-                    if (variant != null) {
-                        response.setVariantKey(variant.toString());
-                    }
-                });
-            }
-            result.put(typeKey, response);
-        });
-        return result;
+        Map<String, UserItemLink> picked = new LinkedHashMap<>();
+        equippedLinkIdByType.forEach((typeKey, linkId) -> picked.put(typeKey,
+                linkId != null ? explicitLinks.get(linkId) : fallbacksByType.get(typeKey)));
+        return picked;
     }
 
     private Map<UUID, Map<String, Long>> loadCounters(Set<UUID> linkIds) {

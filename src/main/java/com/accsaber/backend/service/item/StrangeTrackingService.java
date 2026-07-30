@@ -1,9 +1,5 @@
 package com.accsaber.backend.service.item;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -17,8 +13,6 @@ import com.accsaber.backend.model.entity.item.ItemModifier;
 import com.accsaber.backend.model.entity.item.UserItemLink;
 import com.accsaber.backend.model.event.ScoreSubmittedEvent;
 import com.accsaber.backend.repository.item.UserItemLinkCounterRepository;
-import com.accsaber.backend.repository.item.UserItemLinkRepository;
-import com.accsaber.backend.repository.user.UserSettingRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,8 +24,7 @@ public class StrangeTrackingService {
 
     private static final Logger log = LoggerFactory.getLogger(StrangeTrackingService.class);
 
-    private final UserSettingRepository userSettingRepository;
-    private final UserItemLinkRepository userItemLinkRepository;
+    private final ItemService itemService;
     private final UserItemLinkCounterRepository counterRepository;
 
     @Async("taskExecutor")
@@ -52,20 +45,7 @@ public class StrangeTrackingService {
     }
 
     private void incrementForUser(Long userId, String statKey, long delta) {
-        List<UUID> equippedLinkIds = userSettingRepository.findByUser_IdAndKeyPrefix(userId, "equipped.").stream()
-                .map(s -> {
-                    try {
-                        return UUID.fromString(s.getValue().asText());
-                    } catch (Exception e) {
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .toList();
-        if (equippedLinkIds.isEmpty())
-            return;
-
-        for (UserItemLink link : userItemLinkRepository.findAllById(equippedLinkIds)) {
+        for (UserItemLink link : itemService.findEffectiveEquippedLinks(userId)) {
             if (carriesStrange(link)) {
                 counterRepository.incrementBy(link.getId(), statKey, delta);
             }

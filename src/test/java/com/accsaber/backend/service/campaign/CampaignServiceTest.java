@@ -91,6 +91,7 @@ import com.accsaber.backend.repository.map.MapDifficultyComplexityRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.score.ScoreModifierLinkRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
+import com.accsaber.backend.repository.staff.StaffUserRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.player.DuplicateUserService;
 import com.accsaber.backend.service.player.RichTextSanitizer;
@@ -149,6 +150,8 @@ class CampaignServiceTest {
         private MapDifficultyComplexityRepository mapDifficultyComplexityRepository;
         @Mock
         private CategoryRepository categoryRepository;
+        @Mock
+        private StaffUserRepository staffUserRepository;
         @Mock
         private DuplicateUserService duplicateUserService;
         @Mock
@@ -510,11 +513,14 @@ class CampaignServiceTest {
                         campaign.setStatus(CampaignStatus.PUBLISHED);
                         stubLovedUpdate();
 
-                        CampaignResponse result = campaignService.setLoved(campaign.getId(), true, curator);
+                        CampaignResponse result = campaignService.setLoved(campaign.getId(), true, curator.getId());
 
                         assertThat(result.isLoved()).isTrue();
                         assertThat(result.getLovedAt()).isNotNull();
-                        assertThat(result.getLovedById()).isEqualTo(curator.getId().toString());
+                        assertThat(result.getLovedBy()).isNotNull();
+                        assertThat(result.getLovedBy().getId()).isEqualTo(curator.getId());
+                        assertThat(result.getLovedBy().getUsername()).isEqualTo("curator");
+                        assertThat(result.getLovedBy().getRole()).isEqualTo(StaffRole.CAMPAIGN_CURATOR);
                 }
 
                 @Test
@@ -525,11 +531,11 @@ class CampaignServiceTest {
                         campaign.setLovedBy(curator);
                         stubLovedUpdate();
 
-                        CampaignResponse result = campaignService.setLoved(campaign.getId(), false, curator);
+                        CampaignResponse result = campaignService.setLoved(campaign.getId(), false, curator.getId());
 
                         assertThat(result.isLoved()).isFalse();
                         assertThat(result.getLovedAt()).isNull();
-                        assertThat(result.getLovedById()).isNull();
+                        assertThat(result.getLovedBy()).isNull();
                 }
 
                 @Test
@@ -537,7 +543,7 @@ class CampaignServiceTest {
                         campaign.setStatus(CampaignStatus.CURATED);
                         stubLovedUpdate();
 
-                        CampaignResponse result = campaignService.setLoved(campaign.getId(), true, curator);
+                        CampaignResponse result = campaignService.setLoved(campaign.getId(), true, curator.getId());
 
                         assertThat(result.isLoved()).isTrue();
                 }
@@ -545,10 +551,11 @@ class CampaignServiceTest {
                 @Test
                 void rejectsLovingADraft() {
                         campaign.setStatus(CampaignStatus.DRAFT);
+                        stubCurator();
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
 
-                        assertThatThrownBy(() -> campaignService.setLoved(campaign.getId(), true, curator))
+                        assertThatThrownBy(() -> campaignService.setLoved(campaign.getId(), true, curator.getId()))
                                         .isInstanceOf(ValidationException.class);
                 }
 
@@ -556,16 +563,35 @@ class CampaignServiceTest {
                 void rejectsANonCuratorStaffMember() {
                         StaffUser ranking = StaffUser.builder()
                                         .id(UUID.randomUUID()).role(StaffRole.RANKING).build();
+                        when(staffUserRepository.findByIdAndActiveTrue(ranking.getId()))
+                                        .thenReturn(Optional.of(ranking));
 
-                        assertThatThrownBy(() -> campaignService.setLoved(campaign.getId(), true, ranking))
+                        assertThatThrownBy(() -> campaignService.setLoved(campaign.getId(), true, ranking.getId()))
                                         .isInstanceOf(ValidationException.class);
                 }
 
+                @Test
+                void rejectsAnUnknownStaffId() {
+                        UUID unknown = UUID.randomUUID();
+                        when(staffUserRepository.findByIdAndActiveTrue(unknown)).thenReturn(Optional.empty());
+
+                        assertThatThrownBy(() -> campaignService.setLoved(campaign.getId(), true, unknown))
+                                        .isInstanceOf(ValidationException.class);
+                }
+
+                private void stubCurator() {
+                        when(staffUserRepository.findByIdAndActiveTrue(curator.getId()))
+                                        .thenReturn(Optional.of(curator));
+                }
+
                 private void stubLovedUpdate() {
+                        stubCurator();
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
                         when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
                         when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
+                        lenient().when(staffUserRepository.findAllByIdWithUser(List.of(curator.getId())))
+                                        .thenReturn(List.of(curator));
                 }
         }
 
@@ -845,8 +871,10 @@ class CampaignServiceTest {
                         campaign.setStatus(CampaignStatus.PUBLISHED);
                         StaffUser nonCurator = StaffUser.builder().id(UUID.randomUUID()).role(StaffRole.RANKING)
                                         .build();
+                        when(staffUserRepository.findByIdAndActiveTrue(nonCurator.getId()))
+                                        .thenReturn(Optional.of(nonCurator));
 
-                        assertThatThrownBy(() -> campaignService.markCurated(campaign.getId(), nonCurator))
+                        assertThatThrownBy(() -> campaignService.markCurated(campaign.getId(), nonCurator.getId()))
                                         .isInstanceOf(ValidationException.class);
                 }
 
@@ -870,10 +898,16 @@ class CampaignServiceTest {
                                         .thenReturn(List.of());
                         when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
                         when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
+                        when(staffUserRepository.findByIdAndActiveTrue(curator.getId()))
+                                        .thenReturn(Optional.of(curator));
+                        when(staffUserRepository.findAllByIdWithUser(List.of(curator.getId())))
+                                        .thenReturn(List.of(curator));
 
-                        CampaignResponse result = campaignService.markCurated(campaign.getId(), curator);
+                        CampaignResponse result = campaignService.markCurated(campaign.getId(), curator.getId());
 
                         assertThat(result.getStatus()).isEqualTo(CampaignStatus.CURATED);
+                        assertThat(result.getCuratedBy()).isNotNull();
+                        assertThat(result.getCuratedBy().getId()).isEqualTo(curator.getId());
                 }
         }
 

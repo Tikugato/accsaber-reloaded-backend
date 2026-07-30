@@ -10,10 +10,12 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -58,6 +60,7 @@ import com.accsaber.backend.model.dto.response.campaign.CampaignTagResponse;
 import com.accsaber.backend.model.dto.response.campaign.CampaignTextResponse;
 import com.accsaber.backend.model.dto.response.campaign.CampaignVoteResponse;
 import com.accsaber.backend.model.dto.response.campaign.UserCampaignResponse;
+import com.accsaber.backend.model.dto.response.staff.PublicStaffUserResponse;
 import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.Modifier;
 import com.accsaber.backend.model.entity.campaign.BarrierConditionType;
@@ -119,8 +122,10 @@ import com.accsaber.backend.repository.map.MapDifficultyComplexityRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.score.ScoreModifierLinkRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
+import com.accsaber.backend.repository.staff.StaffUserRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.player.DuplicateUserService;
+import com.accsaber.backend.service.staff.StaffMapper;
 import com.accsaber.backend.service.player.RichTextSanitizer;
 import com.accsaber.backend.service.infra.ModifierService;
 import com.accsaber.backend.service.playlist.PlaylistService;
@@ -171,6 +176,7 @@ public class CampaignService {
     private final ModifierRepository modifierRepository;
     private final ItemRepository itemRepository;
     private final CategoryRepository categoryRepository;
+    private final StaffUserRepository staffUserRepository;
     private final DuplicateUserService duplicateUserService;
     private final CampaignEvaluationService campaignEvaluationService;
     private final com.accsaber.backend.service.score.CampaignScoreGate campaignScoreGate;
@@ -203,10 +209,6 @@ public class CampaignService {
                 resolvedViewerId);
     }
 
-    public Page<CampaignResponse> findCurationQueue(Pageable pageable) {
-        return paginateAsResponses(campaignRepository.findByActiveTrueAndSeekingCurationTrue(pageable), null);
-    }
-
     private static final Map<String, String> SORT_EXPRESSIONS = Map.of(
             "publishedAt", "COALESCE(c.publishedAt, c.createdAt)",
             "totalXp", "rt.totalXp",
@@ -226,7 +228,7 @@ public class CampaignService {
 
     private Page<CampaignResponse> paginateAsResponses(Page<Campaign> page, Long resolvedViewerId) {
         if (!page.hasContent()) {
-            return page.map(c -> toCampaignResponse(c, List.of(), 0, List.of()));
+            return page.map(c -> toCampaignResponse(c, CampaignRow.empty()));
         }
         List<UUID> ids = page.getContent().stream().map(Campaign::getId).distinct().toList();
         Map<UUID, List<CampaignTagResponse>> tagsByCampaign = loadTagsByCampaignIds(ids);
@@ -234,12 +236,14 @@ public class CampaignService {
         Map<UUID, CampaignVoteDirection> votesByCampaign = loadViewerVotes(resolvedViewerId, ids);
         Map<UUID, List<CampaignItemAwardResponse>> completionItemsByCampaign = loadCompletionItemsBulk(ids);
         Map<UUID, CampaignRewards> rewardsByCampaign = loadRewardsBulk(ids, completionItemsByCampaign);
-        return page.map(c -> toCampaignResponse(c,
+        Map<UUID, PublicStaffUserResponse> staffRefs = loadStaffRefs(page.getContent());
+        return page.map(c -> toCampaignResponse(c, new CampaignRow(
                 tagsByCampaign.getOrDefault(c.getId(), List.of()),
                 diffCountByCampaign.getOrDefault(c.getId(), 0),
                 votesByCampaign.get(c.getId()),
                 completionItemsByCampaign.getOrDefault(c.getId(), List.of()),
-                rewardsByCampaign.getOrDefault(c.getId(), CampaignRewards.none())));
+                rewardsByCampaign.getOrDefault(c.getId(), CampaignRewards.none()),
+                staffRefs)));
     }
 
     private Map<UUID, CampaignRewards> loadRewardsBulk(Collection<UUID> campaignIds,
@@ -429,12 +433,6 @@ public class CampaignService {
         if (request.getCreatorAlias() != null) {
             campaign.setCreatorAlias(request.getCreatorAlias());
         }
-        if (request.getSeekingCuration() != null) {
-            campaign.setSeekingCuration(request.getSeekingCuration());
-            if (request.getSeekingCuration() && campaign.getSubmittedAt() == null) {
-                campaign.setSubmittedAt(Instant.now());
-            }
-        }
         if (request.getTagIds() != null) {
             replaceTagLinks(campaign, request.getTagIds());
         }
@@ -476,11 +474,8 @@ public class CampaignService {
     }
 
     @Transactional
-    public CampaignResponse markCurated(UUID campaignId, StaffUser curator) {
-        if (curator == null
-                || (curator.getRole() != StaffRole.CAMPAIGN_CURATOR && curator.getRole() != StaffRole.ADMIN)) {
-            throw new ValidationException("Only campaign curators or admins can curate");
-        }
+    public CampaignResponse markCurated(UUID campaignId, UUID curatorStaffId) {
+        StaffUser curator = requireCurator(curatorStaffId, "curate");
         Campaign campaign = loadActiveCampaign(campaignId);
         if (campaign.getStatus() != CampaignStatus.PUBLISHED && campaign.getStatus() != CampaignStatus.EDITING) {
             throw new ValidationException("Only published or editing campaigns can be curated");
@@ -489,18 +484,14 @@ public class CampaignService {
         campaign.setStatus(CampaignStatus.CURATED);
         campaign.setCuratedAt(Instant.now());
         campaign.setCuratedBy(curator);
-        campaign.setSeekingCuration(false);
         Campaign saved = campaignRepository.save(campaign);
         campaignEvaluationService.applyCuratedTransition(saved.getId());
         return toCampaignResponse(saved);
     }
 
     @Transactional
-    public CampaignResponse setLoved(UUID campaignId, boolean loved, StaffUser curator) {
-        if (curator == null
-                || (curator.getRole() != StaffRole.CAMPAIGN_CURATOR && curator.getRole() != StaffRole.ADMIN)) {
-            throw new ValidationException("Only campaign curators or admins can change loved status");
-        }
+    public CampaignResponse setLoved(UUID campaignId, boolean loved, UUID curatorStaffId) {
+        StaffUser curator = requireCurator(curatorStaffId, "change loved status");
         Campaign campaign = loadActiveCampaign(campaignId);
         if (loved && campaign.getStatus() == CampaignStatus.DRAFT) {
             throw new ValidationException("Draft campaigns cannot be loved");
@@ -512,11 +503,8 @@ public class CampaignService {
     }
 
     @Transactional
-    public CampaignResponse uncurate(UUID campaignId, StaffUser curator) {
-        if (curator == null
-                || (curator.getRole() != StaffRole.CAMPAIGN_CURATOR && curator.getRole() != StaffRole.ADMIN)) {
-            throw new ValidationException("Only campaign curators or admins can uncurate");
-        }
+    public CampaignResponse uncurate(UUID campaignId, UUID curatorStaffId) {
+        requireCurator(curatorStaffId, "uncurate");
         Campaign campaign = loadActiveCampaign(campaignId);
         if (campaign.getStatus() != CampaignStatus.CURATED) {
             throw new ValidationException("Only curated campaigns can be uncurated");
@@ -532,6 +520,21 @@ public class CampaignService {
         Campaign campaign = loadActiveCampaign(campaignId);
         campaign.setActive(false);
         campaignRepository.save(campaign);
+    }
+
+    private StaffUser requireCurator(UUID staffId, String action) {
+        StaffUser curator = staffId != null
+                ? staffUserRepository.findByIdAndActiveTrue(staffId).orElse(null)
+                : null;
+        if (curator == null || !isCurator(curator)) {
+            throw new ValidationException("Only campaign curators or admins can " + action);
+        }
+        return curator;
+    }
+
+    private static boolean isCurator(StaffUser staff) {
+        return staff != null
+                && (staff.getRole() == StaffRole.CAMPAIGN_CURATOR || staff.getRole() == StaffRole.ADMIN);
     }
 
     @Transactional
@@ -583,10 +586,6 @@ public class CampaignService {
             throw new ValidationException(field,
                     "must be a percentage between " + min + " and " + MAX_BACKGROUND_PERCENT);
         }
-    }
-
-    private static String staffId(StaffUser staff) {
-        return staff != null ? staff.getId().toString() : null;
     }
 
     private static CampaignBackgroundPlacement staticBackground(Campaign campaign) {
@@ -652,16 +651,6 @@ public class CampaignService {
         Campaign campaign = ownedDraftCampaign(editor, campaignId);
         campaign.setActive(false);
         campaignRepository.save(campaign);
-    }
-
-    @Transactional
-    public CampaignResponse submitForCurationAsEditor(CampaignEditor editor, UUID campaignId, boolean seeking) {
-        Campaign campaign = ownedDraftCampaign(editor, campaignId);
-        campaign.setSeekingCuration(seeking);
-        if (seeking && campaign.getSubmittedAt() == null) {
-            campaign.setSubmittedAt(Instant.now());
-        }
-        return toCampaignResponse(campaignRepository.save(campaign));
     }
 
     @Transactional
@@ -1258,13 +1247,17 @@ public class CampaignService {
                         : userCampaignScoreRepository.countActiveByUserAndCampaignIds(resolvedUserId, campaignIds));
         Map<UUID, List<CampaignItemAwardResponse>> completionItemsByCampaign = loadCompletionItemsBulk(campaignIds);
         Map<UUID, CampaignVoteDirection> votesByCampaign = loadViewerVotes(resolvedUserId, campaignIds);
+        Map<UUID, PublicStaffUserResponse> staffRefs = loadStaffRefs(
+                page.getContent().stream().map(UserCampaign::getCampaign).toList());
         return page.map(uc -> {
             UUID cid = uc.getCampaign().getId();
-            CampaignResponse campaign = toCampaignResponse(uc.getCampaign(),
+            CampaignResponse campaign = toCampaignResponse(uc.getCampaign(), new CampaignRow(
                     tagsByCampaign.getOrDefault(cid, List.of()),
                     totalByCampaign.getOrDefault(cid, 0),
                     votesByCampaign.get(cid),
-                    completionItemsByCampaign.getOrDefault(cid, List.of()));
+                    completionItemsByCampaign.getOrDefault(cid, List.of()),
+                    CampaignRewards.none(),
+                    staffRefs));
             return toUserCampaignResponse(uc, campaign, completedByCampaign.getOrDefault(cid, 0));
         });
     }
@@ -1664,9 +1657,11 @@ public class CampaignService {
     }
 
     @Transactional
-    public CampaignTagResponse createTag(CreateCampaignTagRequest request, StaffUser actor) {
-        boolean isCurator = actor != null
-                && (actor.getRole() == StaffRole.CAMPAIGN_CURATOR || actor.getRole() == StaffRole.ADMIN);
+    public CampaignTagResponse createTag(CreateCampaignTagRequest request, UUID actorStaffId) {
+        boolean isCurator = actorStaffId != null
+                && staffUserRepository.findByIdAndActiveTrue(actorStaffId)
+                        .filter(CampaignService::isCurator)
+                        .isPresent();
 
         if (request.getKind() == CampaignTagKind.CATEGORY || request.getKind() == CampaignTagKind.DIFFICULTY) {
             throw new ValidationException("Category and difficulty tags are system-managed");
@@ -2343,6 +2338,7 @@ public class CampaignService {
                         Collectors.mapping(CampaignService::toConnection, Collectors.toList())));
         List<UUID> difficultyIds = difficulties.stream().map(CampaignDifficulty::getId).toList();
         Map<UUID, List<CampaignItemAwardResponse>> itemsByDifficultyId = loadDifficultyItemsBulk(difficultyIds);
+        Map<UUID, PublicStaffUserResponse> staffRefs = loadStaffRefs(List.of(campaign));
         Map<UUID, List<CampaignDifficultyTarget>> targetsByDifficultyId = loadTargetsBulk(difficultyIds);
         Map<UUID, List<CampaignModifierRequirementResponse>> modifiersByDifficultyId = groupModifierResponses(
                 loadDifficultyModifierLinks(difficultyIds));
@@ -2385,7 +2381,6 @@ public class CampaignService {
                 .summary(campaign.getSummary())
                 .description(campaign.getDescription())
                 .status(campaign.getStatus())
-                .seekingCuration(campaign.isSeekingCuration())
                 .official(campaign.isOfficial())
                 .progressionAgnostic(campaign.isProgressionAgnostic())
                 .completionMode(campaign.getCompletionMode())
@@ -2401,12 +2396,11 @@ public class CampaignService {
                 .totalDownvotes(campaign.getTotalDownvotes())
                 .voteScore(campaign.getVoteScore())
                 .myVote(viewerVoteFor(campaignId, viewerId))
-                .submittedAt(campaign.getSubmittedAt())
                 .curatedAt(campaign.getCuratedAt())
-                .curatedById(staffId(campaign.getCuratedBy()))
+                .curatedBy(staffRef(campaign.getCuratedBy(), staffRefs))
                 .loved(campaign.isLoved())
                 .lovedAt(campaign.getLovedAt())
-                .lovedById(staffId(campaign.getLovedBy()))
+                .lovedBy(staffRef(campaign.getLovedBy(), staffRefs))
                 .publishedAt(campaign.getPublishedAt())
                 .createdAt(campaign.getCreatedAt())
                 .tags(loadTagResponses(campaignId))
@@ -2559,7 +2553,43 @@ public class CampaignService {
 
     private CampaignResponse toCampaignResponse(Campaign campaign, List<CampaignTagResponse> tags,
             int difficultyCount, List<CampaignItemAwardResponse> completionItems) {
-        return toCampaignResponse(campaign, tags, difficultyCount, null, completionItems);
+        return toCampaignResponse(campaign, new CampaignRow(tags, difficultyCount, null, completionItems,
+                CampaignRewards.none(), loadStaffRefs(List.of(campaign))));
+    }
+
+    private record CampaignRow(
+            List<CampaignTagResponse> tags,
+            int difficultyCount,
+            CampaignVoteDirection myVote,
+            List<CampaignItemAwardResponse> completionItems,
+            CampaignRewards rewards,
+            Map<UUID, PublicStaffUserResponse> staffRefs) {
+
+        static CampaignRow empty() {
+            return new CampaignRow(List.of(), 0, null, List.of(), CampaignRewards.none(), Map.of());
+        }
+
+        PublicStaffUserResponse staff(StaffUser staff) {
+            return staff != null ? staffRefs.get(staff.getId()) : null;
+        }
+    }
+
+    private Map<UUID, PublicStaffUserResponse> loadStaffRefs(Collection<Campaign> campaigns) {
+        List<UUID> staffIds = campaigns.stream()
+                .flatMap(c -> Stream.of(c.getCuratedBy(), c.getLovedBy()))
+                .filter(Objects::nonNull)
+                .map(StaffUser::getId)
+                .distinct()
+                .toList();
+        if (staffIds.isEmpty()) {
+            return Map.of();
+        }
+        return staffUserRepository.findAllByIdWithUser(staffIds).stream()
+                .collect(Collectors.toMap(StaffUser::getId, StaffMapper::toPublicResponse));
+    }
+
+    private PublicStaffUserResponse staffRef(StaffUser staff, Map<UUID, PublicStaffUserResponse> refs) {
+        return staff != null ? refs.get(staff.getId()) : null;
     }
 
     private record CampaignRewards(CampaignRewardTotals totals, List<CampaignItemAwardResponse> items) {
@@ -2579,16 +2609,7 @@ public class CampaignService {
         }
     }
 
-    private CampaignResponse toCampaignResponse(Campaign campaign, List<CampaignTagResponse> tags,
-            int difficultyCount, CampaignVoteDirection myVote,
-            List<CampaignItemAwardResponse> completionItems) {
-        return toCampaignResponse(campaign, tags, difficultyCount, myVote, completionItems,
-                CampaignRewards.none());
-    }
-
-    private CampaignResponse toCampaignResponse(Campaign campaign, List<CampaignTagResponse> tags,
-            int difficultyCount, CampaignVoteDirection myVote,
-            List<CampaignItemAwardResponse> completionItems, CampaignRewards rewards) {
+    private CampaignResponse toCampaignResponse(Campaign campaign, CampaignRow row) {
         return CampaignResponse.builder()
                 .id(campaign.getId())
                 .creatorId(campaign.getCreator() != null ? String.valueOf(campaign.getCreator().getId()) : null)
@@ -2599,7 +2620,6 @@ public class CampaignService {
                 .summary(campaign.getSummary())
                 .description(campaign.getDescription())
                 .status(campaign.getStatus())
-                .seekingCuration(campaign.isSeekingCuration())
                 .official(campaign.isOfficial())
                 .progressionAgnostic(campaign.isProgressionAgnostic())
                 .completionMode(campaign.getCompletionMode())
@@ -2610,22 +2630,21 @@ public class CampaignService {
                 .backgroundColor(campaign.getBackgroundColor())
                 .background(staticBackground(campaign))
                 .iconUrl(campaign.getIconUrl())
-                .difficultyCount(difficultyCount)
+                .difficultyCount(row.difficultyCount())
                 .totalUpvotes(campaign.getTotalUpvotes())
                 .totalDownvotes(campaign.getTotalDownvotes())
                 .voteScore(campaign.getVoteScore())
-                .myVote(myVote)
-                .tags(tags)
-                .completionItems(completionItems)
-                .totalXp(rewards.totalXp())
-                .totalRewardCount(rewards.totalRewardCount())
-                .rewards(rewards.items())
-                .submittedAt(campaign.getSubmittedAt())
+                .myVote(row.myVote())
+                .tags(row.tags())
+                .completionItems(row.completionItems())
+                .totalXp(row.rewards().totalXp())
+                .totalRewardCount(row.rewards().totalRewardCount())
+                .rewards(row.rewards().items())
                 .curatedAt(campaign.getCuratedAt())
-                .curatedById(staffId(campaign.getCuratedBy()))
+                .curatedBy(row.staff(campaign.getCuratedBy()))
                 .loved(campaign.isLoved())
                 .lovedAt(campaign.getLovedAt())
-                .lovedById(staffId(campaign.getLovedBy()))
+                .lovedBy(row.staff(campaign.getLovedBy()))
                 .publishedAt(campaign.getPublishedAt())
                 .createdAt(campaign.getCreatedAt())
                 .build();

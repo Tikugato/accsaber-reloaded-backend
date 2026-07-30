@@ -46,6 +46,18 @@ class JwtAuthenticationFilterRealmTest {
     }
 
     @Test
+    void curationOriginSurfacesOnlyCampaignCurator() {
+        assertThat(JwtAuthenticationFilter.playerRolesFor(null, "https://curation.accsaber.com", null))
+                .containsExactly(StaffRole.CAMPAIGN_CURATOR);
+    }
+
+    @Test
+    void curationRealmHeaderSurfacesCampaignCurator() {
+        assertThat(JwtAuthenticationFilter.playerRolesFor("curation", null, null))
+                .containsExactly(StaffRole.CAMPAIGN_CURATOR);
+    }
+
+    @Test
     void adminOriginSurfacesNothing() {
         assertThat(JwtAuthenticationFilter.playerRolesFor(null, "https://admin.accsaber.com", null))
                 .isEmpty();

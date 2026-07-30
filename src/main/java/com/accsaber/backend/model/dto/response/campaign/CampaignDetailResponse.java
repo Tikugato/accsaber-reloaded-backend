@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.accsaber.backend.model.dto.response.staff.PublicStaffUserResponse;
 import com.accsaber.backend.model.entity.campaign.CampaignBackgroundPlacement;
 import com.accsaber.backend.model.entity.campaign.CampaignCompletionMode;
 import com.accsaber.backend.model.entity.campaign.CampaignStatus;
@@ -26,7 +27,6 @@ public class CampaignDetailResponse {
     private String summary;
     private String description;
     private CampaignStatus status;
-    private boolean seekingCuration;
     private boolean official;
     private boolean progressionAgnostic;
     private CampaignCompletionMode completionMode;
@@ -44,10 +44,9 @@ public class CampaignDetailResponse {
     private CampaignVoteDirection myVote;
     private boolean loved;
     private Instant lovedAt;
-    private String lovedById;
-    private Instant submittedAt;
+    private PublicStaffUserResponse lovedBy;
     private Instant curatedAt;
-    private String curatedById;
+    private PublicStaffUserResponse curatedBy;
     private Instant publishedAt;
     private Instant createdAt;
     private List<CampaignTagResponse> tags;

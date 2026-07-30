@@ -8,6 +8,7 @@ import java.util.UUID;
 import com.accsaber.backend.model.entity.campaign.CampaignBackgroundPlacement;
 import com.accsaber.backend.model.entity.campaign.CampaignCompletionMode;
 import com.accsaber.backend.model.entity.campaign.CampaignStatus;
+import com.accsaber.backend.model.dto.response.staff.PublicStaffUserResponse;
 import com.accsaber.backend.model.entity.campaign.CampaignVoteDirection;
 
 import lombok.Builder;
@@ -26,7 +27,6 @@ public class CampaignResponse {
     private String summary;
     private String description;
     private CampaignStatus status;
-    private boolean seekingCuration;
     private boolean official;
     private boolean progressionAgnostic;
     private CampaignCompletionMode completionMode;
@@ -49,10 +49,9 @@ public class CampaignResponse {
     private List<CampaignItemAwardResponse> rewards;
     private boolean loved;
     private Instant lovedAt;
-    private String lovedById;
-    private Instant submittedAt;
+    private PublicStaffUserResponse lovedBy;
     private Instant curatedAt;
-    private String curatedById;
+    private PublicStaffUserResponse curatedBy;
     private Instant publishedAt;
     private Instant createdAt;
 }

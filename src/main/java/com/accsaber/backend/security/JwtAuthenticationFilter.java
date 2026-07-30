@@ -40,7 +40,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Map<String, List<StaffRole>> SUBDOMAIN_ROLES = Map.of(
             "ranking", List.of(StaffRole.RANKING_HEAD, StaffRole.RANKING),
-            "creatives", List.of(StaffRole.CREATIVE));
+            "creatives", List.of(StaffRole.CREATIVE),
+            "curation", List.of(StaffRole.CAMPAIGN_CURATOR));
 
     private static volatile List<String> accsaberDomains = List.of("accsaber.com", "accsaberreloaded.com");
 

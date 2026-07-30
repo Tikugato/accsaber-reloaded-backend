@@ -33,7 +33,6 @@ public class UpdateCampaignRequest {
     @Size(max = 64)
     @CleanText
     private String creatorAlias;
-    private Boolean seekingCuration;
     @Size(max = 512)
     private String backgroundUrl;
     @Pattern(regexp = "^$|^#?[A-Za-z0-9]{1,32}$|^(?:rgb|rgba|hsl|hsla)\\([0-9.,%\\s/]{1,64}\\)$", message = "must be a hex, named, or rgb/hsl color")

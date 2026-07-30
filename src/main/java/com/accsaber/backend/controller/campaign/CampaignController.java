@@ -113,14 +113,6 @@ public class CampaignController {
                 viewerId(authentication), canViewAllDrafts(authentication), pageable));
     }
 
-    @Operation(summary = "List campaigns waiting for curation", description = "The queue of campaigns their creators have submitted for review. Curators only.")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_CURATOR')")
-    @GetMapping("/curation-queue")
-    public ResponseEntity<Page<CampaignResponse>> listCurationQueue(
-            @PageableDefault(size = 20, sort = "submittedAt") Pageable pageable) {
-        return ResponseEntity.ok(campaignService.findCurationQueue(pageable));
-    }
-
     @Operation(summary = "Get one campaign", description = "A campaign with its nodes, barriers and text, which is everything you need to draw the map. Reward totals are left off here on purpose, so use the list if you want those.")
     @GetMapping("/{campaignId}")
     public ResponseEntity<CampaignDetailResponse> getCampaign(
@@ -273,17 +265,6 @@ public class CampaignController {
             @AuthenticationPrincipal PlayerUserDetails principal) {
         campaignService.deactivateCampaignAsEditor(editorFor(authentication, principal), campaignId);
         return ResponseEntity.noContent().build();
-    }
-
-    @Operation(summary = "Submit your campaign for curation", description = "Puts your campaign in front of the curators, or pulls it back out again if you change your mind. Only curated campaigns pay out XP and items, so this is the step that matters if you want yours to count.")
-    @PreAuthorize("isAuthenticated()")
-    @PatchMapping("/{campaignId}/submit")
-    public ResponseEntity<CampaignResponse> submitMyCampaignForCuration(
-            @PathVariable UUID campaignId,
-            @RequestParam(name = "seeking", defaultValue = "true") boolean seeking,
-            @AuthenticationPrincipal PlayerUserDetails principal) {
-        return ResponseEntity.ok(
-                campaignService.submitForCurationAsEditor(CampaignEditor.player(principal.getUserId()), campaignId, seeking));
     }
 
     @Operation(summary = "Import a map for your campaign", description = "Brings in a map that is not ranked so you can use it in a campaign. Give it a BeatLeader leaderboard id, and a ScoreSaber one too if you have it. There is a limit of 100 imports per player, and importing something already known attaches to the existing entry rather than failing. Imports nothing is using any more are freed up automatically.")

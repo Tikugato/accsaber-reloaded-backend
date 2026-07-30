@@ -73,19 +73,19 @@ public class StaffUserService {
     public Page<PublicStaffUserResponse> getAllPublic(Pageable pageable, Boolean active) {
         if (active == null) {
             return staffUserRepository.findAllByActiveTrueAndStatus(StaffUserStatus.ACCEPTED, pageable)
-                    .map(this::toPublicResponse);
+                    .map(StaffMapper::toPublicResponse);
         }
         if (active) {
             return staffUserRepository.findAllByActiveTrueAndStatus(StaffUserStatus.ACCEPTED, pageable)
-                    .map(this::toPublicResponse);
+                    .map(StaffMapper::toPublicResponse);
         }
         return staffUserRepository.findAllByActiveFalse(pageable)
-                .map(this::toPublicResponse);
+                .map(StaffMapper::toPublicResponse);
     }
 
     public PublicStaffUserResponse getByIdPublic(UUID id) {
         return staffUserRepository.findByIdAndActiveTrueAndStatus(id, StaffUserStatus.ACCEPTED)
-                .map(this::toPublicResponse)
+                .map(StaffMapper::toPublicResponse)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff user not found: " + id));
     }
 
@@ -238,18 +238,6 @@ public class StaffUserService {
         if (staffUser.getUser() != null) {
             oauthSessionRepository.deleteByUserId(staffUser.getUser().getId());
         }
-    }
-
-    private PublicStaffUserResponse toPublicResponse(StaffUser staffUser) {
-        return PublicStaffUserResponse.builder()
-                .id(staffUser.getId())
-                .username(staffUser.getUsername())
-                .role(staffUser.getRole())
-                .userId(staffUser.getUser() != null ? String.valueOf(staffUser.getUser().getId()) : null)
-                .avatarUrl(staffUser.getUser() != null ? staffUser.getUser().getAvatarUrl() : null)
-                .cdnAvatarUrl(staffUser.getUser() != null ? staffUser.getUser().getCdnAvatarUrl() : null)
-                .active(staffUser.isActive())
-                .build();
     }
 
     private StaffUserResponse toResponse(StaffUser staffUser) {

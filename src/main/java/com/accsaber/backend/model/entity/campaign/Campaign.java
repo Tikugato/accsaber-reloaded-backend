@@ -63,10 +63,6 @@ public class Campaign {
     @Builder.Default
     private CampaignStatus status = CampaignStatus.DRAFT;
 
-    @Column(name = "seeking_curation", nullable = false)
-    @Builder.Default
-    private boolean seekingCuration = false;
-
     @Column(nullable = false)
     @Builder.Default
     private boolean official = false;
@@ -117,9 +113,6 @@ public class Campaign {
 
     @Column(name = "icon_url")
     private String iconUrl;
-
-    @Column(name = "submitted_at")
-    private Instant submittedAt;
 
     @Column(name = "published_at")
     private Instant publishedAt;

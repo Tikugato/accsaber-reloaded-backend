@@ -5,7 +5,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,7 +18,7 @@ import com.accsaber.backend.model.dto.request.campaign.CreateCampaignRequest;
 import com.accsaber.backend.model.dto.request.campaign.CreateCampaignTagRequest;
 import com.accsaber.backend.model.dto.response.campaign.CampaignResponse;
 import com.accsaber.backend.model.dto.response.campaign.CampaignTagResponse;
-import com.accsaber.backend.security.StaffUserDetails;
+import com.accsaber.backend.security.StaffPrincipals;
 import com.accsaber.backend.service.campaign.CampaignService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,8 +52,9 @@ public class AdminCampaignController {
     @PatchMapping("/{campaignId}/curate")
     public ResponseEntity<CampaignResponse> markCurated(
             @PathVariable UUID campaignId,
-            @AuthenticationPrincipal StaffUserDetails principal) {
-        return ResponseEntity.ok(campaignService.markCurated(campaignId, principal.getStaffUser()));
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                campaignService.markCurated(campaignId, StaffPrincipals.staffIdOf(authentication)));
     }
 
     @Operation(summary = "Mark a campaign as loved by the community")
@@ -62,8 +63,9 @@ public class AdminCampaignController {
     public ResponseEntity<CampaignResponse> setLoved(
             @PathVariable UUID campaignId,
             @RequestParam(name = "loved", defaultValue = "true") boolean loved,
-            @AuthenticationPrincipal StaffUserDetails principal) {
-        return ResponseEntity.ok(campaignService.setLoved(campaignId, loved, principal.getStaffUser()));
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                campaignService.setLoved(campaignId, loved, StaffPrincipals.staffIdOf(authentication)));
     }
 
     @Operation(summary = "Strip curation status from a campaign")
@@ -71,8 +73,9 @@ public class AdminCampaignController {
     @PatchMapping("/{campaignId}/uncurate")
     public ResponseEntity<CampaignResponse> uncurate(
             @PathVariable UUID campaignId,
-            @AuthenticationPrincipal StaffUserDetails principal) {
-        return ResponseEntity.ok(campaignService.uncurate(campaignId, principal.getStaffUser()));
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                campaignService.uncurate(campaignId, StaffPrincipals.staffIdOf(authentication)));
     }
 
     @Operation(summary = "Mark a campaign official (allows its creators to reward untradeable items)")
@@ -88,8 +91,8 @@ public class AdminCampaignController {
     @PostMapping("/tags")
     public ResponseEntity<CampaignTagResponse> createTag(
             @Valid @RequestBody CreateCampaignTagRequest request,
-            @AuthenticationPrincipal StaffUserDetails principal) {
+            Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(campaignService.createTag(request, principal != null ? principal.getStaffUser() : null));
+                .body(campaignService.createTag(request, StaffPrincipals.staffIdOf(authentication)));
     }
 }

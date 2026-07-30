@@ -47,9 +47,6 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
         @Query("SELECT COUNT(c) > 0 FROM Campaign c WHERE c.slug = :slug AND c.id <> :excludeId")
         boolean existsBySlugAndIdNot(@Param("slug") String slug, @Param("excludeId") UUID excludeId);
 
-        @EntityGraph(attributePaths = { "creator", "campaignDifficulties" })
-        Page<Campaign> findByActiveTrueAndSeekingCurationTrue(Pageable pageable);
-
         @EntityGraph(attributePaths = { "creator" })
         @Query("""
                         SELECT c FROM Campaign c

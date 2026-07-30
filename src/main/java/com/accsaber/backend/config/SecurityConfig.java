@@ -30,6 +30,8 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    public static final String[] ADMIN_PATH_ROLES = { "ADMIN", "RANKING_HEAD", "CAMPAIGN_CURATOR", "CREATIVE" };
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -114,7 +116,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/v1/supporters/credits").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/practice-scores").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/practice-scores").permitAll()
-                .requestMatchers("/v1/admin/**").hasRole("ADMIN")
+                .requestMatchers("/v1/admin/**").hasAnyRole(ADMIN_PATH_ROLES)
                 .requestMatchers("/v1/ranking/**").authenticated()
                 .anyRequest().authenticated()
             )

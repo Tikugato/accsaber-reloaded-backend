@@ -343,7 +343,8 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                                 WHERE l.score = s AND l.modifier.code = 'NF'
                             ) THEN 1 ELSE 0 END),
                             MAX(s.maxCombo),
-                            MIN(s.bombHits)
+                            MIN(s.bombHits),
+                            MIN(s.badCuts + s.misses)
                         )
                         FROM Score s
                         WHERE s.user.id = :userId

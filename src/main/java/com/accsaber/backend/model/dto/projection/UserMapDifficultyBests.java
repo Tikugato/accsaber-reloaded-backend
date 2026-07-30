@@ -14,7 +14,8 @@ public record UserMapDifficultyBests(
         Integer fcFlag,
         Integer noNfFlag,
         Integer bestCombo,
-        Integer fewestBombHits) {
+        Integer fewestBombHits,
+        Integer fewestMistakes) {
 
     public boolean hasFullCombo() {
         return fcFlag != null && fcFlag == 1;

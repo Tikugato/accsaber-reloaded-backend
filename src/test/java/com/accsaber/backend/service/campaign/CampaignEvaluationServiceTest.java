@@ -17,23 +17,27 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import org.mockito.ArgumentCaptor;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
+import com.accsaber.backend.model.dto.projection.ScoreModifierRow;
+import com.accsaber.backend.model.entity.Modifier;
 import com.accsaber.backend.model.entity.campaign.BarrierConditionType;
 import com.accsaber.backend.model.entity.campaign.Campaign;
 import com.accsaber.backend.model.entity.campaign.CampaignBarrierAffectedDifficulty;
 import com.accsaber.backend.model.entity.campaign.CampaignCompletionMode;
 import com.accsaber.backend.model.entity.campaign.CampaignDifficulty;
-import com.accsaber.backend.model.entity.campaign.CampaignDifficultyTarget;
+import com.accsaber.backend.model.entity.campaign.CampaignDifficultyModifier;
+import com.accsaber.backend.model.entity.campaign.CampaignDifficultyModifier.CampaignDifficultyModifierId;
 import com.accsaber.backend.model.entity.campaign.CampaignDifficultyPath;
+import com.accsaber.backend.model.entity.campaign.CampaignDifficultyTarget;
+import com.accsaber.backend.model.entity.campaign.CampaignModifierRequirement;
 import com.accsaber.backend.model.entity.campaign.CampaignPrerequisiteMode;
 import com.accsaber.backend.model.entity.campaign.CampaignRequirementType;
 import com.accsaber.backend.model.entity.campaign.CampaignStatus;
@@ -47,16 +51,11 @@ import com.accsaber.backend.model.event.CampaignCompletedEvent;
 import com.accsaber.backend.model.event.CampaignNodeCompletedEvent;
 import com.accsaber.backend.repository.campaign.CampaignBarrierAffectedDifficultyRepository;
 import com.accsaber.backend.repository.campaign.CampaignCompletionItemRepository;
-import com.accsaber.backend.model.dto.projection.ScoreModifierRow;
-import com.accsaber.backend.model.entity.Modifier;
-import com.accsaber.backend.model.entity.campaign.CampaignDifficultyModifier;
-import com.accsaber.backend.model.entity.campaign.CampaignDifficultyModifier.CampaignDifficultyModifierId;
-import com.accsaber.backend.model.entity.campaign.CampaignModifierRequirement;
 import com.accsaber.backend.repository.campaign.CampaignDifficultyItemRepository;
 import com.accsaber.backend.repository.campaign.CampaignDifficultyModifierRepository;
-import com.accsaber.backend.repository.campaign.CampaignDifficultyTargetRepository;
 import com.accsaber.backend.repository.campaign.CampaignDifficultyPathRepository;
 import com.accsaber.backend.repository.campaign.CampaignDifficultyRepository;
+import com.accsaber.backend.repository.campaign.CampaignDifficultyTargetRepository;
 import com.accsaber.backend.repository.campaign.UserCampaignRepository;
 import com.accsaber.backend.repository.campaign.UserCampaignScoreRepository;
 import com.accsaber.backend.repository.score.ScoreModifierLinkRepository;
@@ -667,180 +666,226 @@ class CampaignEvaluationServiceTest {
 
         @Test
         void accRangeRejectsScoreAboveTheUpperBound() {
-            MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.ACC,
-                    new BigDecimal("0.90"), new BigDecimal("0.95"));
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.ACC,
+                                new BigDecimal("0.90"), new BigDecimal("0.95"));
 
-            service.evaluateAfterScore(user.getId(), row(mdA, 970000, PLAYED));
+                service.evaluateAfterScore(user.getId(), row(mdA, 970000, PLAYED));
 
-            verify(userCampaignScoreRepository, never()).save(any());
+                verify(userCampaignScoreRepository, never()).save(any());
         }
 
         @Test
         void accRangeAcceptsScoreInsideBothBounds() {
-            MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.ACC,
-                    new BigDecimal("0.90"), new BigDecimal("0.95"));
-            stubNodeRecordable();
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.ACC,
+                                new BigDecimal("0.90"), new BigDecimal("0.95"));
+                stubNodeRecordable();
 
-            service.evaluateAfterScore(user.getId(), row(mdA, 930000, PLAYED));
+                service.evaluateAfterScore(user.getId(), row(mdA, 930000, PLAYED));
 
-            verifyNodeRecorded();
+                verifyNodeRecorded();
         }
 
         @Test
         void maxBombHitsAcceptsCleanRunAndRejectsBombHeavyOne() {
-            MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.BOMB_HITS, null, new BigDecimal("3"));
-            stubNodeRecordable();
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.BOMB_HITS, null, new BigDecimal("3"));
+                stubNodeRecordable();
 
-            service.evaluateAfterScore(user.getId(), bombScore(mdA, 2));
+                service.evaluateAfterScore(user.getId(), bombScore(mdA, 2));
 
-            verifyNodeRecorded();
+                verifyNodeRecorded();
         }
 
         @Test
         void maxBombHitsRejectsWhenOverTheLimit() {
-            MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.BOMB_HITS, null, new BigDecimal("3"));
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.BOMB_HITS, null, new BigDecimal("3"));
 
-            service.evaluateAfterScore(user.getId(), bombScore(mdA, 7));
+                service.evaluateAfterScore(user.getId(), bombScore(mdA, 7));
 
-            verify(userCampaignScoreRepository, never()).save(any());
+                verify(userCampaignScoreRepository, never()).save(any());
         }
 
         @Test
         void bombHitsRequirementRejectsScoreSaberScoreWithNoBombData() {
-            MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.BOMB_HITS, null, new BigDecimal("3"));
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.BOMB_HITS, null, new BigDecimal("3"));
 
-            service.evaluateAfterScore(user.getId(), bombScore(mdA, null));
+                service.evaluateAfterScore(user.getId(), bombScore(mdA, null));
 
-            verify(userCampaignScoreRepository, never()).save(any());
+                verify(userCampaignScoreRepository, never()).save(any());
         }
 
         @Test
         void minComboAcceptsAtTheBoundary() {
-            MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.COMBO, new BigDecimal("500"), null);
-            stubNodeRecordable();
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.COMBO, new BigDecimal("500"), null);
+                stubNodeRecordable();
 
-            Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
-                    .score(900000).scoreNoMods(900000).maxCombo(500).timeSet(PLAYED).build();
-            service.evaluateAfterScore(user.getId(), score);
+                Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
+                                .score(900000).scoreNoMods(900000).maxCombo(500).timeSet(PLAYED).build();
+                service.evaluateAfterScore(user.getId(), score);
 
-            verifyNodeRecorded();
+                verifyNodeRecorded();
         }
 
         @Test
         void minComboRejectsBelowTheBoundary() {
-            MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.COMBO, new BigDecimal("500"), null);
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.COMBO, new BigDecimal("500"), null);
 
-            Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
-                    .score(900000).scoreNoMods(900000).maxCombo(499).timeSet(PLAYED).build();
-            service.evaluateAfterScore(user.getId(), score);
+                Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
+                                .score(900000).scoreNoMods(900000).maxCombo(499).timeSet(PLAYED).build();
+                service.evaluateAfterScore(user.getId(), score);
 
-            verify(userCampaignScoreRepository, never()).save(any());
+                verify(userCampaignScoreRepository, never()).save(any());
+        }
+
+        @Test
+        void maxMistakesCountsBadCutsAndMissesTogether() {
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.MISTAKES, null, new BigDecimal("3"));
+                stubNodeRecordable();
+
+                service.evaluateAfterScore(user.getId(), mistakeScore(mdA, 2, 1));
+
+                verifyNodeRecorded();
+        }
+
+        @Test
+        void maxMistakesRejectsWhenTheSumExceedsTheLimit() {
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.MISTAKES, null, new BigDecimal("3"));
+
+                service.evaluateAfterScore(user.getId(), mistakeScore(mdA, 2, 2));
+
+                verify(userCampaignScoreRepository, never()).save(any());
+        }
+
+        @Test
+        void mistakesRangeRejectsBelowTheLowerBound() {
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.MISTAKES,
+                                new BigDecimal("2"), new BigDecimal("5"));
+
+                service.evaluateAfterScore(user.getId(), mistakeScore(mdA, 1, 0));
+
+                verify(userCampaignScoreRepository, never()).save(any());
+        }
+
+        @Test
+        void mistakesRequirementRejectsScoreWithNoMissData() {
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.MISTAKES, null, new BigDecimal("3"));
+
+                service.evaluateAfterScore(user.getId(), mistakeScore(mdA, 0, null));
+
+                verify(userCampaignScoreRepository, never()).save(any());
         }
 
         private Score bombScore(MapDifficulty mdA, Integer bombHits) {
-            return Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
-                    .score(900000).scoreNoMods(900000).bombHits(bombHits).timeSet(PLAYED).build();
+                return Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
+                                .score(900000).scoreNoMods(900000).bombHits(bombHits).timeSet(PLAYED).build();
+        }
+
+        private Score mistakeScore(MapDifficulty mdA, Integer badCuts, Integer misses) {
+                return Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
+                                .score(900000).scoreNoMods(900000).badCuts(badCuts).misses(misses).timeSet(PLAYED)
+                                .build();
         }
 
         @Test
         void andModeRequiresEveryTarget() {
-            MapDifficulty mdA = stubMultiTargetNode(CampaignPrerequisiteMode.AND,
-                    target(CampaignRequirementType.ACC, new BigDecimal("0.90"), null),
-                    target(CampaignRequirementType.BOMB_HITS, null, BigDecimal.ZERO));
+                MapDifficulty mdA = stubMultiTargetNode(CampaignPrerequisiteMode.AND,
+                                target(CampaignRequirementType.ACC, new BigDecimal("0.90"), null),
+                                target(CampaignRequirementType.BOMB_HITS, null, BigDecimal.ZERO));
 
-            service.evaluateAfterScore(user.getId(), bombScore(mdA, 4));
+                service.evaluateAfterScore(user.getId(), bombScore(mdA, 4));
 
-            verify(userCampaignScoreRepository, never()).save(any());
+                verify(userCampaignScoreRepository, never()).save(any());
         }
 
         @Test
         void andModeCompletesWhenEveryTargetIsMet() {
-            MapDifficulty mdA = stubMultiTargetNode(CampaignPrerequisiteMode.AND,
-                    target(CampaignRequirementType.ACC, new BigDecimal("0.90"), null),
-                    target(CampaignRequirementType.BOMB_HITS, null, BigDecimal.ZERO));
-            stubNodeRecordable();
+                MapDifficulty mdA = stubMultiTargetNode(CampaignPrerequisiteMode.AND,
+                                target(CampaignRequirementType.ACC, new BigDecimal("0.90"), null),
+                                target(CampaignRequirementType.BOMB_HITS, null, BigDecimal.ZERO));
+                stubNodeRecordable();
 
-            Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
-                    .score(950000).scoreNoMods(950000).bombHits(0).timeSet(PLAYED).build();
-            service.evaluateAfterScore(user.getId(), score);
+                Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
+                                .score(950000).scoreNoMods(950000).bombHits(0).timeSet(PLAYED).build();
+                service.evaluateAfterScore(user.getId(), score);
 
-            verifyNodeRecorded();
+                verifyNodeRecorded();
         }
 
         @Test
         void orModeCompletesOnASingleMetTarget() {
-            MapDifficulty mdA = stubMultiTargetNode(CampaignPrerequisiteMode.OR,
-                    target(CampaignRequirementType.ACC, new BigDecimal("0.99"), null),
-                    target(CampaignRequirementType.RANK, null, new BigDecimal("100")));
-            stubNodeRecordable();
+                MapDifficulty mdA = stubMultiTargetNode(CampaignPrerequisiteMode.OR,
+                                target(CampaignRequirementType.ACC, new BigDecimal("0.99"), null),
+                                target(CampaignRequirementType.RANK, null, new BigDecimal("100")));
+                stubNodeRecordable();
 
-            Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
-                    .score(910000).scoreNoMods(910000).rank(40).rankWhenSet(40).active(true).timeSet(PLAYED).build();
-            service.evaluateAfterScore(user.getId(), score);
+                Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
+                                .score(910000).scoreNoMods(910000).rank(40).rankWhenSet(40).active(true).timeSet(PLAYED)
+                                .build();
+                service.evaluateAfterScore(user.getId(), score);
 
-            verifyNodeRecorded();
+                verifyNodeRecorded();
         }
 
         @Test
         void orModeRejectsWhenNoTargetIsMet() {
-            MapDifficulty mdA = stubMultiTargetNode(CampaignPrerequisiteMode.OR,
-                    target(CampaignRequirementType.ACC, new BigDecimal("0.99"), null),
-                    target(CampaignRequirementType.RANK, null, new BigDecimal("100")));
+                MapDifficulty mdA = stubMultiTargetNode(CampaignPrerequisiteMode.OR,
+                                target(CampaignRequirementType.ACC, new BigDecimal("0.99"), null),
+                                target(CampaignRequirementType.RANK, null, new BigDecimal("100")));
 
-            Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
-                    .score(910000).scoreNoMods(910000).rank(400).rankWhenSet(400).active(true).timeSet(PLAYED).build();
-            service.evaluateAfterScore(user.getId(), score);
+                Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
+                                .score(910000).scoreNoMods(910000).rank(400).rankWhenSet(400).active(true)
+                                .timeSet(PLAYED).build();
+                service.evaluateAfterScore(user.getId(), score);
 
-            verify(userCampaignScoreRepository, never()).save(any());
+                verify(userCampaignScoreRepository, never()).save(any());
         }
 
         private CampaignDifficultyTarget target(CampaignRequirementType type, BigDecimal value, BigDecimal valueMax) {
-            return CampaignDifficultyTarget.builder()
-                    .id(UUID.randomUUID()).campaignDifficulty(a)
-                    .requirementType(type).requirementValue(value).requirementValueMax(valueMax)
-                    .build();
+                return CampaignDifficultyTarget.builder()
+                                .id(UUID.randomUUID()).campaignDifficulty(a)
+                                .requirementType(type).requirementValue(value).requirementValueMax(valueMax)
+                                .build();
         }
 
         private MapDifficulty stubMultiTargetNode(CampaignPrerequisiteMode mode,
-                CampaignDifficultyTarget... targets) {
-            MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.ACC, new BigDecimal("0.90"), null);
-            a.setTargetMode(mode);
-            when(campaignDifficultyTargetRepository.findByCampaignDifficultyIds(List.of(a.getId())))
-                    .thenReturn(List.of(targets));
-            return mdA;
+                        CampaignDifficultyTarget... targets) {
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.ACC, new BigDecimal("0.90"), null);
+                a.setTargetMode(mode);
+                when(campaignDifficultyTargetRepository.findByCampaignDifficultyIds(List.of(a.getId())))
+                                .thenReturn(List.of(targets));
+                return mdA;
         }
 
         private MapDifficulty stubBoundedNode(CampaignRequirementType type, BigDecimal min, BigDecimal max) {
-            campaign.setStatus(CampaignStatus.PUBLISHED);
-            MapDifficulty mdA = mapDifficulty(1_000_000);
-            a.setMapDifficulty(mdA);
-            a.setRequirementType(type);
-            a.setRequirementValue(min);
-            a.setRequirementValueMax(max);
+                campaign.setStatus(CampaignStatus.PUBLISHED);
+                MapDifficulty mdA = mapDifficulty(1_000_000);
+                a.setMapDifficulty(mdA);
+                a.setRequirementType(type);
+                a.setRequirementValue(min);
+                a.setRequirementValueMax(max);
 
-            when(userCampaignRepository.findByUser_IdAndStatusAndActiveTrue(user.getId(),
-                    UserCampaignStatus.IN_PROGRESS)).thenReturn(List.of(inProgressCampaign()));
-            when(campaignDifficultyRepository.findByCampaign_IdAndMapDifficulty_IdAndActiveTrue(campaign.getId(),
-                    mdA.getId())).thenReturn(List.of(a));
-            when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
-                    .thenReturn(List.of(a));
-            when(campaignDifficultyPathRepository
-                    .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
-                    .thenReturn(List.of());
-            stubEmptyProgress();
-            return mdA;
+                when(userCampaignRepository.findByUser_IdAndStatusAndActiveTrue(user.getId(),
+                                UserCampaignStatus.IN_PROGRESS)).thenReturn(List.of(inProgressCampaign()));
+                when(campaignDifficultyRepository.findByCampaign_IdAndMapDifficulty_IdAndActiveTrue(campaign.getId(),
+                                mdA.getId())).thenReturn(List.of(a));
+                when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
+                                .thenReturn(List.of(a));
+                when(campaignDifficultyPathRepository
+                                .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
+                                .thenReturn(List.of());
+                stubEmptyProgress();
+                return mdA;
         }
 
         private void stubNodeRecordable() {
-            when(userCampaignScoreRepository.findByUser_IdAndCampaignDifficulty_IdAndActiveTrue(anyLong(), any()))
-                    .thenReturn(Optional.empty());
+                when(userCampaignScoreRepository.findByUser_IdAndCampaignDifficulty_IdAndActiveTrue(anyLong(), any()))
+                                .thenReturn(Optional.empty());
         }
 
         private void verifyNodeRecorded() {
-            ArgumentCaptor<UserCampaignScore> captor = ArgumentCaptor.forClass(UserCampaignScore.class);
-            verify(userCampaignScoreRepository, atLeastOnce()).save(captor.capture());
-            assertThat(captor.getAllValues())
-                    .anyMatch(u -> u.getCampaignDifficulty().getId().equals(a.getId()));
+                ArgumentCaptor<UserCampaignScore> captor = ArgumentCaptor.forClass(UserCampaignScore.class);
+                verify(userCampaignScoreRepository, atLeastOnce()).save(captor.capture());
+                assertThat(captor.getAllValues())
+                                .anyMatch(u -> u.getCampaignDifficulty().getId().equals(a.getId()));
         }
 
         private MapDifficulty stubModifierGatedNode() {

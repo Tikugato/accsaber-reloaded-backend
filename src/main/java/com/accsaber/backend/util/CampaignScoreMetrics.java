@@ -33,6 +33,13 @@ public final class CampaignScoreMetrics {
                 && score.getMisses() == 0 && score.getBadCuts() == 0;
     }
 
+    public static Integer mistakes(Score score) {
+        if (score.getBadCuts() == null || score.getMisses() == null) {
+            return null;
+        }
+        return score.getBadCuts() + score.getMisses();
+    }
+
     public static BigDecimal requirementValue(Score score, CampaignRequirementType type, ScoreModifierIndex modifiers) {
         return switch (type) {
             case ACC -> accuracy(score);
@@ -44,6 +51,7 @@ public final class CampaignScoreMetrics {
             case PASS -> modifiers.hasNoFail(score.getId()) ? BigDecimal.ZERO : BigDecimal.ONE;
             case COMBO -> toDecimal(score.getMaxCombo());
             case BOMB_HITS -> toDecimal(score.getBombHits());
+            case MISTAKES -> toDecimal(mistakes(score));
         };
     }
 
@@ -89,6 +97,7 @@ public final class CampaignScoreMetrics {
             case PASS -> bests.hasNoNfPass() ? BigDecimal.ONE : BigDecimal.ZERO;
             case COMBO -> toDecimal(bests.bestCombo());
             case BOMB_HITS -> toDecimal(bests.fewestBombHits());
+            case MISTAKES -> toDecimal(bests.fewestMistakes());
         };
     }
 
@@ -100,6 +109,7 @@ public final class CampaignScoreMetrics {
             case AVERAGE_RANK, MAX_RANK -> toDecimal(bests.bestRank());
             case AVERAGE_COMBO -> toDecimal(bests.bestCombo());
             case AVERAGE_BOMB_HITS -> toDecimal(bests.fewestBombHits());
+            case AVERAGE_MISTAKES -> toDecimal(bests.fewestMistakes());
             case FC, COMPLETION_COUNT, PASS -> null;
         };
     }
@@ -163,11 +173,13 @@ public final class CampaignScoreMetrics {
         Integer bestRank = null;
         Integer bestCombo = null;
         Integer fewestBombHits = null;
+        Integer fewestMistakes = null;
         int fcFlag = 0;
         int noNfFlag = 0;
         for (Score s : rows) {
             bestCombo = maxOf(bestCombo, s.getMaxCombo());
             fewestBombHits = minOf(fewestBombHits, s.getBombHits());
+            fewestMistakes = minOf(fewestMistakes, mistakes(s));
             bestScore = maxOf(bestScore, s.getScore());
             bestScoreNoMods = maxOf(bestScoreNoMods, s.getScoreNoMods());
             if (s.getAp() != null && (bestAp == null || s.getAp().compareTo(bestAp) > 0)) {
@@ -188,7 +200,8 @@ public final class CampaignScoreMetrics {
             }
         }
         return new UserMapDifficultyBests(mapDifficultyId, maxScore, bestScore, bestScoreNoMods,
-                bestAp, bestStreak115, bestRank, fcFlag, noNfFlag, bestCombo, fewestBombHits);
+                bestAp, bestStreak115, bestRank, fcFlag, noNfFlag, bestCombo, fewestBombHits,
+                fewestMistakes);
     }
 
     private static Integer maxOf(Integer current, Integer candidate) {

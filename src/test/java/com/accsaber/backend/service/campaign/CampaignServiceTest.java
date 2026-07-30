@@ -1570,7 +1570,7 @@ class CampaignServiceTest {
                                         .thenReturn(Optional.of(campaign));
                         when(campaignDifficultyRepository
                                         .countByCampaign_IdAndBarrierFalseAndActiveTrue(campaign.getId()))
-                                        .thenReturn(100L);
+                                        .thenReturn(200L);
 
                         assertThatThrownBy(() -> campaignService.addDifficultyAsEditor(
                                         CampaignEditor.player(creator.getId()), campaign.getId(),

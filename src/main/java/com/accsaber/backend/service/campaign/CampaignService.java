@@ -39,6 +39,7 @@ import com.accsaber.backend.model.dto.request.campaign.CampaignTargetRequest;
 import com.accsaber.backend.model.dto.request.campaign.CampaignTextRequest;
 import com.accsaber.backend.model.dto.request.campaign.CreateCampaignRequest;
 import com.accsaber.backend.model.dto.request.campaign.CreateCampaignTagRequest;
+import com.accsaber.backend.model.dto.request.campaign.MoveCampaignElementsRequest;
 import com.accsaber.backend.model.dto.request.campaign.SetCampaignItemRequest;
 import com.accsaber.backend.model.dto.request.campaign.UpdateCampaignBarrierRequest;
 import com.accsaber.backend.model.dto.request.campaign.UpdateCampaignDifficultyRequest;
@@ -145,9 +146,9 @@ public class CampaignService {
 
     private static final Pattern SLUG_PATTERN = Pattern.compile("^[a-z0-9]+(?:-[a-z0-9]+)*$");
     private static final int MAX_PROGRESS_BULK_IDS = 50;
-    private static final int MAX_DIFFICULTIES_PER_CAMPAIGN = 100;
-    private static final int MAX_BARRIERS_PER_CAMPAIGN = 50;
-    private static final int MAX_TEXTS_PER_CAMPAIGN = 50;
+    private static final int MAX_DIFFICULTIES_PER_CAMPAIGN = 200;
+    private static final int MAX_BARRIERS_PER_CAMPAIGN = 100;
+    private static final int MAX_TEXTS_PER_CAMPAIGN = 100;
     private static final int MAX_TEXT_CONTENT_LENGTH = 4000;
     private static final int MAX_BACKGROUND_PERCENT = 1000;
 
@@ -2202,6 +2203,53 @@ public class CampaignService {
         return campaignTextRepository.findByCampaign_IdAndActiveTrue(campaignId).stream()
                 .map(CampaignService::toTextResponse)
                 .toList();
+    }
+
+    @Transactional
+    public void moveElementsAsEditor(CampaignEditor editor, UUID campaignId,
+            MoveCampaignElementsRequest request) {
+        ensureEditable(editableDraftCampaign(editor, campaignId));
+
+        List<CampaignDifficulty> difficulties = campaignDifficultyRepository
+                .findByCampaign_IdAndActiveTrue(campaignId);
+        Map<UUID, CampaignDifficulty> difficultyById = difficulties.stream()
+                .collect(Collectors.toMap(CampaignDifficulty::getId, d -> d));
+        Map<UUID, CampaignText> textById = campaignTextRepository.findByCampaign_IdAndActiveTrue(campaignId).stream()
+                .collect(Collectors.toMap(CampaignText::getId, t -> t));
+
+        List<CampaignDifficulty> movedDifficulties = new ArrayList<>();
+        List<CampaignText> movedTexts = new ArrayList<>();
+        for (MoveCampaignElementsRequest.Move move : request.getMoves()) {
+            CampaignDifficulty difficulty = difficultyById.get(move.getId());
+            if (difficulty != null) {
+                difficulty.setPositionX(move.getPositionX());
+                difficulty.setPositionY(move.getPositionY());
+                movedDifficulties.add(difficulty);
+                continue;
+            }
+            CampaignText text = textById.get(move.getId());
+            if (text == null) {
+                throw new ResourceNotFoundException("CampaignElement", move.getId());
+            }
+            text.setPositionX(move.getPositionX());
+            text.setPositionY(move.getPositionY());
+            movedTexts.add(text);
+        }
+
+        assertNoGridClash(difficulties);
+        campaignDifficultyRepository.saveAll(movedDifficulties);
+        campaignTextRepository.saveAll(movedTexts);
+    }
+
+    private static void assertNoGridClash(List<CampaignDifficulty> difficulties) {
+        Set<String> cells = HashSet.newHashSet(difficulties.size());
+        for (CampaignDifficulty difficulty : difficulties) {
+            String cell = difficulty.getPositionX().stripTrailingZeros().toPlainString()
+                    + "," + difficulty.getPositionY().stripTrailingZeros().toPlainString();
+            if (!cells.add(cell)) {
+                throw new ValidationException("A difficulty already occupies that grid position");
+            }
+        }
     }
 
     private Campaign loadActiveCampaign(UUID campaignId) {

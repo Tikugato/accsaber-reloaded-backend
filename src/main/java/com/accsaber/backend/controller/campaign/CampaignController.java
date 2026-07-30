@@ -31,6 +31,7 @@ import com.accsaber.backend.model.dto.request.campaign.AddCampaignDifficultyRequ
 import com.accsaber.backend.model.dto.request.campaign.CampaignTextRequest;
 import com.accsaber.backend.model.dto.request.campaign.CampaignVoteRequest;
 import com.accsaber.backend.model.dto.request.campaign.CreateCampaignRequest;
+import com.accsaber.backend.model.dto.request.campaign.MoveCampaignElementsRequest;
 import com.accsaber.backend.model.dto.request.campaign.SetCampaignItemRequest;
 import com.accsaber.backend.model.dto.request.campaign.UpdateCampaignBarrierRequest;
 import com.accsaber.backend.model.dto.request.campaign.UpdateCampaignDifficultyRequest;
@@ -520,6 +521,18 @@ public class CampaignController {
             Authentication authentication,
             @AuthenticationPrincipal PlayerUserDetails principal) {
         campaignService.removeBarrierAsEditor(editorFor(authentication, principal), campaignId, barrierId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Move elements", description = "Repositions several nodes, barriers and text elements at once. The whole move is validated as one layout, so shifting a block of nodes never collides with the block itself.")
+    @PreAuthorize("isAuthenticated()")
+    @PatchMapping("/{campaignId}/positions")
+    public ResponseEntity<Void> moveElementsOnMyCampaign(
+            @PathVariable UUID campaignId,
+            @Valid @RequestBody MoveCampaignElementsRequest request,
+            Authentication authentication,
+            @AuthenticationPrincipal PlayerUserDetails principal) {
+        campaignService.moveElementsAsEditor(editorFor(authentication, principal), campaignId, request);
         return ResponseEntity.noContent().build();
     }
 

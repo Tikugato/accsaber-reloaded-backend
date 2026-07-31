@@ -1,5 +1,6 @@
 package com.accsaber.backend.service.player;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -315,6 +316,9 @@ public class DuplicateUserService {
 
     @Async("taskExecutor")
     public void recalculateAfterUnmerge(Long primaryUserId, Long secondaryUserId) {
+        userRepository.recalculateTotalXpForUser(primaryUserId);
+        userRepository.recalculateTotalXpForUser(secondaryUserId);
+
         var categories = categoryRepository.findByActiveTrueAndCountForOverallTrue();
         for (var category : categories) {
             statisticsService.recalculate(primaryUserId, category.getId(), false, false);
@@ -334,6 +338,7 @@ public class DuplicateUserService {
             switch (action.getActionType()) {
                 case CREATED_MERGED -> {
                     score.setActive(false);
+                    score.setXpGained(BigDecimal.ZERO);
                     scoreRepository.saveAndFlush(score);
                 }
                 case DEACTIVATED_SECONDARY, DEACTIVATED_PRIMARY -> {
@@ -428,6 +433,10 @@ public class DuplicateUserService {
 
     @Async("taskExecutor")
     public void recalculateAfterBulkMerge(Set<Long> primaryUserIds) {
+        for (Long userId : primaryUserIds) {
+            userRepository.recalculateTotalXpForUser(userId);
+        }
+
         var categories = categoryRepository.findByActiveTrueAndCountForOverallTrue();
         for (var category : categories) {
             for (Long userId : primaryUserIds) {

@@ -487,6 +487,7 @@ class DuplicateUserServiceTest {
                                         .id(UUID.randomUUID()).user(primaryUser).mapDifficulty(diff)
                                         .score(900000).scoreNoMods(900000).rank(5).rankWhenSet(5)
                                         .ap(new BigDecimal("400")).weightedAp(new BigDecimal("400"))
+                                        .xpGained(new BigDecimal("50"))
                                         .supersedesReason("User merge").active(true).build();
 
                         UserDuplicateLink link = UserDuplicateLink.builder()
@@ -520,8 +521,19 @@ class DuplicateUserServiceTest {
                         assertThat(response.isMerged()).isFalse();
                         assertThat(deactivatedSecondary.isActive()).isTrue();
                         assertThat(createdMerged.isActive()).isFalse();
+                        assertThat(createdMerged.getXpGained()).isEqualByComparingTo(BigDecimal.ZERO);
                         assertThat(secondaryUser.isActive()).isTrue();
                         verify(mergeScoreActionRepository).deleteByLink_Id(linkId);
+                }
+
+                @Test
+                void rebuildsXpTotalsForBothUsers() {
+                        when(categoryRepository.findByActiveTrueAndCountForOverallTrue()).thenReturn(List.of());
+
+                        service.recalculateAfterUnmerge(PRIMARY_ID, SECONDARY_ID);
+
+                        verify(userRepository).recalculateTotalXpForUser(PRIMARY_ID);
+                        verify(userRepository).recalculateTotalXpForUser(SECONDARY_ID);
                 }
 
                 @Test

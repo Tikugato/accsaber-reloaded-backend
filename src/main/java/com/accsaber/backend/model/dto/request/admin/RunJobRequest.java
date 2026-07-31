@@ -32,7 +32,7 @@ public class RunJobRequest {
                         + " and by RESETTLE_CAMPAIGN.")
         private UUID campaignId;
 
-        @Schema(description = "Required by BACKFILL_SCORES_USER and BACKFILL_MILESTONES_USER."
+        @Schema(description = "Required by BACKFILL_SCORES_USER, BACKFILL_MILESTONES_USER and RECALCULATE_XP_USER."
                         + " Optional for BACKFILL_CAMPAIGN_LEGACY and RESETTLE_CAMPAIGN"
                         + " - leave it off to sweep every in-progress participant.")
         private Long userId;

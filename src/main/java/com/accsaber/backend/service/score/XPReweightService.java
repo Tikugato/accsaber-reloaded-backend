@@ -128,4 +128,13 @@ public class XPReweightService {
         return CompletableFuture.completedFuture(null);
     }
 
+    @Async("taskExecutor")
+    @Transactional
+    public CompletableFuture<Void> recalculateTotalXpForUser(Long userId) {
+        log.info("Starting total XP recalculation for user {}", userId);
+        userRepository.recalculateTotalXpForUser(userId);
+        log.info("Total XP recalculation complete for user {}", userId);
+        return CompletableFuture.completedFuture(null);
+    }
+
 }

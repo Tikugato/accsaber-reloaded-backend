@@ -32,7 +32,12 @@ public enum JobType {
             "Recomputes the XP each score was worth. Run this after the XP curve changes."),
 
     RECALCULATE_XP_TOTALS(JobGroup.RECALCULATION, "Rebuild XP totals",
-            "Re-adds every user's XP from their scores, which fixes totals that have drifted."),
+            "Re-adds every user's XP from scratch, out of their scores, milestones, set bonuses, campaigns,"
+                    + " missions and event bonuses. Use it when totals have drifted."),
+
+    RECALCULATE_XP_USER(JobGroup.RECALCULATION, "Rebuild one player's XP totals",
+            "The same rebuild as above, for a single player. Reach for this after a merge or an unmerge.",
+            JobField.required("userId", JobFieldKind.USER, "Player", RunJobRequest::getUserId)),
 
     BACKFILL_SCORES_ALL(JobGroup.SCORE_BACKFILL, "Backfill every ranked difficulty",
             "Pulls scores from BeatLeader and ScoreSaber for the whole ranked pool. This takes hours."),

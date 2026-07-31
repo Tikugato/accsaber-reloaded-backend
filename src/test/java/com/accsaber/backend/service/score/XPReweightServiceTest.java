@@ -284,4 +284,15 @@ class XPReweightServiceTest {
                         verify(userRepository).recalculateTotalXpForAllActiveUsers();
                 }
         }
+
+        @Nested
+        class RecalculateTotalXpForUser {
+
+                @Test
+                void callsSingleUserRecalculation() {
+                        service.recalculateTotalXpForUser(42L);
+
+                        verify(userRepository).recalculateTotalXpForUser(42L);
+                }
+        }
 }

@@ -93,6 +93,7 @@ public class AdminJobService {
             case RECALCULATE_AP_ALL -> scoreRecalculationService.recalculateAllApAsync();
             case RECALCULATE_XP_SCORES -> xpReweightService.reweightAllScores();
             case RECALCULATE_XP_TOTALS -> xpReweightService.recalculateTotalXpForAllUsers();
+            case RECALCULATE_XP_USER -> xpReweightService.recalculateTotalXpForUser(request.getUserId());
 
             case BACKFILL_SCORES_ALL -> scoreImportService.backfillAllRankedDifficulties();
             case BACKFILL_SCORES_DIFFICULTY ->

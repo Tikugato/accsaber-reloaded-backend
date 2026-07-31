@@ -159,48 +159,76 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Modifying
     @Transactional
     @Query(value = """
-            UPDATE users u SET total_xp =
-                COALESCE(sx.score_xp, 0)
-                + COALESCE(mx.milestone_xp, 0)
-                + COALESCE(bx.bonus_xp, 0)
-                + COALESCE(cx.campaign_difficulty_xp, 0)
-                + COALESCE(cmx.campaign_completion_xp, 0)
-                + COALESCE(u.mission_xp, 0),
-            campaign_xp = COALESCE(cx.campaign_difficulty_xp, 0) + COALESCE(cmx.campaign_completion_xp, 0),
-            updated_at = NOW()
-            FROM (
-                SELECT user_id, SUM(xp_gained) AS score_xp FROM scores GROUP BY user_id
-            ) sx
-            FULL OUTER JOIN (
-                SELECT uml.user_id, SUM(m.xp) AS milestone_xp
-                FROM user_milestone_links uml JOIN milestones m ON uml.milestone_id = m.id
+            WITH sources AS (
+                SELECT s.user_id, CAST('score' AS text) AS bucket, CAST(s.xp_gained AS numeric) AS xp
+                FROM scores s
+                WHERE CAST(:userId AS bigint) IS NULL OR s.user_id = CAST(:userId AS bigint)
+                UNION ALL
+                SELECT uml.user_id, 'milestone', CAST(m.xp AS numeric)
+                FROM user_milestone_links uml
+                JOIN milestones m ON uml.milestone_id = m.id
                 WHERE uml.completed = true
-                GROUP BY uml.user_id
-            ) mx ON mx.user_id = sx.user_id
-            FULL OUTER JOIN (
-                SELECT umsb.user_id, SUM(ms.set_bonus_xp) AS bonus_xp
-                FROM user_milestone_set_bonuses umsb JOIN milestone_sets ms ON umsb.milestone_set_id = ms.id
-                GROUP BY umsb.user_id
-            ) bx ON bx.user_id = COALESCE(sx.user_id, mx.user_id)
-            FULL OUTER JOIN (
-                SELECT ucs.user_id, SUM(cd.xp) AS campaign_difficulty_xp
+                  AND (CAST(:userId AS bigint) IS NULL OR uml.user_id = CAST(:userId AS bigint))
+                UNION ALL
+                SELECT umsb.user_id, 'milestone', CAST(ms.set_bonus_xp AS numeric)
+                FROM user_milestone_set_bonuses umsb
+                JOIN milestone_sets ms ON umsb.milestone_set_id = ms.id
+                WHERE CAST(:userId AS bigint) IS NULL OR umsb.user_id = CAST(:userId AS bigint)
+                UNION ALL
+                SELECT ucs.user_id, 'campaign', CAST(cd.xp AS numeric)
                 FROM user_campaign_scores ucs
                 JOIN campaign_difficulties cd ON ucs.campaign_difficulty_id = cd.id
                 JOIN campaigns c ON ucs.campaign_id = c.id
                 WHERE ucs.active = true AND c.status = 'curated' AND cd.active = true
-                GROUP BY ucs.user_id
-            ) cx ON cx.user_id = COALESCE(sx.user_id, mx.user_id, bx.user_id)
-            FULL OUTER JOIN (
-                SELECT uc.user_id, SUM(c.completion_xp) AS campaign_completion_xp
+                  AND (CAST(:userId AS bigint) IS NULL OR ucs.user_id = CAST(:userId AS bigint))
+                UNION ALL
+                SELECT uc.user_id, 'campaign', CAST(c.completion_xp AS numeric)
                 FROM user_campaigns uc
                 JOIN campaigns c ON uc.campaign_id = c.id
                 WHERE uc.active = true AND uc.status = 'completed' AND c.status = 'curated'
-                GROUP BY uc.user_id
-            ) cmx ON cmx.user_id = COALESCE(sx.user_id, mx.user_id, bx.user_id, cx.user_id)
-            WHERE u.id = COALESCE(sx.user_id, mx.user_id, bx.user_id, cx.user_id, cmx.user_id)
-            AND u.active = true
+                  AND (CAST(:userId AS bigint) IS NULL OR uc.user_id = CAST(:userId AS bigint))
+                UNION ALL
+                SELECT um.user_id, 'mission', CAST(um.xp_reward AS numeric)
+                FROM user_missions um
+                WHERE um.status = 'completed'
+                  AND (CAST(:userId AS bigint) IS NULL OR um.user_id = CAST(:userId AS bigint))
+                UNION ALL
+                SELECT uep.user_id, 'mission', CAST(uep.bonus_xp AS numeric)
+                FROM user_event_profiles uep
+                WHERE uep.bonus_awarded_at IS NOT NULL
+                  AND (CAST(:userId AS bigint) IS NULL OR uep.user_id = CAST(:userId AS bigint))
+            ),
+            totals AS (
+                SELECT user_id,
+                    COALESCE(SUM(xp), 0) AS total_xp,
+                    COALESCE(SUM(xp) FILTER (WHERE bucket = 'campaign'), 0) AS campaign_xp,
+                    COALESCE(SUM(xp) FILTER (WHERE bucket = 'mission'), 0) AS mission_xp
+                FROM sources
+                GROUP BY user_id
+            )
+            UPDATE users u
+            SET total_xp = COALESCE(t.total_xp, 0),
+                campaign_xp = COALESCE(t.campaign_xp, 0),
+                mission_xp = COALESCE(t.mission_xp, 0),
+                updated_at = NOW()
+            FROM users target
+            LEFT JOIN totals t ON t.user_id = target.id
+            WHERE u.id = target.id
+              AND u.active = true
+              AND (CAST(:userId AS bigint) IS NULL OR u.id = CAST(:userId AS bigint))
+              AND (u.total_xp IS DISTINCT FROM COALESCE(t.total_xp, 0)
+                OR u.campaign_xp IS DISTINCT FROM COALESCE(t.campaign_xp, 0)
+                OR u.mission_xp IS DISTINCT FROM COALESCE(t.mission_xp, 0))
             """, nativeQuery = true)
-    void recalculateTotalXpForAllActiveUsers();
+    void rebuildXpTotals(@Param("userId") Long userId);
+
+    default void recalculateTotalXpForAllActiveUsers() {
+        rebuildXpTotals(null);
+    }
+
+    default void recalculateTotalXpForUser(Long userId) {
+        rebuildXpTotals(userId);
+    }
 
     @Modifying
     @Transactional

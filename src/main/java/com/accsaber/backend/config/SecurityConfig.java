@@ -2,13 +2,16 @@ package com.accsaber.backend.config;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import com.accsaber.backend.security.BannedUserWriteFilter;
 import com.accsaber.backend.security.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
@@ -22,7 +25,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 @Configuration
@@ -31,6 +34,35 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 public class SecurityConfig {
 
     public static final String[] ADMIN_PATH_ROLES = { "ADMIN", "RANKING_HEAD", "CAMPAIGN_CURATOR", "CREATIVE" };
+
+    public static final Set<String> PUBLIC_READ_PREFIXES = Set.of(
+            "/v1/curves",
+            "/v1/categories",
+            "/v1/modifiers",
+            "/v1/users",
+            "/v1/maps",
+            "/v1/batches",
+            "/v1/leaderboards",
+            "/v1/statistics",
+            "/v1/milestones",
+            "/v1/levels",
+            "/v1/campaigns",
+            "/v1/events",
+            "/v1/items",
+            "/v1/item-types",
+            "/v1/item-modifiers",
+            "/v1/unusual-effects",
+            "/v1/crates",
+            "/v1/market",
+            "/v1/news",
+            "/v1/playlists",
+            "/v1/songsuggest",
+            "/v1/discord",
+            "/v1/og",
+            "/v1/cdn",
+            "/v1/supporters",
+            "/v1/practice-scores",
+            "/cdn");
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -48,7 +80,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
             @Value("${accsaber.domains}") List<String> domains) {
-        CorsConfiguration config = new CorsConfiguration();
+        CorsConfiguration firstParty = new CorsConfiguration();
         List<String> patterns = new ArrayList<>();
         for (String domain : domains) {
             patterns.add("https://" + domain);
@@ -57,26 +89,38 @@ public class SecurityConfig {
         patterns.add("http://localhost:*");
         patterns.add("http://*.localhost:*");
         patterns.add("http://127.0.0.1:*");
-        config.setAllowedOriginPatterns(patterns);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setExposedHeaders(List.of("X-Correlation-Id", "X-Rate-Limit-Remaining"));
-        config.setAllowCredentials(true);
-        config.setMaxAge(3600L);
+        firstParty.setAllowedOriginPatterns(patterns);
+        firstParty.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
+        firstParty.setAllowedHeaders(List.of("*"));
+        firstParty.setExposedHeaders(List.of("X-Correlation-Id", "X-Rate-Limit-Remaining"));
+        firstParty.setAllowCredentials(true);
+        firstParty.setMaxAge(3600L);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
+        CorsConfiguration publicRead = new CorsConfiguration();
+        publicRead.setAllowedOrigins(List.of("*"));
+        publicRead.setAllowedMethods(List.of("GET", "HEAD", "OPTIONS"));
+        publicRead.setAllowedHeaders(List.of("*"));
+        publicRead.setExposedHeaders(List.of("X-Correlation-Id", "X-Rate-Limit-Remaining"));
+        publicRead.setAllowCredentials(false);
+        publicRead.setMaxAge(3600L);
+
+        return new PublicApiCorsConfigurationSource(firstParty, publicRead, PUBLIC_READ_PREFIXES);
+    }
+
+    @Bean
+    public FilterRegistrationBean<CorsFilter> corsFilterRegistration(CorsConfigurationSource corsConfigurationSource) {
+        FilterRegistrationBean<CorsFilter> registration = new FilterRegistrationBean<>(
+                new CorsFilter(corsConfigurationSource));
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        return registration;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             BannedUserWriteFilter bannedUserWriteFilter,
-            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver,
-            CorsConfigurationSource corsConfigurationSource) throws Exception {
+            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

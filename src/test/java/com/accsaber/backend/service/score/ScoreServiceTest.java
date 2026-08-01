@@ -422,6 +422,31 @@ class ScoreServiceTest {
                 }
 
                 @Test
+                void zeroScore_throwsValidationException() {
+                        when(mapDifficultyRepository.findByIdAndActiveTrue(rankedDifficulty.getId()))
+                                        .thenReturn(Optional.of(rankedDifficulty));
+
+                        SubmitScoreRequest req = buildRequest(0);
+
+                        assertThatThrownBy(() -> scoreService.submit(req))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("positive");
+                }
+
+                @Test
+                void zeroScoreWithPositiveScoreNoMods_throwsValidationException() {
+                        when(mapDifficultyRepository.findByIdAndActiveTrue(rankedDifficulty.getId()))
+                                        .thenReturn(Optional.of(rankedDifficulty));
+
+                        SubmitScoreRequest req = buildRequest(950_000);
+                        req.setScore(0);
+
+                        assertThatThrownBy(() -> scoreService.submit(req))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("score must be positive");
+                }
+
+                @Test
                 void unrankedDifficulty_throwsValidationException() {
                         rankedDifficulty.setStatus(MapDifficultyStatus.QUEUE);
                         when(mapDifficultyRepository.findByIdAndActiveTrue(rankedDifficulty.getId()))
@@ -567,6 +592,19 @@ class ScoreServiceTest {
                         verify(apCalculationService, never()).calculateRawAP(any(), any(), any());
                         verify(statisticsService, never()).recalculate(any(), any());
                         verify(eventPublisher, never()).publishEvent(any(ScoreSubmittedEvent.class));
+                }
+
+                @Test
+                void zeroScore_onCampaignPath_throwsBeforeRecording() {
+                        SubmitScoreRequest req = bannedRequest();
+                        req.setScore(0);
+                        req.setScoreNoMods(0);
+
+                        assertThatThrownBy(() -> scoreService.submitPlayer(req))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("positive");
+                        verify(scoreRepository, never()).saveAndFlush(any());
+                        verify(campaignEvaluationService, never()).evaluateAfterScore(any(), any());
                 }
 
                 @Test

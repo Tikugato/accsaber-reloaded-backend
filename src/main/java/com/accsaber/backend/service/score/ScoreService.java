@@ -826,6 +826,12 @@ public class ScoreService {
 
         private void validateScoreBounds(SubmitScoreRequest request, MapDifficulty difficulty,
                         boolean enforceScoreCeiling) {
+                if (request.getScoreNoMods() != null && request.getScoreNoMods() <= 1) {
+                        throw new ValidationException("scoreNoMods must be positive");
+                }
+                if (request.getScore() != null && request.getScore() <= 1) {
+                        throw new ValidationException("score must be positive");
+                }
                 Integer maxCombo = MapDifficultyMetrics.maxCombo(difficulty.getMetadata());
                 if (maxCombo != null && request.getMaxCombo() != null && request.getMaxCombo() > maxCombo) {
                         throw new ValidationException("maxCombo exceeds the map's note count");

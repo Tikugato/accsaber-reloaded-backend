@@ -71,7 +71,7 @@ public final class PlatformScoreMapper {
         SubmitScoreRequest request = new SubmitScoreRequest();
         request.setUserId(userId);
         request.setMapDifficultyId(mapDifficultyId);
-        request.setScore(ss.getModifiedScore());
+        request.setScore(ss.getUnmodifiedScore());
         request.setScoreNoMods(ss.getUnmodifiedScore());
         request.setRank(ss.getRank());
         request.setRankWhenSet(ss.getRank());

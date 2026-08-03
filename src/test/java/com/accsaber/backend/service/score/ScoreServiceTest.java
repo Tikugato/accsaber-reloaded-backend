@@ -3,6 +3,7 @@ package com.accsaber.backend.service.score;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -306,7 +307,7 @@ class ScoreServiceTest {
                         when(userRepository.findById(activeUser.getId()))
                                         .thenReturn(Optional.of(activeUser));
                         when(scoreRepository.findRecentMatchingPlay(eq(activeUser.getId()),
-                                        eq(rankedDifficulty.getId()), eq(900_000), eq(false), any(), any()))
+                                        eq(rankedDifficulty.getId()), eq(900_000), eq(false), any(), any(), any(), any()))
                                         .thenReturn(List.of(existing));
                         when(milestoneEvaluationService.evaluateAfterScore(eq(activeUser.getId()), eq(existing)))
                                         .thenReturn(new MilestoneEvaluationService.EvaluationResult(
@@ -336,7 +337,7 @@ class ScoreServiceTest {
                         when(userRepository.findById(activeUser.getId()))
                                         .thenReturn(Optional.of(activeUser));
                         when(scoreRepository.findRecentMatchingPlay(eq(activeUser.getId()),
-                                        eq(rankedDifficulty.getId()), eq(900_000), eq(false), any(), any()))
+                                        eq(rankedDifficulty.getId()), eq(900_000), eq(false), any(), any(), any(), any()))
                                         .thenReturn(List.of(existing));
 
                         SubmitScoreRequest request = buildRequest(900_000);
@@ -375,6 +376,73 @@ class ScoreServiceTest {
                 }
 
                 @Test
+                void playMatch_looksUpATenSecondWindowAroundTimeSet() {
+                        Score existing = buildExistingScore(new BigDecimal("600.000000"));
+                        Instant playedAt = Instant.parse("2026-08-03T12:00:00Z");
+                        when(mapDifficultyRepository.findByIdAndActiveTrue(rankedDifficulty.getId()))
+                                        .thenReturn(Optional.of(rankedDifficulty));
+                        when(userRepository.findById(activeUser.getId()))
+                                        .thenReturn(Optional.of(activeUser));
+                        when(scoreRepository.findRecentMatchingPlay(any(), any(), any(), anyBoolean(), any(), any(),
+                                        any(), any()))
+                                        .thenReturn(List.of(existing));
+                        when(milestoneEvaluationService.evaluateAfterScore(eq(activeUser.getId()), eq(existing)))
+                                        .thenReturn(new MilestoneEvaluationService.EvaluationResult(
+                                                        Collections.emptyList(), Collections.emptyList()));
+
+                        SubmitScoreRequest request = buildRequest(900_000);
+                        request.setTimeSet(playedAt);
+                        scoreService.submit(request);
+
+                        ArgumentCaptor<Instant> from = ArgumentCaptor.forClass(Instant.class);
+                        ArgumentCaptor<Instant> to = ArgumentCaptor.forClass(Instant.class);
+                        verify(scoreRepository).findRecentMatchingPlay(any(), any(), any(), anyBoolean(), any(),
+                                        from.capture(), to.capture(), any());
+                        assertThat(from.getValue()).isEqualTo(playedAt.minusSeconds(10));
+                        assertThat(to.getValue()).isEqualTo(playedAt.plusSeconds(10));
+                }
+
+                @Test
+                void playMatch_windowCannotMatchAnything_forPartialAttempts() {
+                        BigDecimal rawAp = new BigDecimal("100.000000");
+                        stubCommonMocks(rawAp);
+                        when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
+                                        activeUser.getId(), rankedDifficulty.getId()))
+                                        .thenReturn(Optional.empty());
+                        when(scoreRepository.saveAndFlush(any(Score.class)))
+                                        .thenAnswer(inv -> inv.getArgument(0));
+
+                        SubmitScoreRequest request = buildRequest(720_000);
+                        request.setPartial(true);
+                        request.setTimeSet(Instant.parse("2026-08-03T12:00:00Z"));
+                        scoreService.submit(request);
+
+                        ArgumentCaptor<Instant> to = ArgumentCaptor.forClass(Instant.class);
+                        verify(scoreRepository).findRecentMatchingPlay(any(), any(), any(), anyBoolean(), any(),
+                                        any(), to.capture(), any());
+                        assertThat(to.getValue()).isBefore(Instant.parse("1970-01-02T00:00:00Z"));
+                }
+
+                @Test
+                void playMatch_windowCannotMatchAnything_whenTimeSetIsMissing() {
+                        Score existing = buildExistingScore(new BigDecimal("600.000000"));
+                        when(mapDifficultyRepository.findByIdAndActiveTrue(rankedDifficulty.getId()))
+                                        .thenReturn(Optional.of(rankedDifficulty));
+                        when(userRepository.findById(activeUser.getId()))
+                                        .thenReturn(Optional.of(activeUser));
+                        when(scoreRepository.findRecentMatchingPlay(any(), any(), any(), anyBoolean(), any(), any(),
+                                        any(), any()))
+                                        .thenReturn(List.of(existing));
+
+                        scoreService.submit(buildRequest(900_000));
+
+                        ArgumentCaptor<Instant> to = ArgumentCaptor.forClass(Instant.class);
+                        verify(scoreRepository).findRecentMatchingPlay(any(), any(), any(), anyBoolean(), any(),
+                                        any(), to.capture(), any());
+                        assertThat(to.getValue()).isBefore(Instant.parse("1970-01-02T00:00:00Z"));
+                }
+
+                @Test
                 void partialSubmit_doesNotMergeIntoNonPartialRow() {
                         BigDecimal rawAp = new BigDecimal("100.000000");
                         stubCommonMocks(rawAp);
@@ -382,7 +450,7 @@ class ScoreServiceTest {
                                         activeUser.getId(), rankedDifficulty.getId()))
                                         .thenReturn(Optional.empty());
                         when(scoreRepository.findRecentMatchingPlay(eq(activeUser.getId()),
-                                        eq(rankedDifficulty.getId()), eq(720_000), eq(true), any(), any()))
+                                        eq(rankedDifficulty.getId()), eq(720_000), eq(true), any(), any(), any(), any()))
                                         .thenReturn(List.of());
                         when(scoreRepository.saveAndFlush(any(Score.class)))
                                         .thenAnswer(inv -> inv.getArgument(0));
@@ -393,7 +461,7 @@ class ScoreServiceTest {
                         scoreService.submit(request);
 
                         verify(scoreRepository).findRecentMatchingPlay(eq(activeUser.getId()),
-                                        eq(rankedDifficulty.getId()), eq(720_000), eq(true), any(), any());
+                                        eq(rankedDifficulty.getId()), eq(720_000), eq(true), any(), any(), any(), any());
                 }
 
                 @Test
@@ -569,7 +637,7 @@ class ScoreServiceTest {
                                         .thenReturn(true);
                         when(userRepository.findById(activeUser.getId()))
                                         .thenReturn(Optional.of(activeUser));
-                        when(scoreRepository.findRecentCampaignAttempt(any(), any(), any(), any(), any()))
+                        when(scoreRepository.findRecentCampaignAttempt(any(), any(), any(), any(), any(), any(), any()))
                                         .thenReturn(Collections.emptyList());
                         when(modifierRepository.findAllById(req.getModifierIds()))
                                         .thenReturn(List.of(slowerSong()));

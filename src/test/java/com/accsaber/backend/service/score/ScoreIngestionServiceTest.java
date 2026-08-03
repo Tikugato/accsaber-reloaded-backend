@@ -2,7 +2,9 @@ package com.accsaber.backend.service.score;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -81,7 +83,6 @@ class ScoreIngestionServiceTest {
         @BeforeEach
         void setUp() {
                 PlatformProperties properties = new PlatformProperties();
-                properties.setSsWaitForBlSeconds(1);
                 properties.setGapFillWindowSeconds(60);
 
                 scheduler = Executors.newScheduledThreadPool(1);
@@ -142,7 +143,7 @@ class ScoreIngestionServiceTest {
 
                         ingestionService.handleBeatLeaderScore(blScore);
 
-                        verify(scoreService).submit(any());
+                        verify(scoreService, timeout(2000)).submit(any());
                 }
 
                 @Test
@@ -151,7 +152,7 @@ class ScoreIngestionServiceTest {
 
                         ingestionService.handleBeatLeaderScore(blScore);
 
-                        verify(scoreService, never()).submit(any());
+                        verify(scoreService, after(500).never()).submit(any());
                         verifyNoInteractions(playerImportService);
                 }
 
@@ -164,12 +165,12 @@ class ScoreIngestionServiceTest {
 
                         ingestionService.handleBeatLeaderScore(blScore);
 
-                        verify(scoreService, never()).submit(any());
+                        verify(scoreService, after(500).never()).submit(any());
                         verify(scoreService, never()).submitCampaignScore(any());
                 }
 
                 @Test
-                void bannedModifierScore_doesNotCancelPendingCleanSsScore() throws Exception {
+                void bannedModifierScore_isRecordedAlongsideTheCleanSsScore() {
                         ScoreSaberScoreResponse ssScore = buildSsScore("");
                         when(mapDifficultyRepository.findBySsLeaderboardId("ss_456"))
                                         .thenReturn(Optional.of(difficulty));
@@ -186,11 +187,8 @@ class ScoreIngestionServiceTest {
 
                         ingestionService.handleBeatLeaderScore(bannedBl);
 
-                        scheduler.awaitTermination(2, TimeUnit.SECONDS);
-                        Thread.sleep(300);
-
-                        verify(scoreService).submitCampaignScore(any());
-                        verify(scoreService).submit(any());
+                        verify(scoreService, timeout(2000)).submitCampaignScore(any());
+                        verify(scoreService, timeout(2000)).submit(any());
                 }
 
                 @Test
@@ -202,8 +200,8 @@ class ScoreIngestionServiceTest {
 
                         ingestionService.handleBeatLeaderScore(blScore);
 
+                        verify(scoreService, timeout(2000)).submitCampaignScore(any());
                         verify(scoreService, never()).submit(any());
-                        verify(scoreService).submitCampaignScore(any());
                         verifyNoInteractions(playerImportService);
                 }
 
@@ -216,7 +214,7 @@ class ScoreIngestionServiceTest {
 
                         ingestionService.handleBeatLeaderScore(blScore);
 
-                        verify(scoreService, never()).submit(any());
+                        verify(scoreService, after(500).never()).submit(any());
                 }
         }
 
@@ -224,7 +222,7 @@ class ScoreIngestionServiceTest {
         class HandleScoreSaberScore {
 
                 @Test
-                void submitsScore_afterDelay_whenNoBeatLeaderScoreArrives() throws Exception {
+                void submitsScore_withoutWaitingForBeatLeader() {
                         ScoreSaberScoreResponse ssScore = buildSsScore("");
                         when(mapDifficultyRepository.findBySsLeaderboardId("ss_456"))
                                         .thenReturn(Optional.of(difficulty));
@@ -237,89 +235,53 @@ class ScoreIngestionServiceTest {
 
                         ingestionService.handleScoreSaberScore(ssScore, null, STEAM_ID, "ss_456");
 
-                        verify(scoreService, never()).submit(any());
-
-                        scheduler.awaitTermination(2, TimeUnit.SECONDS);
-                        Thread.sleep(200);
-
-                        verify(scoreService).submit(any());
+                        verify(scoreService, timeout(2000)).submit(any());
                 }
 
                 @Test
-                void cancelsSsScore_whenBlScoreArrivesFirst() throws Exception {
+                void submitsBothPlatforms_leavingThePlayMergeToScoreService() {
                         ScoreSaberScoreResponse ssScore = buildSsScore("");
                         when(mapDifficultyRepository.findBySsLeaderboardId("ss_456"))
                                         .thenReturn(Optional.of(difficulty));
-                        when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(STEAM_ID,
-                                        difficulty.getId()))
-                                        .thenReturn(Optional.empty());
-
-                        ingestionService.handleScoreSaberScore(ssScore, null, STEAM_ID, "ss_456");
-
-                        BeatLeaderScoreResponse blScore = buildBlScore("bl_123", "");
                         when(mapDifficultyRepository.findByBlLeaderboardId("bl_123"))
                                         .thenReturn(Optional.of(difficulty));
+                        when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(STEAM_ID,
+                                        difficulty.getId()))
+                                        .thenReturn(Optional.empty());
                         when(playerImportService.ensurePlayerExists(STEAM_ID))
                                         .thenReturn(User.builder().id(STEAM_ID).name("Player").build());
                         when(scoreService.submit(any())).thenReturn(buildScoreResponse());
 
-                        ingestionService.handleBeatLeaderScore(blScore);
+                        ingestionService.handleScoreSaberScore(ssScore, null, STEAM_ID, "ss_456");
+                        ingestionService.handleBeatLeaderScore(buildBlScore("bl_123", ""));
 
-                        Thread.sleep(2000);
-
-                        verify(scoreService, times(1)).submit(any());
+                        ArgumentCaptor<SubmitScoreRequest> captor = ArgumentCaptor.forClass(SubmitScoreRequest.class);
+                        verify(scoreService, timeout(2000).times(2)).submit(captor.capture());
+                        assertThat(captor.getAllValues())
+                                        .anySatisfy(r -> assertThat(r.getSsScoreId()).isEqualTo(789012L))
+                                        .anySatisfy(r -> assertThat(r.getBlScoreId()).isEqualTo(123456L));
                 }
 
                 @Test
-                void carriesSsScoreId_ontoBlSubmission_whenSamePlay() throws Exception {
-                        ScoreSaberScoreResponse ssScore = buildSsScore("");
+                void submitsBaseScore_notThePlatformModifiedScore() {
+                        ScoreSaberScoreResponse ssScore = buildSsScore("NF");
                         ssScore.setUnmodifiedScore(900000);
+                        ssScore.setModifiedScore(450000);
                         when(mapDifficultyRepository.findBySsLeaderboardId("ss_456"))
                                         .thenReturn(Optional.of(difficulty));
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(STEAM_ID,
                                         difficulty.getId()))
                                         .thenReturn(Optional.empty());
-
-                        ingestionService.handleScoreSaberScore(ssScore, null, STEAM_ID, "ss_456");
-
-                        BeatLeaderScoreResponse blScore = buildBlScore("bl_123", "");
-                        when(mapDifficultyRepository.findByBlLeaderboardId("bl_123"))
-                                        .thenReturn(Optional.of(difficulty));
                         when(playerImportService.ensurePlayerExists(STEAM_ID))
                                         .thenReturn(User.builder().id(STEAM_ID).name("Player").build());
                         when(scoreService.submit(any())).thenReturn(buildScoreResponse());
 
-                        ingestionService.handleBeatLeaderScore(blScore);
-
-                        ArgumentCaptor<SubmitScoreRequest> captor = ArgumentCaptor.forClass(SubmitScoreRequest.class);
-                        verify(scoreService, times(1)).submit(captor.capture());
-                        assertThat(captor.getValue().getBlScoreId()).isEqualTo(123456L);
-                        assertThat(captor.getValue().getSsScoreId()).isEqualTo(789012L);
-                }
-
-                @Test
-                void omitsSsScoreId_ontoBlSubmission_whenDifferentPlay() throws Exception {
-                        ScoreSaberScoreResponse ssScore = buildSsScore("");
-                        when(mapDifficultyRepository.findBySsLeaderboardId("ss_456"))
-                                        .thenReturn(Optional.of(difficulty));
-                        when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(STEAM_ID,
-                                        difficulty.getId()))
-                                        .thenReturn(Optional.empty());
-
                         ingestionService.handleScoreSaberScore(ssScore, null, STEAM_ID, "ss_456");
 
-                        BeatLeaderScoreResponse blScore = buildBlScore("bl_123", "");
-                        when(mapDifficultyRepository.findByBlLeaderboardId("bl_123"))
-                                        .thenReturn(Optional.of(difficulty));
-                        when(playerImportService.ensurePlayerExists(STEAM_ID))
-                                        .thenReturn(User.builder().id(STEAM_ID).name("Player").build());
-                        when(scoreService.submit(any())).thenReturn(buildScoreResponse());
-
-                        ingestionService.handleBeatLeaderScore(blScore);
-
                         ArgumentCaptor<SubmitScoreRequest> captor = ArgumentCaptor.forClass(SubmitScoreRequest.class);
-                        verify(scoreService, times(1)).submit(captor.capture());
-                        assertThat(captor.getValue().getSsScoreId()).isNull();
+                        verify(scoreService, timeout(2000)).submit(captor.capture());
+                        assertThat(captor.getValue().getScore()).isEqualTo(900000);
+                        assertThat(captor.getValue().getScoreNoMods()).isEqualTo(900000);
                 }
 
                 @Test
@@ -339,12 +301,9 @@ class ScoreIngestionServiceTest {
 
                         ingestionService.handleScoreSaberScore(ssScore, null, STEAM_ID, "ss_456");
 
-                        scheduler.awaitTermination(2, TimeUnit.SECONDS);
-                        Thread.sleep(200);
-
-                        verify(scoreSaberClient).getScoreStats(789012L);
                         ArgumentCaptor<SubmitScoreRequest> captor = ArgumentCaptor.forClass(SubmitScoreRequest.class);
-                        verify(scoreService).submit(captor.capture());
+                        verify(scoreService, timeout(2000)).submit(captor.capture());
+                        verify(scoreSaberClient).getScoreStats(789012L);
                         assertThat(captor.getValue().getStreak115()).isEqualTo(150);
                         assertThat(captor.getValue().getBombHits()).isEqualTo(3);
                         assertThat(captor.getValue().getSsScoreId()).isEqualTo(789012L);
@@ -371,7 +330,7 @@ class ScoreIngestionServiceTest {
                 }
 
                 @Test
-                void recordsBannedModifierScore_asCampaignAttempt_forParticipantOnRankedMap() throws Exception {
+                void recordsBannedModifierScore_asCampaignAttempt_forParticipantOnRankedMap() {
                         ScoreSaberScoreResponse ssScore = buildSsScore("NO");
                         when(mapDifficultyRepository.findBySsLeaderboardId("ss_456"))
                                         .thenReturn(Optional.of(difficulty));
@@ -379,11 +338,8 @@ class ScoreIngestionServiceTest {
 
                         ingestionService.handleScoreSaberScore(ssScore, null, STEAM_ID, "ss_456");
 
-                        scheduler.awaitTermination(2, TimeUnit.SECONDS);
-                        Thread.sleep(200);
-
+                        verify(scoreService, timeout(2000)).submitCampaignScore(any());
                         verify(scoreService, never()).submit(any());
-                        verify(scoreService).submitCampaignScore(any());
                 }
         }
 

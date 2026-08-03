@@ -185,7 +185,7 @@ class PlatformScoreMapperTest {
 
             assertThat(result.getUserId()).isEqualTo(USER_ID);
             assertThat(result.getMapDifficultyId()).isEqualTo(MAP_DIFF_ID);
-            assertThat(result.getScore()).isEqualTo(940000);
+            assertThat(result.getScore()).isEqualTo(890000);
             assertThat(result.getScoreNoMods()).isEqualTo(890000);
             assertThat(result.getRank()).isEqualTo(7);
             assertThat(result.getMaxCombo()).isEqualTo(480);
@@ -226,6 +226,31 @@ class PlatformScoreMapperTest {
                     MODIFIER_MAP);
 
             assertThat(result.getModifierIds()).containsExactly(NF_ID);
+        }
+
+        @Test
+        void carriesBaseScore_notThePlatformModifiedScore() {
+            ScoreSaberScoreResponse ss = buildScoreSaberScore();
+            ss.setMods(java.util.List.of("NF"));
+            ss.setUnmodifiedScore(890000);
+            ss.setModifiedScore(445000);
+
+            SubmitScoreRequest result = PlatformScoreMapper.fromScoreSaber(ss, null, MAP_DIFF_ID, USER_ID,
+                    MODIFIER_MAP);
+
+            assertThat(result.getScore()).isEqualTo(890000);
+            assertThat(result.getScore()).isEqualTo(result.getScoreNoMods());
+        }
+
+        @Test
+        void agreesWithBeatLeaderOnScoreSemantics() {
+            SubmitScoreRequest fromBl = PlatformScoreMapper.fromBeatLeader(buildBeatLeaderScore(), MAP_DIFF_ID,
+                    USER_ID, MODIFIER_MAP);
+            SubmitScoreRequest fromSs = PlatformScoreMapper.fromScoreSaber(buildScoreSaberScore(), null,
+                    MAP_DIFF_ID, USER_ID, MODIFIER_MAP);
+
+            assertThat(fromBl.getScore()).isEqualTo(fromBl.getScoreNoMods());
+            assertThat(fromSs.getScore()).isEqualTo(fromSs.getScoreNoMods());
         }
     }
 

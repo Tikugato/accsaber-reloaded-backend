@@ -28,11 +28,13 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         SELECT s FROM Score s
                         WHERE s.user.id = :userId
                           AND s.mapDifficulty.id = :mapDifficultyId
-                          AND s.scoreNoMods = :scoreNoMods
                           AND s.partial = :partial
                           AND (s.supersedesReason IS NULL OR s.supersedesReason <> 'Campaign attempt')
                           AND (s.createdAt >= :since OR (s.timeSet IS NOT NULL AND s.timeSet >= :since))
-                        ORDER BY COALESCE(s.timeSet, s.createdAt) DESC
+                          AND (s.scoreNoMods = :scoreNoMods
+                               OR (s.timeSet IS NOT NULL AND s.timeSet BETWEEN :playFrom AND :playTo))
+                        ORDER BY CASE WHEN s.scoreNoMods = :scoreNoMods THEN 0 ELSE 1 END,
+                                 COALESCE(s.timeSet, s.createdAt) DESC
                         """)
         List<Score> findRecentMatchingPlay(
                         @Param("userId") Long userId,
@@ -40,23 +42,29 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         @Param("scoreNoMods") Integer scoreNoMods,
                         @Param("partial") boolean partial,
                         @Param("since") Instant since,
+                        @Param("playFrom") Instant playFrom,
+                        @Param("playTo") Instant playTo,
                         org.springframework.data.domain.Pageable pageable);
 
         @Query("""
                         SELECT s FROM Score s
                         WHERE s.user.id = :userId
                           AND s.mapDifficulty.id = :mapDifficultyId
-                          AND s.scoreNoMods = :scoreNoMods
                           AND s.partial = false
                           AND s.supersedesReason = 'Campaign attempt'
                           AND (s.createdAt >= :since OR (s.timeSet IS NOT NULL AND s.timeSet >= :since))
-                        ORDER BY COALESCE(s.timeSet, s.createdAt) DESC
+                          AND (s.scoreNoMods = :scoreNoMods
+                               OR (s.timeSet IS NOT NULL AND s.timeSet BETWEEN :playFrom AND :playTo))
+                        ORDER BY CASE WHEN s.scoreNoMods = :scoreNoMods THEN 0 ELSE 1 END,
+                                 COALESCE(s.timeSet, s.createdAt) DESC
                         """)
         List<Score> findRecentCampaignAttempt(
                         @Param("userId") Long userId,
                         @Param("mapDifficultyId") UUID mapDifficultyId,
                         @Param("scoreNoMods") Integer scoreNoMods,
                         @Param("since") Instant since,
+                        @Param("playFrom") Instant playFrom,
+                        @Param("playTo") Instant playTo,
                         org.springframework.data.domain.Pageable pageable);
 
         @Query("""

@@ -5,13 +5,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -37,6 +33,7 @@ import com.accsaber.backend.service.player.DuplicateUserService;
 import com.accsaber.backend.service.player.PlayerImportService;
 import com.accsaber.backend.util.PlatformScoreMapper;
 
+import io.micrometer.core.instrument.Counter;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 
@@ -58,10 +55,6 @@ public class ScoreIngestionService {
     private final ScoreSaberClient scoreSaberClient;
     private final CampaignScoreGate campaignScoreGate;
 
-    private record PendingSsScore(ScheduledFuture<?> future, Long ssScoreId, Integer scoreNoMods) {
-    }
-
-    private final ConcurrentHashMap<String, PendingSsScore> pendingSsScores = new ConcurrentHashMap<>();
     private volatile Set<String> rankedBlIds = Set.of();
     private volatile Set<String> rankedSsIds = Set.of();
 
@@ -98,122 +91,92 @@ public class ScoreIngestionService {
     }
 
     public void handleBeatLeaderScore(BeatLeaderScoreResponse blScore) {
-        boolean banned = PlatformScoreMapper.hasBannedModifier(blScore.getModifiers());
         boolean onRankedLeaderboard = rankedBlIds.contains(blScore.getLeaderboardId());
-        boolean ranked = onRankedLeaderboard && !banned;
         if (!onRankedLeaderboard && !campaignScoreGate.matchesBlLeaderboard(blScore.getLeaderboardId())) {
             return;
         }
+        if (blScore.getPlayer() == null || blScore.getPlayer().getId() == null) {
+            log.warn("Received BL score with missing player data for leaderboard {}, skipping",
+                    blScore.getLeaderboardId());
+            return;
+        }
 
-        try {
-            if (blScore.getPlayer() == null || blScore.getPlayer().getId() == null) {
-                log.warn("Received BL score with missing player data for leaderboard {}, skipping",
-                        blScore.getLeaderboardId());
-                return;
-            }
-
+        boolean ranked = onRankedLeaderboard && !PlatformScoreMapper.hasBannedModifier(blScore.getModifiers());
+        ingest("BL", ranked, metricsService.getBlScoresIngested(), () -> {
             Long userId = duplicateUserService.resolvePrimaryUserId(
                     Long.parseLong(blScore.getPlayer().getId()));
             if (!ranked && !campaignScoreGate.isParticipant(userId)) {
-                return;
+                return null;
             }
-
             Optional<MapDifficulty> diffOpt = mapDifficultyRepository
                     .findByBlLeaderboardId(blScore.getLeaderboardId());
-            if (diffOpt.isEmpty())
-                return;
-            MapDifficulty difficulty = diffOpt.get();
-
-            String playKey = playKey(userId, difficulty.getId(), banned);
-
-            PendingSsScore pending = pendingSsScores.remove(playKey);
-            if (pending != null) {
-                pending.future().cancel(false);
-                log.debug("Cancelled pending SS score for play key {}", playKey);
+            if (diffOpt.isEmpty()) {
+                return null;
             }
-
-            SubmitScoreRequest request = PlatformScoreMapper.fromBeatLeader(
-                    blScore, difficulty.getId(), userId, modifierCacheService.getModifierCodeToId());
-            if (pending != null && Objects.equals(pending.scoreNoMods(), request.getScoreNoMods())) {
-                request.setSsScoreId(pending.ssScoreId());
-            }
-            if (ranked) {
-                playerImportService.ensurePlayerExists(userId);
-                metricsService.getScoreProcessingTimer().record(() -> scoreService.submit(request));
-                metricsService.getBlScoresIngested().increment();
-                log.info("Ingested BL score for player {} on difficulty {}", userId, difficulty.getId());
-            } else {
-                submitCampaignScoreQuietly(request, "BL", userId, difficulty.getId());
-            }
-        } catch (Exception e) {
-            log.error("Error handling BL score: {}", e.getMessage());
-        }
-    }
-
-    private String playKey(Long userId, java.util.UUID difficultyId, boolean banned) {
-        return banned ? userId + "_" + difficultyId + "_banned" : userId + "_" + difficultyId;
-    }
-
-    private void submitCampaignScoreQuietly(SubmitScoreRequest request, String platform, Long userId,
-            java.util.UUID difficultyId) {
-        try {
-            scoreService.submitCampaignScore(request);
-            log.info("Ingested {} campaign score for player {} on difficulty {}", platform, userId, difficultyId);
-        } catch (ValidationException e) {
-            log.debug("Dropped {} campaign score for player {} on difficulty {}: {}", platform, userId,
-                    difficultyId, e.getMessage());
-        }
+            return PlatformScoreMapper.fromBeatLeader(
+                    blScore, diffOpt.get().getId(), userId, modifierCacheService.getModifierCodeToId());
+        });
     }
 
     public void handleScoreSaberScore(ScoreSaberScoreResponse ssScore, ScoreSaberScoreStats scoreStats,
             Long userId, String ssLeaderboardId) {
-        Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(userId);
-        boolean banned = PlatformScoreMapper.hasBannedModifier(ssScore.getMods());
         boolean onRankedLeaderboard = rankedSsIds.contains(ssLeaderboardId);
-        boolean ranked = onRankedLeaderboard && !banned;
-        if (!ranked && ((!onRankedLeaderboard && !campaignScoreGate.matchesSsLeaderboard(ssLeaderboardId))
-                || !campaignScoreGate.isParticipant(resolvedUserId))) {
+        if (!onRankedLeaderboard && !campaignScoreGate.matchesSsLeaderboard(ssLeaderboardId)) {
             return;
         }
 
-        try {
+        boolean ranked = onRankedLeaderboard && !PlatformScoreMapper.hasBannedModifier(ssScore.getMods());
+        ingest("SS", ranked, metricsService.getSsScoresIngested(), () -> {
+            Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(userId);
+            if (!ranked && !campaignScoreGate.isParticipant(resolvedUserId)) {
+                return null;
+            }
             Optional<MapDifficulty> diffOpt = mapDifficultyRepository
                     .findBySsLeaderboardId(ssLeaderboardId);
-            if (diffOpt.isEmpty())
-                return;
-            MapDifficulty difficulty = diffOpt.get();
-
-            String playKey = playKey(resolvedUserId, difficulty.getId(), banned);
-
-            int delaySeconds = properties.getSsWaitForBlSeconds();
-            ScheduledFuture<?> future = ingestionScheduler.schedule(() -> {
-                try {
-                    pendingSsScores.remove(playKey);
-                    ScoreSaberScoreStats effectiveStats = resolveScoreStats(ssScore, scoreStats);
-                    SubmitScoreRequest request = PlatformScoreMapper.fromScoreSaber(
-                            ssScore, effectiveStats, difficulty.getId(), resolvedUserId,
-                            modifierCacheService.getModifierCodeToId());
-                    if (ranked) {
-                        playerImportService.ensurePlayerExists(resolvedUserId);
-                        metricsService.getScoreProcessingTimer().record(() -> scoreService.submit(request));
-                        metricsService.getSsScoresIngested().increment();
-                        log.info("Ingested SS score for player {} on difficulty {}", resolvedUserId,
-                                difficulty.getId());
-                    } else {
-                        submitCampaignScoreQuietly(request, "SS", resolvedUserId, difficulty.getId());
-                    }
-                } catch (Exception e) {
-                    log.error("Error submitting delayed SS score: {}", e.getMessage());
-                }
-            }, delaySeconds, TimeUnit.SECONDS);
-
-            PendingSsScore existing = pendingSsScores.put(playKey,
-                    new PendingSsScore(future, ssScore.getId(), ssScore.getUnmodifiedScore()));
-            if (existing != null) {
-                existing.future().cancel(false);
+            if (diffOpt.isEmpty()) {
+                return null;
             }
-        } catch (Exception e) {
-            log.error("Error handling SS score: {}", e.getMessage());
+            return PlatformScoreMapper.fromScoreSaber(
+                    ssScore, resolveScoreStats(ssScore, scoreStats), diffOpt.get().getId(), resolvedUserId,
+                    modifierCacheService.getModifierCodeToId());
+        });
+    }
+
+    @FunctionalInterface
+    private interface ScoreRequestBuilder {
+        SubmitScoreRequest build();
+    }
+
+    private void ingest(String platform, boolean ranked, Counter ingested, ScoreRequestBuilder builder) {
+        ingestionScheduler.execute(() -> {
+            try {
+                SubmitScoreRequest request = builder.build();
+                if (request == null) {
+                    return;
+                }
+                if (ranked) {
+                    playerImportService.ensurePlayerExists(request.getUserId());
+                    metricsService.getScoreProcessingTimer().record(() -> scoreService.submit(request));
+                    ingested.increment();
+                    log.info("Ingested {} score for player {} on difficulty {}", platform, request.getUserId(),
+                            request.getMapDifficultyId());
+                } else {
+                    submitCampaignScoreQuietly(request, platform);
+                }
+            } catch (Exception e) {
+                log.error("Error handling {} score: {}", platform, e.getMessage());
+            }
+        });
+    }
+
+    private void submitCampaignScoreQuietly(SubmitScoreRequest request, String platform) {
+        try {
+            scoreService.submitCampaignScore(request);
+            log.info("Ingested {} campaign score for player {} on difficulty {}", platform, request.getUserId(),
+                    request.getMapDifficultyId());
+        } catch (ValidationException e) {
+            log.debug("Dropped {} campaign score for player {} on difficulty {}: {}", platform, request.getUserId(),
+                    request.getMapDifficultyId(), e.getMessage());
         }
     }
 

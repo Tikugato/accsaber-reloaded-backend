@@ -65,6 +65,7 @@ import lombok.RequiredArgsConstructor;
 public class ScoreService {
 
         private static final int ACCURACY_SCALE = 10;
+        private static final Duration PLAY_MATCH_WINDOW = Duration.ofSeconds(10);
 
         private final ScoreRepository scoreRepository;
         private final ScoreModifierLinkRepository modifierLinkRepository;
@@ -96,8 +97,7 @@ public class ScoreService {
                 validateScoreBounds(request, difficulty, true);
                 User user = loadActiveUser(request.getUserId());
 
-                Optional<Score> playMatch = findRecentMatchingPlay(user.getId(), difficulty.getId(),
-                                request.getScoreNoMods(), request.isPartial());
+                Optional<Score> playMatch = findRecentMatchingPlay(user.getId(), difficulty.getId(), request);
                 if (playMatch.isPresent()) {
                         return backfillExistingScore(playMatch.get(), request, difficulty);
                 }
@@ -225,11 +225,9 @@ public class ScoreService {
                 }
                 User user = loadUserForBackfill(request.getUserId());
 
-                Instant since = Instant.now().minus(Duration.ofDays(1));
-                List<Score> matches = scoreRepository.findRecentCampaignAttempt(user.getId(), difficulty.getId(),
-                                request.getScoreNoMods(), since, PageRequest.of(0, 1));
-                if (!matches.isEmpty()) {
-                        Score existing = matches.get(0);
+                Optional<Score> attemptMatch = findRecentCampaignAttempt(user.getId(), difficulty.getId(), request);
+                if (attemptMatch.isPresent()) {
+                        Score existing = attemptMatch.get();
                         if (ScorePayloadFields.mergeNullOnly(existing, request)) {
                                 scoreRepository.saveAndFlush(existing);
                         }
@@ -316,8 +314,7 @@ public class ScoreService {
                 validateScoreBounds(request, difficulty, false);
                 User user = loadUserForBackfill(request.getUserId());
 
-                Optional<Score> playMatch = findRecentMatchingPlay(user.getId(), difficulty.getId(),
-                                request.getScoreNoMods(), request.isPartial());
+                Optional<Score> playMatch = findRecentMatchingPlay(user.getId(), difficulty.getId(), request);
                 if (playMatch.isPresent()) {
                         backfillExistingScore(playMatch.get(), request, difficulty);
                         return;
@@ -860,14 +857,32 @@ public class ScoreService {
                 scoreRepository.acquireSubmitLock(userId + ":" + mapDifficultyId);
         }
 
-        private Optional<Score> findRecentMatchingPlay(Long userId, UUID mapDifficultyId, Integer scoreNoMods,
-                        boolean partial) {
-                if (scoreNoMods == null) {
+        private Optional<Score> findRecentMatchingPlay(Long userId, UUID mapDifficultyId,
+                        SubmitScoreRequest request) {
+                if (request.getScoreNoMods() == null) {
                         return Optional.empty();
                 }
-                Instant since = Instant.now().minus(Duration.ofDays(1));
-                List<Score> matches = scoreRepository.findRecentMatchingPlay(userId, mapDifficultyId, scoreNoMods,
-                                partial, since, PageRequest.of(0, 1));
+                Instant playAt = request.isPartial() || request.getTimeSet() == null
+                                ? Instant.EPOCH
+                                : request.getTimeSet();
+                List<Score> matches = scoreRepository.findRecentMatchingPlay(userId, mapDifficultyId,
+                                request.getScoreNoMods(), request.isPartial(),
+                                Instant.now().minus(Duration.ofDays(1)),
+                                playAt.minus(PLAY_MATCH_WINDOW), playAt.plus(PLAY_MATCH_WINDOW),
+                                PageRequest.of(0, 1));
+                return matches.isEmpty() ? Optional.empty() : Optional.of(matches.get(0));
+        }
+
+        private Optional<Score> findRecentCampaignAttempt(Long userId, UUID mapDifficultyId,
+                        SubmitScoreRequest request) {
+                if (request.getScoreNoMods() == null) {
+                        return Optional.empty();
+                }
+                Instant playAt = request.getTimeSet() == null ? Instant.EPOCH : request.getTimeSet();
+                List<Score> matches = scoreRepository.findRecentCampaignAttempt(userId, mapDifficultyId,
+                                request.getScoreNoMods(), Instant.now().minus(Duration.ofDays(1)),
+                                playAt.minus(PLAY_MATCH_WINDOW), playAt.plus(PLAY_MATCH_WINDOW),
+                                PageRequest.of(0, 1));
                 return matches.isEmpty() ? Optional.empty() : Optional.of(matches.get(0));
         }
 

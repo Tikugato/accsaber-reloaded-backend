@@ -122,3 +122,5 @@ general_ii_climbing.sql
 general_iii_elite.sql
 completionist_*.sql
 acc-champ-*.sql
+/update_*.sql
+/insert_*.sql

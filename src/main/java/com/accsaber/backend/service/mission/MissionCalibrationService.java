@@ -39,13 +39,6 @@ public class MissionCalibrationService {
         };
     }
 
-    public BigDecimal targetRawAp(BigDecimal threshold, BigDecimal multiplier) {
-        if (threshold == null) {
-            return null;
-        }
-        return threshold.multiply(multiplier, MATH).setScale(6, RoundingMode.HALF_UP);
-    }
-
     public BigDecimal targetNormalizedAp(BigDecimal targetRawAp, BigDecimal complexity, Curve scoreCurve) {
         BigDecimal scale = scoreCurve.getScale() != null ? scoreCurve.getScale() : BigDecimal.ONE;
         BigDecimal shift = scoreCurve.getShift() != null ? scoreCurve.getShift() : BigDecimal.ZERO;
@@ -65,16 +58,6 @@ public class MissionCalibrationService {
         BigDecimal acc = apCalculationService.inverseInterpolate(scoreCurve, normalized);
         BigDecimal clamp = peakAccuracyClamp(peakRawAp, complexity, scoreCurve);
         return acc.min(clamp).min(ACC_CEILING);
-    }
-
-    public boolean isComplexityViableForThreshold(BigDecimal threshold, BigDecimal multiplier,
-            BigDecimal complexity, Curve scoreCurve) {
-        BigDecimal target = targetRawAp(threshold, multiplier);
-        BigDecimal normalized = targetNormalizedAp(target, complexity, scoreCurve);
-        if (normalized == null) {
-            return false;
-        }
-        return normalized.compareTo(NORM_AP_MIN) >= 0 && normalized.compareTo(NORM_AP_MAX) <= 0;
     }
 
     public BigDecimal maxRealisticRawAp(BigDecimal complexity, Curve scoreCurve) {
@@ -113,8 +96,7 @@ public class MissionCalibrationService {
         return liftedNormalized.multiply(complexity.subtract(shift), MATH).multiply(scale, MATH);
     }
 
-    public ComplexityRange complexityRange(BigDecimal threshold, BigDecimal multiplier, Curve scoreCurve) {
-        BigDecimal target = targetRawAp(threshold, multiplier);
+    public ComplexityRange complexityRange(BigDecimal target, Curve scoreCurve) {
         if (target == null || target.signum() <= 0) {
             return null;
         }

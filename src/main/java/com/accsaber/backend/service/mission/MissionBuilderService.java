@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.Curve;
 import com.accsaber.backend.model.entity.item.Item;
+import com.accsaber.backend.model.entity.map.MapDifficultyComplexity;
 import com.accsaber.backend.model.entity.mission.MissionBand;
 import com.accsaber.backend.model.entity.mission.MissionPool;
 import com.accsaber.backend.model.entity.mission.MissionTemplate;
@@ -28,6 +30,7 @@ import com.accsaber.backend.model.entity.mission.MissionType;
 import com.accsaber.backend.model.entity.mission.UserMission;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.UserCategorySkill;
+import com.accsaber.backend.repository.map.MapDifficultyComplexityRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 
@@ -57,6 +60,7 @@ public class MissionBuilderService {
 
     private final UserRepository userRepository;
     private final ScoreRepository scoreRepository;
+    private final MapDifficultyComplexityRepository complexityRepository;
     private final MissionCalibrationService calibrationService;
     private final MissionTargetService targetService;
     private final MissionSkillService skillService;
@@ -221,11 +225,12 @@ public class MissionBuilderService {
         if (scoreCurve == null)
             return failBuild("no-score-curve");
         BigDecimal threshold = skillService.liftedThreshold(ctx, category, skill.getRawApForOneGain());
-        BigDecimal pickMultiplier = calibrationService.bandMultiplier(template, band);
+        BigDecimal categorySkill = skillService.skillLevelFor(ctx, category);
+        BigDecimal pickAnchor = targetService.skillAnchor(threshold, band, skill, categorySkill);
 
         String lastReason = "no-eligible-map";
         for (int attempt = 0; attempt < COMPUTE_MAP_RETRIES; attempt++) {
-            MapPick pick = targetService.sampleEligibleMap(category, threshold, pickMultiplier, scoreCurve, rng);
+            MapPick pick = targetService.sampleEligibleMap(category, pickAnchor, scoreCurve, rng);
             if (pick == null) {
                 lastReason = "no-eligible-map";
                 break;
@@ -244,13 +249,13 @@ public class MissionBuilderService {
                 effectiveBand = targetService.blendBands(band, derived);
             }
 
-            BigDecimal effectiveMultiplier = calibrationService.bandMultiplier(template, effectiveBand);
-            BigDecimal skillAnchored = calibrationService.targetRawAp(threshold, effectiveMultiplier);
+            BigDecimal skillAnchored = effectiveBand == band
+                    ? pickAnchor
+                    : targetService.skillAnchor(threshold, effectiveBand, skill, categorySkill);
             BigDecimal existingAp = existing.map(Score::getAp).orElse(null);
             BigDecimal liftedFloor = existingAp != null
                     ? calibrationService.bandLiftedFloorAp(existingAp, pick.complexity(), scoreCurve, effectiveBand)
                     : null;
-            BigDecimal categorySkill = skillService.skillLevelFor(ctx, category);
             BigDecimal mapTarget = targetService.mapAwareTarget(pick.difficulty().getId(), category.getId(),
                     categorySkill != null ? categorySkill.doubleValue() : 50.0, existingAp, effectiveBand);
             BigDecimal targetRawAp = targetService.blendSkillAndMapTarget(skillAnchored, mapTarget);
@@ -290,16 +295,16 @@ public class MissionBuilderService {
             return failBuild("no-skill-or-threshold-or-curve");
         Curve scoreCurve = category.getScoreCurve();
         BigDecimal threshold = skillService.liftedThreshold(ctx, category, skill.getRawApForOneGain());
-        BigDecimal multiplier = calibrationService.bandMultiplier(template, band);
-        BigDecimal skillAnchored = calibrationService.targetRawAp(threshold, multiplier);
         BigDecimal categorySkill = skillService.skillLevelFor(ctx, category);
+        BigDecimal pickAnchor = targetService.skillAnchor(threshold, band, skill, categorySkill);
 
         MapPick pick = null;
         Optional<Score> existing = Optional.empty();
         BigDecimal targetRawAp = null;
+        MissionBand builtBand = band;
         String lastReason = "no-eligible-map";
         for (int attempt = 0; attempt < COMPUTE_MAP_RETRIES; attempt++) {
-            MapPick candidate = targetService.sampleEligibleMap(category, threshold, multiplier, scoreCurve, rng);
+            MapPick candidate = targetService.sampleEligibleMap(category, pickAnchor, scoreCurve, rng);
             if (candidate == null) {
                 lastReason = "no-eligible-map";
                 break;
@@ -310,26 +315,32 @@ public class MissionBuilderService {
             }
             Optional<Score> myScore = scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
                     ctx.userId(), candidate.difficulty().getId());
+            MissionBand effectiveBand = myScore.isPresent() ? band : MissionBand.easy;
+            BigDecimal skillAnchored = effectiveBand == band
+                    ? pickAnchor
+                    : targetService.skillAnchor(threshold, effectiveBand, skill, categorySkill);
             BigDecimal existingAp = myScore.map(Score::getAp).orElse(null);
             BigDecimal liftedFloor = existingAp != null
-                    ? calibrationService.bandLiftedFloorAp(existingAp, candidate.complexity(), scoreCurve, band)
+                    ? calibrationService.bandLiftedFloorAp(existingAp, candidate.complexity(), scoreCurve,
+                            effectiveBand)
                     : null;
             BigDecimal mapTarget = targetService.mapAwareTarget(candidate.difficulty().getId(), category.getId(),
-                    categorySkill != null ? categorySkill.doubleValue() : 50.0, existingAp, band);
+                    categorySkill != null ? categorySkill.doubleValue() : 50.0, existingAp, effectiveBand);
             BigDecimal computed = targetService.blendSkillAndMapTarget(skillAnchored, mapTarget);
-            computed = computed.max(skillAnchored.multiply(targetService.skillFloorFraction(band)));
+            computed = computed.max(skillAnchored.multiply(targetService.skillFloorFraction(effectiveBand)));
             if (liftedFloor != null)
                 computed = computed.max(liftedFloor);
-            computed = targetService.capExtremeAtTopAp(computed, band, skill, categorySkill);
-            computed = targetService.capAtMapRealisticCeiling(computed, candidate, scoreCurve, band, cache,
+            computed = targetService.capExtremeAtTopAp(computed, effectiveBand, skill, categorySkill);
+            computed = targetService.capAtMapRealisticCeiling(computed, candidate, scoreCurve, effectiveBand, cache,
                     categorySkill);
-            computed = targetService.applyLeaderboardDensityDampener(computed, band, candidate, cache, existingAp);
+            computed = targetService.applyLeaderboardDensityDampener(computed, effectiveBand, candidate, cache,
+                    existingAp);
 
             if (existingAp != null && computed.compareTo(existingAp) <= 0) {
                 lastReason = "target-below-existing-after-caps";
                 continue;
             }
-            BigDecimal minMeaningful = minMeaningfulTarget(band, skill, skillAnchored);
+            BigDecimal minMeaningful = minMeaningfulTarget(effectiveBand, skill, skillAnchored);
             if (computed.compareTo(minMeaningful) < 0) {
                 lastReason = "target-below-min-meaningful";
                 continue;
@@ -337,14 +348,15 @@ public class MissionBuilderService {
             pick = candidate;
             existing = myScore;
             targetRawAp = computed;
+            builtBand = effectiveBand;
             break;
         }
         if (pick == null || targetRawAp == null)
             return failBuild(lastReason);
 
-        int xp = calibrationService.computeXpReward(template, skillService.skillLevelFor(ctx, category), band, null);
+        int xp = calibrationService.computeXpReward(template, categorySkill, builtBand, null);
         xp = (int) Math.round(xp * skillService.pbFreshnessBoost(existing.orElse(null)));
-        return baseBuilder(ctx, template, category, expiresAt, pool, band)
+        return baseBuilder(ctx, template, category, expiresAt, pool, builtBand)
                 .targetMapDifficulty(pick.difficulty())
                 .targetAp(targetRawAp)
                 .xpReward(xp)
@@ -427,7 +439,7 @@ public class MissionBuilderService {
             return failBuild("no-skill-or-threshold-or-curve");
         Curve scoreCurve = category.getScoreCurve();
         BigDecimal threshold = skillService.liftedThreshold(ctx, category, skill.getRawApForOneGain());
-        BigDecimal bandMult = calibrationService.bandMultiplier(template, band);
+        BigDecimal pickAnchor = threshold.multiply(targetService.snipeBandFraction(band));
         BigDecimal categorySkill = skillService.skillLevelFor(ctx, category);
         BigDecimal effectiveUserSkill = skillService.liftedSkillLevel(ctx, category, categorySkill);
         double userSkillVal = effectiveUserSkill != null ? effectiveUserSkill.doubleValue() : 50.0;
@@ -437,7 +449,7 @@ public class MissionBuilderService {
         Score target = null;
         Optional<Score> mine = Optional.empty();
         for (int attempt = 0; attempt < MAP_SAMPLE_ATTEMPTS; attempt++) {
-            MapPick candidate = targetService.sampleEligibleMap(category, threshold, bandMult, scoreCurve, rng);
+            MapPick candidate = targetService.sampleEligibleMap(category, pickAnchor, scoreCurve, rng);
             if (candidate == null)
                 break;
             if (isMapWrBelowFloor(candidate, skill, band, cache))
@@ -600,33 +612,65 @@ public class MissionBuilderService {
 
     private UserMission buildComebackPb(MissionAssignmentContext ctx, MissionTemplate template, Category category,
             Instant expiresAt, MissionPool pool, MissionBand band, Random rng, MissionPoolCache cache) {
+        Curve scoreCurve = category.getScoreCurve();
+        if (scoreCurve == null)
+            return failBuild("no-score-curve");
         Instant olderThan = Instant.now().minus(Duration.ofDays(365));
         List<Score> oldScores = scoreRepository.findActiveByUserAndCategoryOlderThan(
                 ctx.userId(), category.getId(), olderThan);
         if (oldScores.isEmpty())
             return failBuild("no-old-scores-for-comeback");
-        Score chosen = oldScores.get(rng.nextInt(oldScores.size()));
+        List<Score> candidates = new ArrayList<>(oldScores);
+        Collections.shuffle(candidates, rng);
+        if (candidates.size() > COMPUTE_MAP_RETRIES)
+            candidates = candidates.subList(0, COMPUTE_MAP_RETRIES);
+        Map<UUID, BigDecimal> complexities = complexityRepository
+                .findActiveByMapDifficultyIdIn(candidates.stream()
+                        .map(s -> s.getMapDifficulty().getId())
+                        .distinct()
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(c -> c.getMapDifficulty().getId(),
+                        MapDifficultyComplexity::getComplexity, (a, b) -> a));
         BigDecimal maxWeightedAp = scoreRepository.findMaxWeightedApByUserAndCategory(
                 ctx.userId(), category.getId());
-        MissionBand effectiveBand = targetService.bandFromWeightedRatio(chosen.getWeightedAp(), maxWeightedAp);
-        BigDecimal bandMult = calibrationService.bandMultiplier(template, effectiveBand);
-        BigDecimal targetRawAp = chosen.getAp().multiply(bandMult).max(chosen.getAp().add(BigDecimal.ONE));
         UserCategorySkill skill = ctx.skillByCategoryId().get(category.getId());
         BigDecimal categorySkill = skillService.skillLevelFor(ctx, category);
-        if (skill != null)
-            targetRawAp = targetService.capExtremeAtTopAp(targetRawAp, effectiveBand, skill, categorySkill);
-        MapPick pick = new MapPick(chosen.getMapDifficulty(), null, chosen.getMapDifficulty().getMaxScore());
-        targetRawAp = targetService.capAtMapRealisticCeiling(targetRawAp, pick, category.getScoreCurve(),
-                effectiveBand, cache, categorySkill);
-        targetRawAp = targetService.applyLeaderboardDensityDampener(targetRawAp, effectiveBand, pick, cache,
-                chosen.getAp());
-        int xp = calibrationService.computeXpReward(template, categorySkill, effectiveBand, null);
-        return baseBuilder(ctx, template, category, expiresAt, pool, effectiveBand)
-                .targetMapDifficulty(chosen.getMapDifficulty())
-                .targetAp(targetRawAp)
-                .xpReward(xp)
-                .itemReward(rollItemReward(template, rng, cache))
-                .build();
+
+        String lastReason = "no-complexity-for-comeback-map";
+        for (Score chosen : candidates) {
+            BigDecimal complexity = complexities.get(chosen.getMapDifficulty().getId());
+            if (complexity == null) {
+                lastReason = "no-complexity-for-comeback-map";
+                continue;
+            }
+            MissionBand effectiveBand = targetService.bandFromWeightedRatio(chosen.getWeightedAp(), maxWeightedAp);
+            BigDecimal targetRawAp = calibrationService.bandLiftedFloorAp(chosen.getAp(), complexity, scoreCurve,
+                    effectiveBand);
+            if (targetRawAp == null) {
+                lastReason = "no-lifted-floor-for-comeback";
+                continue;
+            }
+            MapPick pick = new MapPick(chosen.getMapDifficulty(), complexity, chosen.getMapDifficulty().getMaxScore());
+            if (skill != null)
+                targetRawAp = targetService.capExtremeAtTopAp(targetRawAp, effectiveBand, skill, categorySkill);
+            targetRawAp = targetService.capAtMapRealisticCeiling(targetRawAp, pick, scoreCurve, effectiveBand, cache,
+                    categorySkill);
+            targetRawAp = targetService.applyLeaderboardDensityDampener(targetRawAp, effectiveBand, pick, cache,
+                    chosen.getAp());
+            if (targetRawAp.compareTo(chosen.getAp()) <= 0) {
+                lastReason = "target-below-existing-after-caps";
+                continue;
+            }
+            int xp = calibrationService.computeXpReward(template, categorySkill, effectiveBand, null);
+            return baseBuilder(ctx, template, category, expiresAt, pool, effectiveBand)
+                    .targetMapDifficulty(chosen.getMapDifficulty())
+                    .targetAp(targetRawAp)
+                    .xpReward(xp)
+                    .itemReward(rollItemReward(template, rng, cache))
+                    .build();
+        }
+        return failBuild(lastReason);
     }
 
     private UserMission buildStreakNInCategory(MissionAssignmentContext ctx, MissionTemplate template,
@@ -656,10 +700,10 @@ public class MissionBuilderService {
         BigDecimal streakThreshold = skillService.liftedThreshold(ctx, category, skill.getRawApForOneGain());
         BigDecimal skillLvl = skillService.skillLevelFor(ctx, category);
         boolean topTier = skillLvl != null && skillLvl.doubleValue() >= 90.0;
+        BigDecimal pickAnchor = targetService.skillAnchor(streakThreshold, band, skill, skillLvl);
         String lastReason = "no-eligible-map";
         for (int attempt = 0; attempt < COMPUTE_MAP_RETRIES; attempt++) {
-            MapPick pick = targetService.sampleEligibleMap(category, streakThreshold,
-                    calibrationService.bandMultiplier(template, band), category.getScoreCurve(), rng);
+            MapPick pick = targetService.sampleEligibleMap(category, pickAnchor, category.getScoreCurve(), rng);
             if (pick == null) {
                 lastReason = "no-eligible-map";
                 continue;

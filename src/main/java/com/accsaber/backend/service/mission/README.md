@@ -44,7 +44,7 @@ Common stuff every build pulls from the context:
 - **PLAY_N_MAPS** - just a count, no map picked. Count picked by band. I have this disabled currently since not everyone will have the plugin at the start, but just gotta turn bool to true in DB
 - **XP_IN_WINDOW** - `rollingDailyXp * bandMultiplier`, floored at 100.
 - **ACC_ON_MAP / AP_ON_MAP** - full map-target pipeline (below). The acc variant converts to acc + score at the end; the AP variant uses the rawAp directly.
-- **PB_SPECIFIC_MAP** - same pipeline, plus a `pbFreshnessBoost` XP bonus if the existing PB is recent.
+- **PB_SPECIFIC_MAP** - same pipeline, plus a `pbFreshnessBoost` XP bonus if the existing PB is recent. With no score on the picked map the band clamps to easy for the whole target computation (anchor, floors, caps, `minMeaningfulTarget`, XP and the stored band), since completion for this type is just "an active score on the target map". The map is still sampled and WR-floor checked against the rolled band, so a strong map stays a strong map and only the ask drops.
 - **PB_ABOVE_THRESHOLD** - percentile of the user's own scores (70/45/22/10 for easy/medium/hard/extreme) times a small shift (0.98/1.0/1.015/1.02), capped at 0.97 * topAp (with the skill-aware nerf described below for easy/medium/hard). Needs at least 2 qualifying scores or it fails.
 - **SNIPE_PLAYER_ON_MAP** - two branches in `computeSnipeTarget` (has-score vs no-score). Candidate filter uses `snipeMaxSkillDistance` (5/8/12/18) to avoid asking you to snipe someone two tiers above.
 - **STREAK_ON_MAP** - streak target built from the user's *per-complexity-band* representative streak, not one blended category number. The map is sampled first, its complexity resolves to a 3-wide half-open band (`[1,4) [4,7) [7,10) [10,13) [13,16)`), and we pull the user's top streaks **on maps in that band only** (`representativeUserStreakForComplexityBand`). That `bandAbility` feeds both the reference and the `bandAbility + 1` cap, so a hard map is measured against how the user streaks on hard maps - not inflated by their easy-map streaks. Reference = `0.6*avg + 0.4*max` of the map's own top-5 streaks; a ranked map always has imported scores, so `bandAbility` is only a defensive fallback if that leaderboard ever comes back empty. Final demand = `streakTargetFor(band)` clamped to `[3, bandAbility + 1]`. The `< 3` gate now runs **after** the pick on `bandAbility`, inside a `COMPUTE_MAP_RETRIES` resample loop: if the sampled map lands in a band the user can't streak 3 on, we resample rather than drop the mission. If the user has no streak data in the band at all, `bandAbility` falls back to their category-wide representative streak translated down by `complexityTranslationFactor` (so an easy-map streak isn't reused as-is on a hard map).
@@ -63,7 +63,7 @@ Common stuff every build pulls from the context:
 ### Triggers
 
 `MissionType` carries a `MissionTrigger` (`SCORE` or `CAMPAIGN`). `MissionProgressService.openMissionsFor(userId, trigger)` filters by it before dispatch, so each listener only ever sees missions it can evaluate. The score switch throws `IllegalStateException` on a non-SCORE type rather than returning false - it's unreachable by construction, and a throw fails loudly if the filter ever regresses instead of silently never completing. Adding a new type is still a compile error in both switches, plus the two progress-display switches in `MissionResponse`.
-- **COMEBACK_PB** - random old score (>1y), band derived from `weightedAp / maxWeightedAp` (so a comeback for a tiny historical play isn't "extreme").
+- **COMEBACK_PB** - random old score (>1y), band derived from `weightedAp / maxWeightedAp` (so a comeback for a tiny historical play isn't "extreme"). Target is `bandLiftedFloorAp(oldAp, complexity, band)` with the topAp cap, WR cap and density dampener on top. Candidates are shuffled and tried up to `COMPUTE_MAP_RETRIES` times, rejecting any whose post-cap target doesn't clear the old AP (`target-below-existing-after-caps`). Complexities for the candidate set come from one batched query.
 - **SCORES_N** - always re-bands to easy or medium, XP scaled by `0.5 + 0.5 * count`.
 
 ### Progress display
@@ -79,6 +79,7 @@ Binary types (`ACC_ON_MAP`, `AP_ON_MAP`, `PB_SPECIFIC_MAP`, `COMEBACK_PB`, `SNIP
 - Daily: random via `pickBand` - 30/40/25/5 (easy/medium/hard/extreme).
 - Weekly: one slot forced to extreme, rest random.
 - Map-picking missions can override the forced band if you already have a score on the picked map. The band gets blended with one derived from `weightedAp / maxWeightedAp` (60% assigned, 40% derived) via `blendBands`. This stops "you 99%'d this map, here's an extreme for +2 AP."
+- `PB_SPECIFIC_MAP` goes the other way when you have *no* score on the picked map: the band drops to easy, because that mission completes on any active score and there is nothing to improve on yet.
 
 ### The shared map-target pipeline
 
@@ -87,7 +88,7 @@ This runs for ACC_ON_MAP, AP_ON_MAP, PB_SPECIFIC_MAP and (in a slightly differen
 | Step | What it does | Notes |
 |---|---|---|
 | `threshold = liftedThreshold(rawApForOneGain)` | starts from the user's "AP for one gain" | cross-category lift kicks in when the skill disparity is >= 10 |
-| `skillAnchored = threshold * bandMultiplier` | what calibration "wants" before looking at the map | per-template multiplier from DB |
+| `skillAnchored = skillAnchor(threshold, band, skill, skillLevel)` | what calibration "wants" before looking at the map | a step into the room between the threshold and `topApCeiling(band)`, fractions 0.10 / 0.30 / 0.55 / 0.85, clamped to the ceiling |
 | `mapTarget = mapAwareTarget(...)` | walks the leaderboard for a comparable AP | uses user's skill and existing AP if any |
 | `target = blendSkillAndMapTarget` | 30% skill / 70% map | map weight dominates so weak maps don't get inflated targets |
 | `target = max(target, skillAnchored * skillFloorFraction(band))` | floor: don't go below skill anchor by too much | fractions 0.935 / 0.95 / 0.965 / 0.975 |
@@ -140,7 +141,8 @@ Do **not** go back to `effectiveUserAp = ZERO` on the no-score branch. That make
 ### Knobs you'll actually want to tune (🤤)
 
 - **`EXTREME_BOOST` (1.35)** in `MissionCalibrationService` - how much harder extreme is than hard. Past 1.5 and extreme becomes "impossible" rather than "hard."
-- **per-template band multipliers** - live in the `mission_templates` DB rows, not hardcoded. Edit per-template in SQL.
+- **per-template band multipliers** - live in the `mission_templates` DB rows, not hardcoded. Edit per-template in SQL. They price XP, so raising one makes a band pay more, not ask more.
+- **`anchorFraction` (0.10 / 0.30 / 0.55 / 0.85)** in `MissionTargetService` - how far into your remaining headroom the anchor steps. This is the band's only say in the pre-map number, so it is the first thing to reach for if a band feels soft or brutal across the board. At 0.9 or above the anchor sits on the ceiling itself and the map blend has nothing left to do.
 - **`bandLiftedFloorAp` step + headroomFraction** - "improve PB by ~X% normalized" floor. Easy at 0.015 / 0.15 is already a real step; pushing it past 0.05 makes easy feel like hard.
 - **`skillFloorFraction` (0.935/0.95/0.965/0.975)** - floor for map-blended target vs skill-anchored. Lower = more lazy maps slip through, higher = pipeline rejects too many candidates.
 - **`snipeBandFraction` (0.93/0.95/0.97/0.985)** - mirrors `skillFloorFraction` by design. Keep them aligned.

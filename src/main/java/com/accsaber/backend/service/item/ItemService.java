@@ -138,17 +138,17 @@ public class ItemService {
         return ItemMapper.toPreviewResponse(item, modifiers, effect, variantKey);
     }
 
-    public List<UserItemLink> findUserCollection(Long userId) {
+    private List<UserItemLink> findUserCollection(Long userId) {
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
         return userItemLinkRepository.findByUser_IdAndEscrowedFalse(resolved);
     }
 
-    public List<UserItemLink> findUserCollectionByType(Long userId, String typeKey) {
+    private List<UserItemLink> findUserCollectionByType(Long userId, String typeKey) {
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
         return userItemLinkRepository.findByUser_IdAndItem_Type_KeyAndEscrowedFalse(resolved, typeKey);
     }
 
-    public Page<UserItemLink> findInventory(Long userId, InventoryFilter filter, Pageable pageable) {
+    private Page<UserItemLink> findInventory(Long userId, InventoryFilter filter, Pageable pageable) {
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
         InventoryFilter f = filter == null
                 ? new InventoryFilter(null, null, null, null, null, null, null)
@@ -202,17 +202,12 @@ public class ItemService {
         Map<String, Object> rawSettings = userSettingsService.getGroup(resolved, UserSettingKey.GROUP_EQUIPPED);
         Map<String, UserItemLink> pickedByType = resolveEquippedLinksByType(resolved, rawSettings);
 
-        Set<UUID> linkIds = pickedByType.values().stream()
-                .filter(Objects::nonNull)
-                .map(UserItemLink::getId)
-                .collect(Collectors.toSet());
-        Map<UUID, Map<String, Long>> countersByLink = loadCounters(linkIds);
+        Map<UUID, Map<String, Long>> countersByLink = counterRepository
+                .countersByLink(linkIds(pickedByType.values()));
 
         Map<String, UserItemResponse> result = new LinkedHashMap<>();
         pickedByType.forEach((typeKey, picked) -> {
-            UserItemResponse response = picked == null
-                    ? null
-                    : ItemMapper.toUserItemResponse(picked, countersByLink.get(picked.getId()));
+            UserItemResponse response = picked == null ? null : hydrate(picked, countersByLink);
             boolean explicit = UserSettingKey.forEquippedItemType(typeKey)
                     .map(slot -> rawSettings.get(slot.key()) != null)
                     .orElse(false);
@@ -227,6 +222,37 @@ public class ItemService {
             result.put(typeKey, response);
         });
         return result;
+    }
+
+    public List<UserItemResponse> findUserCollectionHydrated(Long userId, String typeKey) {
+        return hydrateAll(typeKey == null
+                ? findUserCollection(userId)
+                : findUserCollectionByType(userId, typeKey));
+    }
+
+    public Page<UserItemResponse> findInventoryHydrated(Long userId, InventoryFilter filter, Pageable pageable) {
+        Page<UserItemLink> page = findInventory(userId, filter, pageable);
+        Map<UUID, Map<String, Long>> countersByLink = counterRepository
+                .countersByLink(linkIds(page.getContent()));
+        return page.map(link -> hydrate(link, countersByLink));
+    }
+
+    private List<UserItemResponse> hydrateAll(List<UserItemLink> links) {
+        Map<UUID, Map<String, Long>> countersByLink = counterRepository.countersByLink(linkIds(links));
+        return links.stream()
+                .map(link -> hydrate(link, countersByLink))
+                .toList();
+    }
+
+    private static UserItemResponse hydrate(UserItemLink link, Map<UUID, Map<String, Long>> countersByLink) {
+        return ItemMapper.toUserItemResponse(link, countersByLink.get(link.getId()));
+    }
+
+    private static Set<UUID> linkIds(Collection<UserItemLink> links) {
+        return links.stream()
+                .filter(Objects::nonNull)
+                .map(UserItemLink::getId)
+                .collect(Collectors.toSet());
     }
 
     public List<UserItemLink> findEffectiveEquippedLinks(Long userId) {
@@ -274,17 +300,6 @@ public class ItemService {
         equippedLinkIdByType.forEach((typeKey, linkId) -> picked.put(typeKey,
                 linkId != null ? explicitLinks.get(linkId) : fallbacksByType.get(typeKey)));
         return picked;
-    }
-
-    private Map<UUID, Map<String, Long>> loadCounters(Set<UUID> linkIds) {
-        if (linkIds.isEmpty())
-            return Map.of();
-        Map<UUID, Map<String, Long>> grouped = new HashMap<>();
-        for (var c : counterRepository.findByUserItemLink_IdIn(linkIds)) {
-            grouped.computeIfAbsent(c.getId().getUserItemLinkId(), k -> new HashMap<>())
-                    .put(c.getId().getStatKey(), c.getValue());
-        }
-        return grouped;
     }
 
     private static int tierRank(UserItemLink link) {

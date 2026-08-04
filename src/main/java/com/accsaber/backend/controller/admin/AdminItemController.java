@@ -144,7 +144,7 @@ public class AdminItemController {
         var link = itemService.awardManual(req.getUserId(), req.getItemId(),
                 staff.getStaffUser(), req.getReason(), req.getModifierKeys(), req.getQuantity(),
                 req.getUnusualEffectId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(ItemMapper.toUserItemResponse(link));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ItemMapper.toUserItemResponse(link, null));
     }
 
     @Operation(summary = "Mark an item as deprecated")

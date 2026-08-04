@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -34,6 +35,7 @@ import com.accsaber.backend.model.entity.item.ItemType;
 import com.accsaber.backend.model.entity.item.UserItemLink;
 import com.accsaber.backend.model.entity.market.MarketListingStatus;
 import com.accsaber.backend.model.entity.user.User;
+import com.accsaber.backend.repository.item.UserItemLinkCounterRepository;
 import com.accsaber.backend.repository.item.UserItemLinkRepository;
 import com.accsaber.backend.repository.item.UserItemTradeItemRepository;
 import com.accsaber.backend.repository.market.MarketBidRepository;
@@ -57,6 +59,8 @@ class MarketListingCreateTest {
     private MarketBidRepository bidRepository;
     @Mock
     private UserItemLinkRepository userItemLinkRepository;
+    @Mock
+    private UserItemLinkCounterRepository counterRepository;
     @Mock
     private UserItemTradeItemRepository tradeItemRepository;
     @Mock
@@ -90,6 +94,7 @@ class MarketListingCreateTest {
         when(itemTransferService.escrow(any(), anyLong())).thenReturn(link);
         when(userRepository.getReferenceById(SELLER_ID)).thenReturn(user());
         when(listingRepository.save(any())).thenAnswer(returnsFirstArg());
+        when(counterRepository.countersByLink(any())).thenReturn(Map.of());
     }
 
     @Test

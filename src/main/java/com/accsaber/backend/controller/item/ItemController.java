@@ -156,10 +156,7 @@ public class ItemController {
     public ResponseEntity<List<UserItemResponse>> getUserItems(
             @PathVariable Long userId,
             @RequestParam(required = false) String typeKey) {
-        var links = typeKey == null
-                ? itemService.findUserCollection(userId)
-                : itemService.findUserCollectionByType(userId, typeKey);
-        return ResponseEntity.ok(links.stream().map(ItemMapper::toUserItemResponse).toList());
+        return ResponseEntity.ok(itemService.findUserCollectionHydrated(userId, typeKey));
     }
 
     @Operation(summary = "Get what a player has equipped", description = "The items a player is currently showing, as a map "
@@ -187,8 +184,7 @@ public class ItemController {
             @PageableDefault(size = 50, sort = "awardedAt", direction = Sort.Direction.DESC) Pageable pageable) {
         InventoryFilter filter = new InventoryFilter(typeKey, rarity, modifierKey, tradeable, search, source,
                 deprecated);
-        return ResponseEntity.ok(itemService.findInventory(userId, filter, pageable)
-                .map(ItemMapper::toUserItemResponse));
+        return ResponseEntity.ok(itemService.findInventoryHydrated(userId, filter, pageable));
     }
 
     @Operation(summary = "Equip an item", description = "Puts one of your items into its slot, which is decided by the item's "

@@ -1,5 +1,7 @@
 package com.accsaber.backend.service.market;
 
+import java.util.Map;
+
 import com.accsaber.backend.model.dto.response.item.UserItemResponse;
 import com.accsaber.backend.model.dto.response.market.MarketBidResponse;
 import com.accsaber.backend.model.dto.response.market.MarketListingResponse;
@@ -16,13 +18,14 @@ public final class MarketMapper {
     private MarketMapper() {
     }
 
-    public static MarketListingResponse toListingResponse(MarketListing listing, long bidCount) {
+    public static MarketListingResponse toListingResponse(MarketListing listing, long bidCount,
+            Map<String, Long> counters) {
         return MarketListingResponse.builder()
                 .id(listing.getId())
                 .title(listing.getTitle())
                 .description(listing.getDescription())
                 .seller(toUserRef(listing.getSeller()))
-                .item(toItemView(listing))
+                .item(toItemView(listing, counters))
                 .quantity(listing.getQuantity())
                 .startingBid(listing.getStartingBid())
                 .buyoutPrice(listing.getBuyoutPrice())
@@ -42,10 +45,10 @@ public final class MarketMapper {
                 .build();
     }
 
-    private static UserItemResponse toItemView(MarketListing listing) {
+    private static UserItemResponse toItemView(MarketListing listing, Map<String, Long> counters) {
         UserItemLink link = listing.getUserItemLink();
         if (link != null) {
-            return ItemMapper.toUserItemResponse(link);
+            return ItemMapper.toUserItemResponse(link, counters);
         }
         return UserItemResponse.builder()
                 .item(ItemMapper.toItemResponse(listing.getItem()))

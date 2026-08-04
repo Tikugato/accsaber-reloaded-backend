@@ -1,7 +1,9 @@
 package com.accsaber.backend.repository.item;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,6 +19,18 @@ public interface UserItemLinkCounterRepository
         extends JpaRepository<UserItemLinkCounter, UserItemLinkCounter.CounterId> {
 
     List<UserItemLinkCounter> findByUserItemLink_IdIn(Collection<UUID> linkIds);
+
+    default Map<UUID, Map<String, Long>> countersByLink(Collection<UUID> linkIds) {
+        if (linkIds == null || linkIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Map<String, Long>> grouped = new HashMap<>();
+        for (UserItemLinkCounter counter : findByUserItemLink_IdIn(linkIds)) {
+            grouped.computeIfAbsent(counter.getId().getUserItemLinkId(), k -> new HashMap<>())
+                    .put(counter.getId().getStatKey(), counter.getValue());
+        }
+        return grouped;
+    }
 
     @Modifying
     @Query(value = """

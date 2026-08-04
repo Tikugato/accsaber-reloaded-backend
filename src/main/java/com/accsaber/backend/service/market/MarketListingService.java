@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +25,7 @@ import com.accsaber.backend.model.entity.item.TradeStatus;
 import com.accsaber.backend.model.entity.item.UserItemLink;
 import com.accsaber.backend.model.entity.market.MarketListing;
 import com.accsaber.backend.model.entity.market.MarketListingStatus;
+import com.accsaber.backend.repository.item.UserItemLinkCounterRepository;
 import com.accsaber.backend.repository.item.UserItemLinkRepository;
 import com.accsaber.backend.repository.item.UserItemTradeItemRepository;
 import com.accsaber.backend.repository.market.MarketBidRepository;
@@ -44,6 +46,7 @@ public class MarketListingService {
     private final MarketListingRepository listingRepository;
     private final MarketBidRepository bidRepository;
     private final UserItemLinkRepository userItemLinkRepository;
+    private final UserItemLinkCounterRepository counterRepository;
     private final UserItemTradeItemRepository tradeItemRepository;
     private final UserRepository userRepository;
     private final DuplicateUserService duplicateUserService;
@@ -87,7 +90,7 @@ public class MarketListingService {
                 .minIncrement(req.getMinIncrement())
                 .endsAt(endsAt)
                 .build());
-        return MarketMapper.toListingResponse(saved, 0L);
+        return toResponse(saved, 0L);
     }
 
     @Transactional
@@ -106,7 +109,7 @@ public class MarketListingService {
             throw new ConflictException("This listing already has bids and can no longer be cancelled");
         }
         settlementService.close(listing, MarketListingStatus.cancelled);
-        return MarketMapper.toListingResponse(listing, bidRepository.countByListing_Id(listingId));
+        return toResponse(listing, bidRepository.countByListing_Id(listingId));
     }
 
     public Page<MarketListingResponse> browse(MarketFilter filter, Pageable pageable) {
@@ -139,19 +142,41 @@ public class MarketListingService {
     public MarketListingResponse findDetail(UUID listingId) {
         MarketListing listing = listingRepository.findByIdHydrated(listingId)
                 .orElseThrow(() -> new ResourceNotFoundException("MarketListing", listingId));
-        return MarketMapper.toListingResponse(listing, bidRepository.countByListing_Id(listingId));
+        return toResponse(listing, bidRepository.countByListing_Id(listingId));
+    }
+
+    private MarketListingResponse toResponse(MarketListing listing, long bidCount) {
+        Map<UUID, Map<String, Long>> countersByLink = counterRepository
+                .countersByLink(linkIds(List.of(listing)));
+        return MarketMapper.toListingResponse(listing, bidCount, countersFor(listing, countersByLink));
     }
 
     private Page<MarketListingResponse> withBidCounts(Page<MarketListing> page) {
         if (page.isEmpty()) {
-            return page.map(l -> MarketMapper.toListingResponse(l, 0L));
+            return page.map(l -> MarketMapper.toListingResponse(l, 0L, null));
         }
         List<UUID> ids = page.getContent().stream().map(MarketListing::getId).toList();
         Map<UUID, Long> counts = new HashMap<>();
         for (Object[] row : bidRepository.countByListingIds(ids)) {
             counts.put((UUID) row[0], (Long) row[1]);
         }
-        return page.map(l -> MarketMapper.toListingResponse(l, counts.getOrDefault(l.getId(), 0L)));
+        Map<UUID, Map<String, Long>> countersByLink = counterRepository.countersByLink(linkIds(page.getContent()));
+        return page.map(l -> MarketMapper.toListingResponse(l, counts.getOrDefault(l.getId(), 0L),
+                countersFor(l, countersByLink)));
+    }
+
+    private static List<UUID> linkIds(Collection<MarketListing> listings) {
+        return listings.stream()
+                .map(MarketListing::getUserItemLink)
+                .filter(Objects::nonNull)
+                .map(UserItemLink::getId)
+                .toList();
+    }
+
+    private static Map<String, Long> countersFor(MarketListing listing,
+            Map<UUID, Map<String, Long>> countersByLink) {
+        UserItemLink link = listing.getUserItemLink();
+        return link == null ? null : countersByLink.get(link.getId());
     }
 
     private void enforceListingCap(Long resolvedUserId) {

@@ -117,10 +117,6 @@ public final class ItemMapper {
                 .build();
     }
 
-    public static UserItemResponse toUserItemResponse(UserItemLink link) {
-        return toUserItemResponse(link, null);
-    }
-
     public static UserItemResponse toPreviewResponse(Item item, Set<ItemModifier> modifiers,
             UnusualEffect effect, String variantKey) {
         UserItemResponse response = UserItemResponse.builder()
@@ -200,7 +196,7 @@ public final class ItemMapper {
                 .id(open.getId())
                 .crate(toItemResponse(open.getCrateItem()))
                 .consumedLinkId(open.getConsumedLinkId())
-                .reward(open.getRewardLink() != null ? toUserItemResponse(open.getRewardLink()) : null)
+                .reward(open.getRewardLink() != null ? toUserItemResponse(open.getRewardLink(), null) : null)
                 .rolledAt(open.getRolledAt())
                 .build();
     }

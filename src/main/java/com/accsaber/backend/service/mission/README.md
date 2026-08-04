@@ -63,7 +63,7 @@ Common stuff every build pulls from the context:
 ### Triggers
 
 `MissionType` carries a `MissionTrigger` (`SCORE` or `CAMPAIGN`). `MissionProgressService.openMissionsFor(userId, trigger)` filters by it before dispatch, so each listener only ever sees missions it can evaluate. The score switch throws `IllegalStateException` on a non-SCORE type rather than returning false - it's unreachable by construction, and a throw fails loudly if the filter ever regresses instead of silently never completing. Adding a new type is still a compile error in both switches, plus the two progress-display switches in `MissionResponse`.
-- **COMEBACK_PB** - random old score (>1y), band derived from `weightedAp / maxWeightedAp` (so a comeback for a tiny historical play isn't "extreme"). Target is `bandLiftedFloorAp(oldAp, complexity, band)` with the topAp cap, WR cap and density dampener on top. Candidates are shuffled and tried up to `COMPUTE_MAP_RETRIES` times, rejecting any whose post-cap target doesn't clear the old AP (`target-below-existing-after-caps`). Complexities for the candidate set come from one batched query.
+- **COMEBACK_PB** - random active score older than a year. No target AP, because completion is `evalPbSpecificMap`, which only wants a new PB on that map, so the build skips the map pool, the curve math and every cap. The band comes off `rawApForOneGain` (under 600 easy, under 950 medium, above that hard) and only decides XP. Its template description has no `{ap}` placeholder, so nothing renders a missing number.
 - **SCORES_N** - always re-bands to easy or medium, XP scaled by `0.5 + 0.5 * count`.
 
 ### Progress display

@@ -9,7 +9,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
@@ -22,7 +21,6 @@ import org.springframework.stereotype.Service;
 import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.Curve;
 import com.accsaber.backend.model.entity.item.Item;
-import com.accsaber.backend.model.entity.map.MapDifficultyComplexity;
 import com.accsaber.backend.model.entity.mission.MissionBand;
 import com.accsaber.backend.model.entity.mission.MissionPool;
 import com.accsaber.backend.model.entity.mission.MissionTemplate;
@@ -30,7 +28,6 @@ import com.accsaber.backend.model.entity.mission.MissionType;
 import com.accsaber.backend.model.entity.mission.UserMission;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.UserCategorySkill;
-import com.accsaber.backend.repository.map.MapDifficultyComplexityRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 
@@ -60,7 +57,6 @@ public class MissionBuilderService {
 
     private final UserRepository userRepository;
     private final ScoreRepository scoreRepository;
-    private final MapDifficultyComplexityRepository complexityRepository;
     private final MissionCalibrationService calibrationService;
     private final MissionTargetService targetService;
     private final MissionSkillService skillService;
@@ -612,65 +608,31 @@ public class MissionBuilderService {
 
     private UserMission buildComebackPb(MissionAssignmentContext ctx, MissionTemplate template, Category category,
             Instant expiresAt, MissionPool pool, MissionBand band, Random rng, MissionPoolCache cache) {
-        Curve scoreCurve = category.getScoreCurve();
-        if (scoreCurve == null)
-            return failBuild("no-score-curve");
         Instant olderThan = Instant.now().minus(Duration.ofDays(365));
         List<Score> oldScores = scoreRepository.findActiveByUserAndCategoryOlderThan(
                 ctx.userId(), category.getId(), olderThan);
         if (oldScores.isEmpty())
             return failBuild("no-old-scores-for-comeback");
-        List<Score> candidates = new ArrayList<>(oldScores);
-        Collections.shuffle(candidates, rng);
-        if (candidates.size() > COMPUTE_MAP_RETRIES)
-            candidates = candidates.subList(0, COMPUTE_MAP_RETRIES);
-        Map<UUID, BigDecimal> complexities = complexityRepository
-                .findActiveByMapDifficultyIdIn(candidates.stream()
-                        .map(s -> s.getMapDifficulty().getId())
-                        .distinct()
-                        .toList())
-                .stream()
-                .collect(Collectors.toMap(c -> c.getMapDifficulty().getId(),
-                        MapDifficultyComplexity::getComplexity, (a, b) -> a));
-        BigDecimal maxWeightedAp = scoreRepository.findMaxWeightedApByUserAndCategory(
-                ctx.userId(), category.getId());
-        UserCategorySkill skill = ctx.skillByCategoryId().get(category.getId());
-        BigDecimal categorySkill = skillService.skillLevelFor(ctx, category);
+        Score chosen = oldScores.get(rng.nextInt(oldScores.size()));
+        MissionBand effectiveBand = comebackBand(ctx.skillByCategoryId().get(category.getId()));
+        int xp = calibrationService.computeXpReward(template, skillService.skillLevelFor(ctx, category),
+                effectiveBand, null);
+        return baseBuilder(ctx, template, category, expiresAt, pool, effectiveBand)
+                .targetMapDifficulty(chosen.getMapDifficulty())
+                .xpReward(xp)
+                .itemReward(rollItemReward(template, rng, cache))
+                .build();
+    }
 
-        String lastReason = "no-complexity-for-comeback-map";
-        for (Score chosen : candidates) {
-            BigDecimal complexity = complexities.get(chosen.getMapDifficulty().getId());
-            if (complexity == null) {
-                lastReason = "no-complexity-for-comeback-map";
-                continue;
-            }
-            MissionBand effectiveBand = targetService.bandFromWeightedRatio(chosen.getWeightedAp(), maxWeightedAp);
-            BigDecimal targetRawAp = calibrationService.bandLiftedFloorAp(chosen.getAp(), complexity, scoreCurve,
-                    effectiveBand);
-            if (targetRawAp == null) {
-                lastReason = "no-lifted-floor-for-comeback";
-                continue;
-            }
-            MapPick pick = new MapPick(chosen.getMapDifficulty(), complexity, chosen.getMapDifficulty().getMaxScore());
-            if (skill != null)
-                targetRawAp = targetService.capExtremeAtTopAp(targetRawAp, effectiveBand, skill, categorySkill);
-            targetRawAp = targetService.capAtMapRealisticCeiling(targetRawAp, pick, scoreCurve, effectiveBand, cache,
-                    categorySkill);
-            targetRawAp = targetService.applyLeaderboardDensityDampener(targetRawAp, effectiveBand, pick, cache,
-                    chosen.getAp());
-            if (targetRawAp.compareTo(chosen.getAp()) <= 0) {
-                lastReason = "target-below-existing-after-caps";
-                continue;
-            }
-            int xp = calibrationService.computeXpReward(template, categorySkill, effectiveBand, null);
-            return baseBuilder(ctx, template, category, expiresAt, pool, effectiveBand)
-                    .targetMapDifficulty(chosen.getMapDifficulty())
-                    .targetAp(targetRawAp)
-                    .xpReward(xp)
-                    .itemReward(rollItemReward(template, rng, cache))
-                    .build();
-        }
-        return failBuild(lastReason);
+    private MissionBand comebackBand(UserCategorySkill skill) {
+        BigDecimal threshold = skill != null ? skill.getRawApForOneGain() : null;
+        if (threshold == null)
+            return MissionBand.easy;
+        if (threshold.compareTo(new BigDecimal("950")) >= 0)
+            return MissionBand.hard;
+        if (threshold.compareTo(new BigDecimal("600")) >= 0)
+            return MissionBand.medium;
+        return MissionBand.easy;
     }
 
     private UserMission buildStreakNInCategory(MissionAssignmentContext ctx, MissionTemplate template,

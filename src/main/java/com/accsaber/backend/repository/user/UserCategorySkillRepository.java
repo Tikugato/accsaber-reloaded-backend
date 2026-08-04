@@ -1,6 +1,7 @@
 package com.accsaber.backend.repository.user;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,6 +46,16 @@ public interface UserCategorySkillRepository extends JpaRepository<UserCategoryS
                           AND u.active = true AND u.banned = false AND u.playerInactive = false
                         """)
         List<Long> findActiveUserIdsByCategoryId(@Param("categoryId") UUID categoryId);
+
+        @Query("""
+                        SELECT s.user.id, s.skillLevel FROM UserCategorySkill s
+                        WHERE s.category.id = :categoryId
+                          AND s.user.id IN :userIds
+                          AND s.skillLevel IS NOT NULL
+                        """)
+        List<Object[]> findSkillLevelsByCategoryAndUserIds(
+                        @Param("categoryId") UUID categoryId,
+                        @Param("userIds") Collection<Long> userIds);
 
         @Modifying
         @Query(value = """

@@ -2,8 +2,10 @@ package com.accsaber.backend.service.skill;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -100,6 +102,14 @@ public class SkillService {
                 .categoryCode(category.getCode())
                 .rawApForOneGain(raw)
                 .build();
+    }
+
+    public Map<Long, BigDecimal> findSkillLevelsByUserIds(UUID categoryId, Collection<Long> userIds) {
+        if (categoryId == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+        return skillRepository.findSkillLevelsByCategoryAndUserIds(categoryId, userIds).stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (BigDecimal) row[1]));
     }
 
     @Transactional

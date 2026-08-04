@@ -71,6 +71,9 @@ public class ScoreResponse {
     private String supporterTier;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    private BigDecimal skillLevel;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private MapDifficultyMetadata metadata;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

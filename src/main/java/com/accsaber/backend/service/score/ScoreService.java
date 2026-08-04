@@ -143,7 +143,8 @@ public class ScoreService {
                         ScoreResponse worseResponse = toResponse(history,
                                         computeAccuracy(history.getScore(), difficulty.getMaxScore()),
                                         loadModifierIds(history.getId()));
-                        eventPublisher.publishEvent(new ScoreSubmittedEvent(withMapMetadata(worseResponse, difficulty)));
+                        eventPublisher.publishEvent(
+                                        new ScoreSubmittedEvent(withMapMetadata(worseResponse, difficulty)));
                         return worseResponse;
                 }
 
@@ -192,7 +193,8 @@ public class ScoreService {
                                         }
                                         campaignEvaluationService.evaluateAfterScore(userId, freshScore);
                                 }
-                                eventPublisher.publishEvent(new ScoreSubmittedEvent(withMapMetadata(response, difficulty)));
+                                eventPublisher.publishEvent(
+                                                new ScoreSubmittedEvent(withMapMetadata(response, difficulty)));
                         });
                 });
 
@@ -711,12 +713,17 @@ public class ScoreService {
                                 .map(s -> s.getUser().getId())
                                 .toList();
                 java.util.Map<Long, String> tiers = supporterService.findCurrentTiersByUserIds(userIds);
+                java.util.Map<Long, BigDecimal> skillLevels = skillService.findSkillLevelsByUserIds(
+                                difficulty.getCategory() != null ? difficulty.getCategory().getId() : null, userIds);
                 java.util.Map<UUID, List<UUID>> modifierIds = loadModifierIdsBatch(
                                 scores.getContent().stream().map(Score::getId).toList());
                 return scores.map(s -> toResponse(s,
                                 computeAccuracy(s.getScore(), difficulty.getMaxScore()),
                                 modifierIds.getOrDefault(s.getId(), List.of()))
-                                .toBuilder().supporterTier(tiers.get(s.getUser().getId())).build());
+                                .toBuilder()
+                                .supporterTier(tiers.get(s.getUser().getId()))
+                                .skillLevel(skillLevels.get(s.getUser().getId()))
+                                .build());
         }
 
         public ScoresAroundResponse findScoresAround(UUID mapDifficultyId, Long userId, int above, int below) {

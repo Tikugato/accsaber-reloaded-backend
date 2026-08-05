@@ -24,12 +24,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import com.accsaber.backend.config.CdnProperties;
 import com.accsaber.backend.exception.ResourceNotFoundException;
@@ -576,6 +579,28 @@ class CampaignServiceTest {
 
                         assertThatThrownBy(() -> campaignService.setLoved(campaign.getId(), true, unknown))
                                         .isInstanceOf(ValidationException.class);
+                }
+
+                @Test
+                void sortsNeverLovedCampaignsBehindLovedOnes() {
+                        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+                        when(campaignRepository.findFiltered(anyBoolean(), any(), any(), anyBoolean(), any(), any(),
+                                        any(), anyBoolean(), any(), any(), any(), any(), pageable.capture()))
+                                        .thenReturn(new PageImpl<>(List.of()));
+
+                        campaignService.findCampaigns(List.of(), List.of(), null, null, null, null, null, false,
+                                        PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "lovedAt")));
+
+                        assertThat(pageable.getValue().getSort())
+                                        .extracting(Sort.Order::getProperty, Sort.Order::getDirection,
+                                                        Sort.Order::getNullHandling)
+                                        .containsExactly(
+                                                        org.assertj.core.api.Assertions.tuple("c.lovedAt",
+                                                                        Sort.Direction.DESC,
+                                                                        Sort.NullHandling.NULLS_LAST),
+                                                        org.assertj.core.api.Assertions.tuple("c.name",
+                                                                        Sort.Direction.ASC,
+                                                                        Sort.NullHandling.NATIVE));
                 }
 
                 private void stubCurator() {

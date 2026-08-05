@@ -216,15 +216,25 @@ public class CampaignService {
             "totalRewardCount", "rt.totalRewards",
             "lovedAt", "c.lovedAt");
 
+    private static final Set<String> NULLABLE_SORTS = Set.of("lovedAt");
+
     private static Pageable withSortExpressions(Pageable pageable) {
         for (Sort.Order order : pageable.getSort()) {
             String expression = SORT_EXPRESSIONS.get(order.getProperty());
-            if (expression != null) {
-                return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
-                        JpaSort.unsafe(order.getDirection(), expression));
+            if (expression == null) {
+                continue;
             }
+            JpaSort sort = JpaSort.unsafe(order.getDirection(), expression);
+            Sort resolved = NULLABLE_SORTS.contains(order.getProperty())
+                    ? nullsLast(sort).and(JpaSort.unsafe(Sort.Direction.ASC, "c.name"))
+                    : sort;
+            return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), resolved);
         }
         return pageable;
+    }
+
+    private static Sort nullsLast(Sort sort) {
+        return Sort.by(sort.stream().map(order -> order.with(Sort.NullHandling.NULLS_LAST)).toList());
     }
 
     private Page<CampaignResponse> paginateAsResponses(Page<Campaign> page, Long resolvedViewerId) {

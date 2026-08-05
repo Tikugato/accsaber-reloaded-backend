@@ -27,6 +27,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -614,6 +619,74 @@ class ScoreServiceTest {
                         assertThatThrownBy(() -> scoreService.findHistoric(
                                         activeUser.getId(), rankedDifficulty.getId(), 7, "x"))
                                         .isInstanceOf(IllegalArgumentException.class);
+                }
+        }
+
+        @Nested
+        class MaxStreak115 {
+
+                private Score activeScoreWithStreak(int streak) {
+                        return Score.builder()
+                                        .id(UUID.randomUUID())
+                                        .user(activeUser)
+                                        .mapDifficulty(rankedDifficulty)
+                                        .score(950_000).scoreNoMods(950_000)
+                                        .rank(1).rankWhenSet(1)
+                                        .ap(new BigDecimal("500.000000"))
+                                        .weightedAp(new BigDecimal("500.000000"))
+                                        .streak115(streak)
+                                        .active(true)
+                                        .build();
+                }
+
+                @Test
+                void hydratesBestStreakAcrossAttempts_notTheActiveScoreStreak() {
+                        Score active = activeScoreWithStreak(3);
+                        when(scoreRepository.findActiveByUser(eq(activeUser.getId()), any(Pageable.class)))
+                                        .thenReturn(new PageImpl<>(List.of(active)));
+                        when(scoreRepository.findMaxStreak115ByUsersAndDifficulties(
+                                        List.of(activeUser.getId()), List.of(rankedDifficulty.getId())))
+                                        .thenReturn(List.<Object[]>of(new Object[] {
+                                                        activeUser.getId(), rankedDifficulty.getId(), 5 }));
+
+                        Page<ScoreResponse> result = scoreService.findByUser(
+                                        activeUser.getId(), null, null, PageRequest.of(0, 20));
+
+                        assertThat(result.getContent()).hasSize(1);
+                        assertThat(result.getContent().get(0).getStreak115()).isEqualTo(3);
+                        assertThat(result.getContent().get(0).getMaxStreak115()).isEqualTo(5);
+                }
+
+                @Test
+                void leavesMaxStreakNullWhenNoAttemptCarriesOne() {
+                        Score active = activeScoreWithStreak(3);
+                        when(scoreRepository.findActiveByUser(eq(activeUser.getId()), any(Pageable.class)))
+                                        .thenReturn(new PageImpl<>(List.of(active)));
+                        when(scoreRepository.findMaxStreak115ByUsersAndDifficulties(
+                                        List.of(activeUser.getId()), List.of(rankedDifficulty.getId())))
+                                        .thenReturn(Collections.emptyList());
+
+                        Page<ScoreResponse> result = scoreService.findByUser(
+                                        activeUser.getId(), null, null, PageRequest.of(0, 20));
+
+                        assertThat(result.getContent().get(0).getMaxStreak115()).isNull();
+                }
+
+                @Test
+                void sortByMaxStreak115_translatesToAnAggregateOverEveryAttemptBarCampaignOnes() {
+                        when(scoreRepository.findActiveByUser(eq(activeUser.getId()), any(Pageable.class)))
+                                        .thenReturn(new PageImpl<>(List.of()));
+
+                        scoreService.findByUser(activeUser.getId(), null, null,
+                                        PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "maxStreak115")));
+
+                        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+                        verify(scoreRepository).findActiveByUser(eq(activeUser.getId()), captor.capture());
+                        String sort = captor.getValue().getSort().toString();
+                        assertThat(sort).contains("MAX(s2.streak115)");
+                        assertThat(sort).contains("s2.user = s.user");
+                        assertThat(sort).contains("s2.mapDifficulty = s.mapDifficulty");
+                        assertThat(sort).contains("s2.supersedesReason <> 'Campaign attempt'");
                 }
         }
 

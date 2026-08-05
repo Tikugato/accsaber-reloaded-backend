@@ -51,6 +51,7 @@ public class ScoreResponse {
     private Integer bombHits;
     private Integer pauses;
     private Integer streak115;
+    private Integer maxStreak115;
     private Integer playCount;
     private String hmd;
     private Instant timeSet;

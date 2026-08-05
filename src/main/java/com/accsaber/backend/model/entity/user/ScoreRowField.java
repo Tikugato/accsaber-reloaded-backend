@@ -11,6 +11,7 @@ public enum ScoreRowField {
     COMPLEXITY,
     CATEGORY,
     STREAK_115,
+    MAX_STREAK_115,
     PAUSES,
     PLAY_COUNT,
     DATE;

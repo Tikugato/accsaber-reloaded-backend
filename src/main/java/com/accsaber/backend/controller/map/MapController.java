@@ -153,7 +153,8 @@ public class MapController {
     @Operation(summary = "Get the leaderboard for a difficulty", description = "Every score set on one map difficulty with the "
             + "player attached, ordered from the highest score down. If you want a smaller slice you can filter by country code "
             + "like ES or GB, search by player name, or pass a relation type to only see people you follow. That last filter "
-            + "needs a logged in player token, the rest work fine without one.")
+            + "needs a logged in player token, the rest work fine without one. maxStreak115 counts every attempt the player "
+            + "has made here, not just the score on the row, and you can sort by it.")
     @GetMapping("/difficulties/{difficultyId}/scores")
     public ResponseEntity<Page<ScoreResponse>> getDifficultyLeaderboard(
             @PathVariable UUID difficultyId,

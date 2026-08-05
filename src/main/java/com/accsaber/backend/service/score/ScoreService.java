@@ -536,10 +536,12 @@ public class ScoreService {
                 java.util.Map<UUID, BigDecimal> complexities = mapComplexityService
                                 .findActiveComplexitiesForDifficulties(scores.getContent().stream()
                                                 .map(s -> s.getMapDifficulty().getId()).distinct().toList());
+                java.util.Map<StreakKey, Integer> maxStreaks = loadMaxStreaksBatch(scores.getContent());
                 return scores.map(s -> toResponse(s, computeAccuracy(s.getScore(), s.getMapDifficulty().getMaxScore()),
                                 modifierIds.getOrDefault(s.getId(), List.of()))
                                 .toBuilder()
                                 .complexity(complexities.get(s.getMapDifficulty().getId()))
+                                .maxStreak115(maxStreakFor(maxStreaks, s))
                                 .build());
         }
 
@@ -739,12 +741,14 @@ public class ScoreService {
                                 difficulty.getCategory() != null ? difficulty.getCategory().getId() : null, userIds);
                 java.util.Map<UUID, List<UUID>> modifierIds = loadModifierIdsBatch(
                                 scores.getContent().stream().map(Score::getId).toList());
+                java.util.Map<StreakKey, Integer> maxStreaks = loadMaxStreaksBatch(scores.getContent());
                 return scores.map(s -> toResponse(s,
                                 computeAccuracy(s.getScore(), difficulty.getMaxScore()),
                                 modifierIds.getOrDefault(s.getId(), List.of()))
                                 .toBuilder()
                                 .supporterTier(tiers.get(s.getUser().getId()))
                                 .skillLevel(skillLevels.get(s.getUser().getId()))
+                                .maxStreak115(maxStreakFor(maxStreaks, s))
                                 .build());
         }
 
@@ -1043,10 +1047,34 @@ public class ScoreService {
                                                                 java.util.stream.Collectors.toList())));
         }
 
+        private record StreakKey(Long userId, UUID mapDifficultyId) {
+        }
+
+        private java.util.Map<StreakKey, Integer> loadMaxStreaksBatch(java.util.Collection<Score> scores) {
+                if (scores.isEmpty()) {
+                        return java.util.Map.of();
+                }
+                List<Long> userIds = scores.stream().map(s -> s.getUser().getId()).distinct().toList();
+                List<UUID> difficultyIds = scores.stream().map(s -> s.getMapDifficulty().getId()).distinct().toList();
+                java.util.Map<StreakKey, Integer> byKey = new java.util.HashMap<>();
+                for (Object[] row : scoreRepository.findMaxStreak115ByUsersAndDifficulties(userIds, difficultyIds)) {
+                        byKey.put(new StreakKey((Long) row[0], (UUID) row[1]), (Integer) row[2]);
+                }
+                return byKey;
+        }
+
+        private static Integer maxStreakFor(java.util.Map<StreakKey, Integer> maxStreaks, Score s) {
+                return maxStreaks.get(new StreakKey(s.getUser().getId(), s.getMapDifficulty().getId()));
+        }
+
         private static final String ACCURACY_SORT_EXPRESSION = "CAST(s.score AS double) / s.mapDifficulty.maxScore";
 
         private static final String COMPLEXITY_SORT_EXPRESSION = "(SELECT mdc.complexity FROM MapDifficultyComplexity mdc "
                         + "WHERE mdc.mapDifficulty = s.mapDifficulty AND mdc.active = true)";
+
+        private static final String MAX_STREAK_SORT_EXPRESSION = "(SELECT MAX(s2.streak115) FROM Score s2 "
+                        + "WHERE s2.user = s.user AND s2.mapDifficulty = s.mapDifficulty "
+                        + "AND (s2.supersedesReason IS NULL OR s2.supersedesReason <> 'Campaign attempt'))";
 
         private Pageable resolveSort(Pageable pageable, Sort defaultSort) {
                 Sort resolved;
@@ -1069,6 +1097,13 @@ public class ScoreService {
                                                                                         + ") IS NULL THEN 1 ELSE 0 END)"))
                                                         .and(JpaSort.unsafe(order.getDirection(),
                                                                         COMPLEXITY_SORT_EXPRESSION));
+                                } else if ("maxStreak115".equalsIgnoreCase(order.getProperty())) {
+                                        resolved = resolved
+                                                        .and(JpaSort.unsafe(Sort.Direction.ASC,
+                                                                        "(CASE WHEN (" + MAX_STREAK_SORT_EXPRESSION
+                                                                                        + ") IS NULL THEN 1 ELSE 0 END)"))
+                                                        .and(JpaSort.unsafe(order.getDirection(),
+                                                                        MAX_STREAK_SORT_EXPRESSION));
                                 } else {
                                         resolved = resolved.and(Sort.by(
                                                         new Sort.Order(order.getDirection(), order.getProperty(),

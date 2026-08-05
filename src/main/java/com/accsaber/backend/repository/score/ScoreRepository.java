@@ -604,6 +604,18 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         """)
         List<Score> findAllByDifficultyOrderedByUserAndTime(@Param("mapDifficultyId") UUID mapDifficultyId);
 
+        @Query("""
+                        SELECT s.user.id, s.mapDifficulty.id, MAX(s.streak115) FROM Score s
+                        WHERE s.user.id IN :userIds
+                          AND s.mapDifficulty.id IN :mapDifficultyIds
+                          AND s.streak115 IS NOT NULL
+                          AND (s.supersedesReason IS NULL OR s.supersedesReason <> 'Campaign attempt')
+                        GROUP BY s.user.id, s.mapDifficulty.id
+                        """)
+        List<Object[]> findMaxStreak115ByUsersAndDifficulties(
+                        @Param("userIds") Collection<Long> userIds,
+                        @Param("mapDifficultyIds") Collection<UUID> mapDifficultyIds);
+
         @Query("SELECT COALESCE(SUM(s.xpGained), 0) FROM Score s WHERE s.user.id = :userId")
         java.math.BigDecimal sumXpGainedByUserId(@Param("userId") Long userId);
 

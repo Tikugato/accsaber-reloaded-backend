@@ -48,7 +48,8 @@ public class SiteStatisticsController {
 
     @Operation(summary = "Longest 115 streaks", description = "Scores ranked by the longest run of 115 notes hit in a row, which says more about "
             + "consistency than raw accuracy does. Only scores that came to us from BeatLeader can appear here, since "
-            + "ScoreSaber does not give us the streak. Narrow by category or country if you want.")
+            + "ScoreSaber does not give us the streak. Every attempt counts, not just your current best on a map, and "
+            + "you appear once per map difficulty with your longest run on it. Narrow by category or country if you want.")
     @GetMapping("/leaderboards/streaks")
     public ResponseEntity<Page<ScoreResponse>> getTopStreaks(
             @RequestParam(required = false) String categoryId,

@@ -780,20 +780,42 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         JOIN s.user u
                         JOIN s.mapDifficulty d
                         WHERE s.streak115 IS NOT NULL
-                        AND (s.active = true OR s.supersedesReason = 'Score improved')
+                        AND (s.supersedesReason IS NULL OR s.supersedesReason <> 'Campaign attempt')
                         AND u.active = true AND u.banned = false
                         AND (:categoryId IS NULL OR d.category.id = :categoryId)
                         AND (CAST(:country AS string) IS NULL OR LOWER(u.country) = LOWER(CAST(:country AS string)))
+                        AND NOT EXISTS (
+                            SELECT 1 FROM Score s2
+                            WHERE s2.user.id = s.user.id
+                            AND s2.mapDifficulty.id = s.mapDifficulty.id
+                            AND s2.streak115 IS NOT NULL
+                            AND (s2.supersedesReason IS NULL OR s2.supersedesReason <> 'Campaign attempt')
+                            AND (s2.streak115 > s.streak115
+                                OR (s2.streak115 = s.streak115 AND s2.ap > s.ap)
+                                OR (s2.streak115 = s.streak115 AND s2.ap = s.ap AND s2.score > s.score)
+                                OR (s2.streak115 = s.streak115 AND s2.ap = s.ap AND s2.score = s.score AND s2.id > s.id))
+                        )
                         ORDER BY s.streak115 DESC, s.ap DESC, s.score DESC
                         """, countQuery = """
                         SELECT COUNT(s) FROM Score s
                         JOIN s.user u
                         JOIN s.mapDifficulty d
                         WHERE s.streak115 IS NOT NULL
-                        AND (s.active = true OR s.supersedesReason = 'Score improved')
+                        AND (s.supersedesReason IS NULL OR s.supersedesReason <> 'Campaign attempt')
                         AND u.active = true AND u.banned = false
                         AND (:categoryId IS NULL OR d.category.id = :categoryId)
                         AND (CAST(:country AS string) IS NULL OR LOWER(u.country) = LOWER(CAST(:country AS string)))
+                        AND NOT EXISTS (
+                            SELECT 1 FROM Score s2
+                            WHERE s2.user.id = s.user.id
+                            AND s2.mapDifficulty.id = s.mapDifficulty.id
+                            AND s2.streak115 IS NOT NULL
+                            AND (s2.supersedesReason IS NULL OR s2.supersedesReason <> 'Campaign attempt')
+                            AND (s2.streak115 > s.streak115
+                                OR (s2.streak115 = s.streak115 AND s2.ap > s.ap)
+                                OR (s2.streak115 = s.streak115 AND s2.ap = s.ap AND s2.score > s.score)
+                                OR (s2.streak115 = s.streak115 AND s2.ap = s.ap AND s2.score = s.score AND s2.id > s.id))
+                        )
                         """)
         Page<UUID> findTopStreakIds(@Param("categoryId") UUID categoryId, @Param("country") String country,
                         Pageable pageable);

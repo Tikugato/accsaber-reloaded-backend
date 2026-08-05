@@ -31,6 +31,7 @@ import com.accsaber.backend.repository.campaign.CampaignDifficultyRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.score.ScoreService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -48,6 +49,7 @@ public class PlaylistService {
     private final ScoreRepository scoreRepository;
     private final UserRepository userRepository;
     private final CampaignDifficultyRepository campaignDifficultyRepository;
+    private final ScoreService scoreService;
     private final PlaylistAssembler playlistAssembler;
 
     @Cacheable(value = "playlists", key = "#categoryCode")
@@ -130,6 +132,25 @@ public class PlaylistService {
         return playlistAssembler.assemble(
                 "AccSaber Campaign: " + campaign.getName(),
                 image,
+                syncUrl,
+                difficulties);
+    }
+
+    public Map<String, Object> generateUserScoresPlaylist(Long userId, UUID categoryId, String search,
+            Pageable pageable, String syncUrl) {
+        User user = requireUser(userId);
+        List<MapDifficulty> difficulties = scoreService.findDifficultiesByUser(userId, categoryId, search, pageable);
+
+        String label = categoryId == null ? null
+                : categoryRepository.findById(categoryId)
+                        .map(Category::getName)
+                        .orElseThrow(() -> new ResourceNotFoundException("Category", categoryId));
+
+        String title = "AccSaber Scores - " + user.getName() + (label != null ? " (" + label + ")" : "");
+
+        return playlistAssembler.assemble(
+                title,
+                playlistAssembler.fetchAndEncodeImage(user.getAvatarUrl()),
                 syncUrl,
                 difficulties);
     }

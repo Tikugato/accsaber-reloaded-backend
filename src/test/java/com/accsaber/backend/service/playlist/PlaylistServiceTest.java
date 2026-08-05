@@ -26,7 +26,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.exception.ValidationException;
@@ -41,6 +43,7 @@ import com.accsaber.backend.repository.campaign.CampaignDifficultyRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.score.ScoreService;
 
 @ExtendWith(MockitoExtension.class)
 class PlaylistServiceTest {
@@ -60,6 +63,8 @@ class PlaylistServiceTest {
     private UserRepository userRepository;
     @Mock
     private CampaignDifficultyRepository campaignDifficultyRepository;
+    @Mock
+    private ScoreService scoreService;
     @Mock
     private PlaylistAssembler playlistAssembler;
 
@@ -113,6 +118,74 @@ class PlaylistServiceTest {
             verify(playlistAssembler, never()).fetchAndEncodeImage(any());
             verify(playlistAssembler).assemble(eq("AccSaber Campaign: No Icon"),
                     eq("data:image/png;base64,OVERALL"), eq(SYNC_URL), any());
+        }
+    }
+
+    @Nested
+    class GenerateUserScoresPlaylist {
+
+        private final Pageable pageable = PageRequest.of(0, 25, Sort.by(Sort.Direction.ASC, "accuracy"));
+
+        @Test
+        void buildsPlaylistFromTheScoreListSlice() {
+            when(userRepository.findByIdAndActiveTrue(TARGET_ID))
+                    .thenReturn(Optional.of(User.builder().id(TARGET_ID).name("Player").avatarUrl(AVATAR).build()));
+            MapDifficulty diffA = MapDifficulty.builder().id(UUID.randomUUID()).build();
+            MapDifficulty diffB = MapDifficulty.builder().id(UUID.randomUUID()).build();
+            when(scoreService.findDifficultiesByUser(TARGET_ID, null, null, pageable))
+                    .thenReturn(List.of(diffA, diffB));
+            when(playlistAssembler.fetchAndEncodeImage(AVATAR)).thenReturn("data:image/png;base64,XXX");
+            Map<String, Object> assembled = Map.of("playlistTitle", "AccSaber Scores - Player");
+            when(playlistAssembler.assemble(eq("AccSaber Scores - Player"), eq("data:image/png;base64,XXX"),
+                    eq(SYNC_URL), any())).thenReturn(assembled);
+
+            Map<String, Object> result = playlistService.generateUserScoresPlaylist(TARGET_ID, null, null, pageable,
+                    SYNC_URL);
+
+            assertThat(result).isSameAs(assembled);
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<MapDifficulty>> diffCaptor = (ArgumentCaptor<List<MapDifficulty>>) (ArgumentCaptor<?>) ArgumentCaptor
+                    .forClass(List.class);
+            verify(playlistAssembler).assemble(anyString(), anyString(), anyString(), diffCaptor.capture());
+            assertThat(diffCaptor.getValue()).containsExactly(diffA, diffB);
+        }
+
+        @Test
+        void appendsCategoryLabelToTitleAndPassesFilterThrough() {
+            when(userRepository.findByIdAndActiveTrue(TARGET_ID))
+                    .thenReturn(Optional.of(User.builder().id(TARGET_ID).name("Player").avatarUrl(AVATAR).build()));
+            UUID catId = UUID.randomUUID();
+            when(scoreService.findDifficultiesByUser(TARGET_ID, catId, "camellia", pageable)).thenReturn(List.of());
+            when(categoryRepository.findById(catId))
+                    .thenReturn(Optional.of(Category.builder().id(catId).code("tech_acc").name("Tech Acc").build()));
+            when(playlistAssembler.assemble(eq("AccSaber Scores - Player (Tech Acc)"), any(), eq(SYNC_URL), any()))
+                    .thenReturn(Map.of());
+
+            playlistService.generateUserScoresPlaylist(TARGET_ID, catId, "camellia", pageable, SYNC_URL);
+
+            verify(scoreService).findDifficultiesByUser(TARGET_ID, catId, "camellia", pageable);
+            verify(playlistAssembler).assemble(eq("AccSaber Scores - Player (Tech Acc)"), any(), eq(SYNC_URL), any());
+        }
+
+        @Test
+        void throwsWhenUserMissing() {
+            when(userRepository.findByIdAndActiveTrue(TARGET_ID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> playlistService.generateUserScoresPlaylist(TARGET_ID, null, null, pageable,
+                    SYNC_URL)).isInstanceOf(ResourceNotFoundException.class);
+            verify(playlistAssembler, never()).assemble(anyString(), any(), anyString(), any());
+        }
+
+        @Test
+        void unknownCategoryThrows() {
+            when(userRepository.findByIdAndActiveTrue(TARGET_ID))
+                    .thenReturn(Optional.of(User.builder().id(TARGET_ID).name("Player").avatarUrl(AVATAR).build()));
+            UUID catId = UUID.randomUUID();
+            when(scoreService.findDifficultiesByUser(TARGET_ID, catId, null, pageable)).thenReturn(List.of());
+            when(categoryRepository.findById(catId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> playlistService.generateUserScoresPlaylist(TARGET_ID, catId, null, pageable,
+                    SYNC_URL)).isInstanceOf(ResourceNotFoundException.class);
         }
     }
 

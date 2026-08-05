@@ -11,13 +11,18 @@ import com.accsaber.backend.model.entity.campaign.Campaign;
 import com.accsaber.backend.model.entity.map.Batch;
 import com.accsaber.backend.repository.campaign.CampaignRepository;
 import com.accsaber.backend.repository.map.BatchRepository;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import com.accsaber.backend.service.infra.CategoryService;
 import com.accsaber.backend.service.playlist.PlaylistService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,6 +37,7 @@ import lombok.RequiredArgsConstructor;
 public class PlaylistController {
 
         private final PlaylistService playlistService;
+        private final CategoryService categoryService;
         private final BatchRepository batchRepository;
         private final CampaignRepository campaignRepository;
 
@@ -96,6 +102,20 @@ public class PlaylistController {
                 return buildSnipePlaylistResponse(sniperId, targetId, size, category);
         }
 
+        @Operation(summary = "Download a player's own scores as a playlist", description = "The maps behind a slice of a "
+                        + "player's score list, taking the same category, search, sorting and paging as the scores route "
+                        + "itself. Whatever the list is showing is what you get, so sort by accuracy ascending with a size of "
+                        + "25 and you have a playlist of the 25 scores you should go back and clean up, or sort by when the "
+                        + "score was set and you have the ones you have not touched in years.")
+        @GetMapping(value = "/scores/{userId}", produces = "application/json")
+        public ResponseEntity<Map<String, Object>> getUserScoresPlaylist(
+                        @Parameter(description = "User ID of the player") @PathVariable Long userId,
+                        @Parameter(description = "Category UUID or code to narrow the scores to") @RequestParam(required = false) String categoryId,
+                        @Parameter(description = "Song name search") @RequestParam(required = false) String search,
+                        @PageableDefault(size = 25, sort = "ap", direction = Sort.Direction.DESC) Pageable pageable) {
+                return buildUserScoresPlaylistResponse(userId, categoryId, search, pageable);
+        }
+
         @Operation(summary = "Download a batch release as a playlist", description = "All the maps that went ranked together in "
                         + "one batch. Handy right after a release when you want to play through the new set.")
         @GetMapping(value = "/batch/{batchId}", produces = "application/json")
@@ -127,6 +147,21 @@ public class PlaylistController {
                 Map<String, Object> playlist = playlistService.generateCampaignPlaylist(campaign, syncUrl);
 
                 String filename = "accsaber-campaign-" + campaign.getSlug() + ".bplist";
+
+                return ResponseEntity.ok()
+                                .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
+                                .header("Cache-Control", "no-store")
+                                .body(playlist);
+        }
+
+        private ResponseEntity<Map<String, Object>> buildUserScoresPlaylistResponse(Long userId, String categoryId,
+                        String search, Pageable pageable) {
+                String syncUrl = ServletUriComponentsBuilder.fromCurrentRequest().toUriString();
+
+                Map<String, Object> playlist = playlistService.generateUserScoresPlaylist(
+                                userId, categoryService.resolveId(categoryId), search, pageable, syncUrl);
+
+                String filename = "accsaber-scores-" + userId + ".bplist";
 
                 return ResponseEntity.ok()
                                 .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")

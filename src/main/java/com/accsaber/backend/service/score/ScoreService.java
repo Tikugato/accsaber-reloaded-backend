@@ -528,21 +528,8 @@ public class ScoreService {
 
         public Page<ScoreResponse> findByUser(Long userId, UUID categoryId, String search, Pageable pageable) {
                 Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(userId);
-                boolean hasSearch = search != null && !search.isBlank();
-                Pageable effective = resolveSort(pageable, Sort.by(Sort.Direction.DESC, "ap"));
-                Page<Score> scores;
-
-                if (categoryId != null && hasSearch) {
-                        scores = scoreRepository.findActiveByUserAndCategoryAndSongNameSearch(
-                                        resolvedUserId, categoryId, search.trim(), effective);
-                } else if (categoryId != null) {
-                        scores = scoreRepository.findActiveByUserAndCategory(resolvedUserId, categoryId, effective);
-                } else if (hasSearch) {
-                        scores = scoreRepository.findActiveByUserAndSongNameSearch(
-                                        resolvedUserId, search.trim(), effective);
-                } else {
-                        scores = scoreRepository.findActiveByUser(resolvedUserId, effective);
-                }
+                Page<Score> scores = queryActiveByUser(resolvedUserId, categoryId, search,
+                                resolveSort(pageable, Sort.by(Sort.Direction.DESC, "ap")));
 
                 java.util.Map<UUID, List<UUID>> modifierIds = loadModifierIdsBatch(
                                 scores.getContent().stream().map(Score::getId).toList());
@@ -554,6 +541,41 @@ public class ScoreService {
                                 .toBuilder()
                                 .complexity(complexities.get(s.getMapDifficulty().getId()))
                                 .build());
+        }
+
+        public List<MapDifficulty> findDifficultiesByUser(Long userId, UUID categoryId, String search,
+                        Pageable pageable) {
+                Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(userId);
+                List<UUID> orderedIds = queryActiveByUser(resolvedUserId, categoryId, search,
+                                resolveSort(pageable, Sort.by(Sort.Direction.DESC, "ap")))
+                                .getContent().stream()
+                                .map(s -> s.getMapDifficulty().getId())
+                                .distinct()
+                                .toList();
+                if (orderedIds.isEmpty()) {
+                        return List.of();
+                }
+
+                java.util.Map<UUID, MapDifficulty> byId = mapDifficultyRepository
+                                .findAllByIdInAndActiveTrueWithMapAndCategory(orderedIds).stream()
+                                .collect(java.util.stream.Collectors.toMap(MapDifficulty::getId, d -> d));
+                return orderedIds.stream().map(byId::get).filter(Objects::nonNull).toList();
+        }
+
+        private Page<Score> queryActiveByUser(Long resolvedUserId, UUID categoryId, String search, Pageable pageable) {
+                boolean hasSearch = search != null && !search.isBlank();
+                if (categoryId != null && hasSearch) {
+                        return scoreRepository.findActiveByUserAndCategoryAndSongNameSearch(
+                                        resolvedUserId, categoryId, search.trim(), pageable);
+                }
+                if (categoryId != null) {
+                        return scoreRepository.findActiveByUserAndCategory(resolvedUserId, categoryId, pageable);
+                }
+                if (hasSearch) {
+                        return scoreRepository.findActiveByUserAndSongNameSearch(
+                                        resolvedUserId, search.trim(), pageable);
+                }
+                return scoreRepository.findActiveByUser(resolvedUserId, pageable);
         }
 
         public List<UserScoreSummaryResponse> findAllSummariesByUser(Long userId) {

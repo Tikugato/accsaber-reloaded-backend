@@ -46,6 +46,7 @@ import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.campaign.CampaignEvaluationService;
 import com.accsaber.backend.service.item.LevelUpAwardService;
+import com.accsaber.backend.service.item.StrangeTrackingService;
 import com.accsaber.backend.service.map.MapDifficultyComplexityService;
 import com.accsaber.backend.service.map.MapDifficultyStatisticsService;
 import com.accsaber.backend.service.milestone.MilestoneEvaluationService;
@@ -89,6 +90,7 @@ public class ScoreService {
         private final ApplicationEventPublisher eventPublisher;
         private final TransactionTemplate transactionTemplate;
         private final com.accsaber.backend.service.supporter.SupporterService supporterService;
+        private final StrangeTrackingService strangeTrackingService;
 
         @Transactional
         public ScoreResponse submit(SubmitScoreRequest request) {
@@ -173,6 +175,7 @@ public class ScoreService {
                 saveModifierLinks(saved, modifiers);
 
                 updateUserXp(user.getId(), xpGained);
+                strangeTrackingService.recordPlay(user.getId());
 
                 statisticsService.recalculate(user.getId(), difficulty.getCategory().getId());
                 mapDifficultyStatisticsService.recalculate(difficulty, user.getId());

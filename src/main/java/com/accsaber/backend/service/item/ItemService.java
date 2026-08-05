@@ -244,6 +244,17 @@ public class ItemService {
                 .toList();
     }
 
+    private static UUID parseLinkId(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return UUID.fromString(raw.toString());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
     private static UserItemResponse hydrate(UserItemLink link, Map<UUID, Map<String, Long>> countersByLink) {
         return ItemMapper.toUserItemResponse(link, countersByLink.get(link.getId()));
     }
@@ -269,8 +280,7 @@ public class ItemService {
             String typeKey = key.equippedTypeKey().orElse(null);
             if (typeKey == null)
                 continue;
-            Object raw = rawSettings.get(key.key());
-            equippedLinkIdByType.put(typeKey, raw == null ? null : UUID.fromString(raw.toString()));
+            equippedLinkIdByType.put(typeKey, parseLinkId(rawSettings.get(key.key())));
         }
 
         Set<String> needFallback = equippedLinkIdByType.entrySet().stream()

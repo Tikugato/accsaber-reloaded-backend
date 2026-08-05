@@ -104,6 +104,8 @@ class ScoreServiceTest {
         @Mock
         private com.accsaber.backend.service.infra.ModifierCacheService modifierCacheService;
         @Mock
+        private com.accsaber.backend.service.item.StrangeTrackingService strangeTrackingService;
+        @Mock
         private ApplicationEventPublisher eventPublisher;
         @Mock
         private TransactionTemplate transactionTemplate;
@@ -353,6 +355,67 @@ class ScoreServiceTest {
 
                         verify(scoreRepository, never()).saveAndFlush(any());
                         verify(milestoneEvaluationService, never()).evaluateAfterScore(any(), any());
+                }
+
+                @Test
+                void firstEverPlayOnAMap_countsTowardsStrangeItems() {
+                        BigDecimal rawAp = new BigDecimal("500.000000");
+                        stubCommonMocks(rawAp);
+                        when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
+                                        activeUser.getId(), rankedDifficulty.getId()))
+                                        .thenReturn(Optional.empty());
+                        when(scoreRepository.saveAndFlush(any())).thenReturn(buildExistingScore(rawAp));
+
+                        scoreService.submit(buildRequest(950_000));
+
+                        verify(strangeTrackingService).recordPlay(activeUser.getId());
+                }
+
+                @Test
+                void improvedScore_countsTowardsStrangeItems() {
+                        BigDecimal oldAp = new BigDecimal("400.000000");
+                        BigDecimal newAp = new BigDecimal("500.000000");
+                        stubCommonMocks(newAp);
+                        Score existing = buildExistingScore(oldAp);
+                        when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
+                                        activeUser.getId(), rankedDifficulty.getId()))
+                                        .thenReturn(Optional.of(existing));
+                        when(scoreRepository.saveAndFlush(any())).thenReturn(existing)
+                                        .thenReturn(buildExistingScore(newAp));
+
+                        scoreService.submit(buildRequest(960_000));
+
+                        verify(strangeTrackingService).recordPlay(activeUser.getId());
+                }
+
+                @Test
+                void worseScore_doesNotCountTowardsStrangeItems() {
+                        BigDecimal oldAp = new BigDecimal("600.000000");
+                        BigDecimal newAp = new BigDecimal("500.000000");
+                        stubCommonMocks(newAp);
+                        when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
+                                        activeUser.getId(), rankedDifficulty.getId()))
+                                        .thenReturn(Optional.of(buildExistingScore(oldAp)));
+
+                        scoreService.submit(buildRequest(880_000));
+
+                        verify(strangeTrackingService, never()).recordPlay(any());
+                }
+
+                @Test
+                void partialAttempt_doesNotCountTowardsStrangeItems() {
+                        stubCommonMocks(new BigDecimal("100.000000"));
+                        when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
+                                        activeUser.getId(), rankedDifficulty.getId()))
+                                        .thenReturn(Optional.empty());
+                        when(scoreRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
+
+                        SubmitScoreRequest request = buildRequest(720_000);
+                        request.setPartial(true);
+
+                        scoreService.submit(request);
+
+                        verify(strangeTrackingService, never()).recordPlay(any());
                 }
 
                 @Test

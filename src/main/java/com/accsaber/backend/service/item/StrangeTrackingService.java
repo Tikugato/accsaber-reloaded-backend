@@ -4,8 +4,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.accsaber.backend.model.entity.item.ItemModifier;
+import com.accsaber.backend.model.entity.item.UserItemLink;
 import com.accsaber.backend.repository.item.UserItemLinkCounterRepository;
-import com.accsaber.backend.service.player.DuplicateUserService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -17,12 +18,31 @@ public class StrangeTrackingService {
 
     private static final Logger log = LoggerFactory.getLogger(StrangeTrackingService.class);
 
+    private final ItemService itemService;
     private final UserItemLinkCounterRepository counterRepository;
-    private final DuplicateUserService duplicateUserService;
 
     public void recordPlay(Long userId) {
-        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
-        int incremented = counterRepository.incrementEquippedStrange(resolved, STAT_PLAY_COUNT, 1L);
-        log.debug("Strange play count bumped on {} equipped items of user {}", incremented, resolved);
+        try {
+            incrementForUser(userId, STAT_PLAY_COUNT, 1L);
+        } catch (Exception ex) {
+            log.error("Strange tracking failed for user {}", userId, ex);
+        }
+    }
+
+    private void incrementForUser(Long userId, String statKey, long delta) {
+        for (UserItemLink link : itemService.findEffectiveEquippedLinks(userId)) {
+            if (carriesStrange(link)) {
+                counterRepository.incrementBy(link.getId(), statKey, delta);
+            }
+        }
+    }
+
+    private static boolean carriesStrange(UserItemLink link) {
+        for (ItemModifier m : link.getModifiers()) {
+            if (ItemModifier.STRANGE.equals(m.getKey())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

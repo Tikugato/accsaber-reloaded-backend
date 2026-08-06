@@ -43,6 +43,7 @@ public class CampaignDifficultyResponse {
     private CampaignPrerequisiteMode targetMode;
     private List<CampaignTargetResponse> targets;
     private CampaignPrerequisiteMode prerequisiteMode;
+    private boolean terminal;
     private String description;
     private String checkpointLabel;
     private CampaignLabelPosition checkpointLabelPosition;

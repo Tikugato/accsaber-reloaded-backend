@@ -238,7 +238,7 @@ public class CampaignController {
                 campaignService.updateCampaignAsEditor(editorFor(authentication, principal), campaignId, request));
     }
 
-    @Operation(summary = "Publish your campaign", description = "Makes a draft visible to everyone and lets people start it. Publishing does not make it hand out XP, that only happens once a curator has looked at it.")
+    @Operation(summary = "Publish your campaign", description = "Makes a draft visible to everyone and lets people start it. Before this goes through you need at least one node flagged as terminal. You can flag as many as you like. Publishing does not make it hand out XP, that only happens once a curator has looked at it.")
     @PreAuthorize("isAuthenticated()")
     @PatchMapping("/{campaignId}/publish")
     public ResponseEntity<CampaignResponse> publishMyCampaign(

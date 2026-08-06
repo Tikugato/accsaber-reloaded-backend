@@ -1128,7 +1128,7 @@ class CampaignEvaluationServiceTest {
         }
 
         @Test
-        void settleCompletesWhenBarrierFedLeavesLookLikeTerminals() {
+        void settleCompletesOnlyThroughAFlaggedTerminalNode() {
                 campaign.setStatus(CampaignStatus.PUBLISHED);
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 MapDifficulty mdSide = mapDifficulty(1_000_000);
@@ -1142,6 +1142,7 @@ class CampaignEvaluationServiceTest {
                                 .requirementValue(new BigDecimal("0.80")).build();
                 CampaignDifficulty terminal = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).mapDifficulty(mdTerminal)
+                                .terminal(true)
                                 .requirementType(CampaignRequirementType.ACC)
                                 .requirementValue(new BigDecimal("0.80")).build();
                 CampaignDifficulty bar = CampaignDifficulty.builder()
@@ -1178,6 +1179,7 @@ class CampaignEvaluationServiceTest {
                 campaign.setStatus(CampaignStatus.PUBLISHED);
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
+                a.setTerminal(true);
                 a.setRequirementType(CampaignRequirementType.RANK);
                 a.setRequirementValue(new BigDecimal("100"));
                 UserCampaign uc = UserCampaign.builder().id(UUID.randomUUID()).user(user).campaign(campaign)
@@ -1251,6 +1253,7 @@ class CampaignEvaluationServiceTest {
                 campaign.setLegacy(true);
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
+                a.setTerminal(true);
                 a.setRequirementType(CampaignRequirementType.ACC);
                 a.setRequirementValue(new BigDecimal("0.80"));
 
@@ -1281,6 +1284,151 @@ class CampaignEvaluationServiceTest {
                                 .filteredOn(CampaignCompletedEvent.class::isInstance)
                                 .isNotEmpty()
                                 .allSatisfy(e -> assertThat(((CampaignCompletedEvent) e).silent()).isTrue());
+        }
+
+        @Test
+        void anyFlaggedTerminalCompletesTheCampaign() {
+                UserCampaign uc = twoTerminalFixture(true);
+
+                service.evaluateInProgressForUser(user.getId());
+
+                assertThat(uc.getStatus()).isEqualTo(UserCampaignStatus.COMPLETED);
+        }
+
+        @Test
+        void clearingAnUnflaggedSinkDoesNotCompleteTheCampaign() {
+                UserCampaign uc = twoTerminalFixture(false);
+
+                service.evaluateInProgressForUser(user.getId());
+
+                assertThat(uc.getStatus()).isEqualTo(UserCampaignStatus.IN_PROGRESS);
+        }
+
+        private UserCampaign twoTerminalFixture(boolean playedBranchIsTerminal) {
+                campaign.setStatus(CampaignStatus.PUBLISHED);
+                campaign.setProgressionAgnostic(true);
+                MapDifficulty mdA = mapDifficulty(1_000_000);
+                MapDifficulty mdB = mapDifficulty(1_000_000);
+                a.setMapDifficulty(mdA);
+                a.setRequirementType(CampaignRequirementType.ACC);
+                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setTerminal(playedBranchIsTerminal);
+                b.setMapDifficulty(mdB);
+                b.setRequirementType(CampaignRequirementType.ACC);
+                b.setRequirementValue(new BigDecimal("0.80"));
+                b.setTerminal(true);
+                UserCampaign uc = inProgressCampaign();
+
+                when(userCampaignRepository.findByUser_IdAndStatusAndActiveTrue(user.getId(),
+                                UserCampaignStatus.IN_PROGRESS)).thenReturn(List.of(uc));
+                when(campaignDifficultyRepository.findActiveWithMapByCampaignId(campaign.getId()))
+                                .thenReturn(List.of(a, b));
+                when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
+                                .thenReturn(List.of(a, b));
+                when(campaignDifficultyPathRepository
+                                .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
+                                .thenReturn(List.of());
+                when(scoreRepository.findEligibleCampaignRows(eq(user.getId()), any(), any()))
+                                .thenReturn(List.of(row(mdA, 900_000, PLAYED)));
+                stubEmptyProgress();
+                when(userCampaignScoreRepository.findByUser_IdAndCampaignDifficulty_IdAndActiveTrue(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+                return uc;
+        }
+
+        @Test
+        void clearingTheTerminalAtTheEndOfAChainCompletesTheCampaign() {
+                UserCampaign uc = chainedTerminalFixture(false, true);
+
+                service.evaluateInProgressForUser(user.getId());
+
+                assertThat(uc.getStatus()).isEqualTo(UserCampaignStatus.COMPLETED);
+        }
+
+        @Test
+        void clearingTheTerminalWithoutItsChainLeavesTheCampaignInProgress() {
+                UserCampaign uc = chainedTerminalFixture(true, false);
+
+                service.evaluateInProgressForUser(user.getId());
+
+                assertThat(uc.getStatus()).isEqualTo(UserCampaignStatus.IN_PROGRESS);
+        }
+
+        private UserCampaign chainedTerminalFixture(boolean agnostic, boolean clearThePrerequisite) {
+                campaign.setStatus(CampaignStatus.PUBLISHED);
+                campaign.setProgressionAgnostic(agnostic);
+                MapDifficulty mdA = mapDifficulty(1_000_000);
+                MapDifficulty mdB = mapDifficulty(1_000_000);
+                a.setMapDifficulty(mdA);
+                a.setRequirementType(CampaignRequirementType.ACC);
+                a.setRequirementValue(new BigDecimal("0.80"));
+                b.setMapDifficulty(mdB);
+                b.setRequirementType(CampaignRequirementType.ACC);
+                b.setRequirementValue(new BigDecimal("0.80"));
+                b.setTerminal(true);
+                UserCampaign uc = inProgressCampaign();
+
+                List<Score> rows = clearThePrerequisite
+                                ? List.of(row(mdA, 900_000, EARLIER_PLAY), row(mdB, 900_000, PLAYED))
+                                : List.of(row(mdB, 900_000, PLAYED));
+
+                when(userCampaignRepository.findByUser_IdAndStatusAndActiveTrue(user.getId(),
+                                UserCampaignStatus.IN_PROGRESS)).thenReturn(List.of(uc));
+                when(campaignDifficultyRepository.findActiveWithMapByCampaignId(campaign.getId()))
+                                .thenReturn(List.of(a, b));
+                when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
+                                .thenReturn(List.of(a, b));
+                when(campaignDifficultyPathRepository
+                                .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
+                                .thenReturn(List.of(edge(a, b)));
+                when(scoreRepository.findEligibleCampaignRows(eq(user.getId()), any(), any())).thenReturn(rows);
+                stubEmptyProgress();
+                when(userCampaignScoreRepository.findByUser_IdAndCampaignDifficulty_IdAndActiveTrue(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+                return uc;
+        }
+
+        @Test
+        void clearingEitherDisconnectedBranchCompletesTheCampaign() {
+                campaign.setStatus(CampaignStatus.PUBLISHED);
+                MapDifficulty mdC = mapDifficulty(1_000_000);
+                MapDifficulty mdD = mapDifficulty(1_000_000);
+                a.setMapDifficulty(mapDifficulty(1_000_000));
+                a.setRequirementType(CampaignRequirementType.ACC);
+                a.setRequirementValue(new BigDecimal("0.80"));
+                b.setMapDifficulty(mapDifficulty(1_000_000));
+                b.setRequirementType(CampaignRequirementType.ACC);
+                b.setRequirementValue(new BigDecimal("0.80"));
+                b.setTerminal(true);
+                CampaignDifficulty c = CampaignDifficulty.builder()
+                                .id(UUID.randomUUID()).campaign(campaign).active(true).mapDifficulty(mdC)
+                                .requirementType(CampaignRequirementType.ACC)
+                                .requirementValue(new BigDecimal("0.80")).build();
+                CampaignDifficulty d = CampaignDifficulty.builder()
+                                .id(UUID.randomUUID()).campaign(campaign).active(true).mapDifficulty(mdD)
+                                .terminal(true)
+                                .requirementType(CampaignRequirementType.ACC)
+                                .requirementValue(new BigDecimal("0.80")).build();
+                UserCampaign uc = inProgressCampaign();
+
+                when(userCampaignRepository.findByUser_IdAndStatusAndActiveTrue(user.getId(),
+                                UserCampaignStatus.IN_PROGRESS)).thenReturn(List.of(uc));
+                when(campaignDifficultyRepository.findActiveWithMapByCampaignId(campaign.getId()))
+                                .thenReturn(List.of(a, b, c, d));
+                when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
+                                .thenReturn(List.of(a, b, c, d));
+                when(campaignDifficultyPathRepository
+                                .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
+                                .thenReturn(List.of(edge(a, b), edge(c, d)));
+                when(scoreRepository.findEligibleCampaignRows(eq(user.getId()), any(), any()))
+                                .thenReturn(List.of(row(mdC, 900_000, EARLIER_PLAY), row(mdD, 900_000, PLAYED)));
+                stubEmptyProgress();
+                when(userCampaignScoreRepository.findByUser_IdAndCampaignDifficulty_IdAndActiveTrue(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+
+                service.evaluateInProgressForUser(user.getId());
+
+                assertThat(uc.getStatus()).isEqualTo(UserCampaignStatus.COMPLETED);
         }
 
         @Test

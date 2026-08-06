@@ -61,6 +61,10 @@ public class CampaignDifficulty {
     @Builder.Default
     private boolean barrier = false;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean terminal = false;
+
     @Column(name = "barrier_condition_type")
     private BarrierConditionType barrierConditionType;
 

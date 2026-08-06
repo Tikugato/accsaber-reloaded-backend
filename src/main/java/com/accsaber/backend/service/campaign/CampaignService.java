@@ -417,8 +417,13 @@ public class CampaignService {
             }
             campaign.setProgressionAgnostic(request.getProgressionAgnostic());
         }
-        if (request.getCompletionMode() != null) {
+        if (request.getCompletionMode() != null
+                && request.getCompletionMode() != campaign.getCompletionMode()) {
             campaign.setCompletionMode(request.getCompletionMode());
+            if (campaign.getStatus() != CampaignStatus.DRAFT) {
+                validateTerminalNodes(campaign);
+                campaignEvaluationService.recomputeCampaignCompletion(campaign.getId());
+            }
         }
         if (request.getPlaylistExportEnabled() != null) {
             campaign.setPlaylistExportEnabled(request.getPlaylistExportEnabled());
@@ -458,7 +463,7 @@ public class CampaignService {
         if (campaign.getStatus() != CampaignStatus.DRAFT && campaign.getStatus() != CampaignStatus.EDITING) {
             throw new ValidationException("Only draft or editing campaigns can be published");
         }
-        validateGraphSingleSink(campaign.getId());
+        validateTerminalNodes(campaign);
         List<CampaignDifficulty> dirty = campaignDifficultyRepository
                 .findByCampaign_IdAndActiveTrueAndRequirementDirtyTrue(campaign.getId());
         if (!dirty.isEmpty()) {
@@ -491,7 +496,7 @@ public class CampaignService {
         if (campaign.getStatus() != CampaignStatus.PUBLISHED && campaign.getStatus() != CampaignStatus.EDITING) {
             throw new ValidationException("Only published or editing campaigns can be curated");
         }
-        validateGraphSingleSink(campaign.getId());
+        validateTerminalNodes(campaign);
         campaign.setStatus(CampaignStatus.CURATED);
         campaign.setCuratedAt(Instant.now());
         campaign.setCuratedBy(curator);
@@ -810,6 +815,7 @@ public class CampaignService {
                 .prerequisiteMode(request.getPrerequisiteMode() != null
                         ? request.getPrerequisiteMode()
                         : CampaignPrerequisiteMode.OR)
+                .terminal(Boolean.TRUE.equals(request.getTerminal()))
                 .description(request.getDescription())
                 .checkpointLabel(request.getCheckpointLabel())
                 .checkpointLabelPosition(request.getCheckpointLabelPosition())
@@ -925,6 +931,7 @@ public class CampaignService {
         ensureEditable(difficulty.getCampaign());
 
         boolean requirementChanged = false;
+        boolean terminalChanged = false;
         if (request.getRequirementType() != null
                 && request.getRequirementType() != difficulty.getRequirementType()) {
             assertRequirementAvailable(request.getRequirementType(), difficulty.getMapDifficulty());
@@ -972,6 +979,13 @@ public class CampaignService {
         }
         if (request.getPrerequisiteMode() != null) {
             difficulty.setPrerequisiteMode(request.getPrerequisiteMode());
+        }
+        if (request.getTerminal() != null && request.getTerminal() != difficulty.isTerminal()) {
+            if (!request.getTerminal()) {
+                assertNotLastTerminal(difficulty);
+            }
+            difficulty.setTerminal(request.getTerminal());
+            terminalChanged = true;
         }
         if (request.getDescription() != null) {
             difficulty.setDescription(request.getDescription());
@@ -1029,9 +1043,14 @@ public class CampaignService {
         }
 
         difficulty = campaignDifficultyRepository.save(difficulty);
-        if (requirementChanged && difficulty.getCampaign().getStatus() != CampaignStatus.DRAFT) {
-            campaignEvaluationService.recomputeAfterRequirementChange(difficulty.getCampaign(),
-                    Set.of(difficulty.getId()));
+        if (difficulty.getCampaign().getStatus() != CampaignStatus.DRAFT) {
+            if (requirementChanged) {
+                campaignEvaluationService.recomputeAfterRequirementChange(difficulty.getCampaign(),
+                        Set.of(difficulty.getId()));
+            }
+            if (terminalChanged) {
+                campaignEvaluationService.recomputeCampaignCompletion(difficulty.getCampaign().getId());
+            }
         }
         List<CampaignConnectionResponse> currentConnections = toConnections(campaignDifficultyPathRepository
                 .findByCampaignDifficulty_IdAndActiveTrue(difficulty.getId()));
@@ -1049,6 +1068,7 @@ public class CampaignService {
             throw new ResourceNotFoundException("CampaignDifficulty", campaignDifficultyId);
         }
         ensureEditable(difficulty.getCampaign());
+        assertNotLastTerminal(difficulty);
         campaignDifficultyPathRepository.deleteAllTouching(difficulty.getId());
         barrierAffectedRepository.deleteAllTouching(difficulty.getId());
         campaignDifficultyItemRepository.deleteByCampaignDifficulty_Id(difficulty.getId());
@@ -2290,32 +2310,32 @@ public class CampaignService {
         return candidate;
     }
 
-    private void validateGraphSingleSink(UUID campaignId) {
-        List<CampaignDifficulty> difficulties = campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaignId);
+    private void assertNotLastTerminal(CampaignDifficulty difficulty) {
+        Campaign campaign = difficulty.getCampaign();
+        if (!difficulty.isTerminal() || campaign.getStatus() == CampaignStatus.DRAFT
+                || campaign.getCompletionMode() == CampaignCompletionMode.ALL) {
+            return;
+        }
+        boolean anotherTerminal = campaignDifficultyRepository
+                .findByCampaign_IdAndActiveTrue(campaign.getId()).stream()
+                .anyMatch(d -> d.isTerminal() && !d.isBarrier() && !d.getId().equals(difficulty.getId()));
+        if (!anotherTerminal) {
+            throw new ValidationException(
+                    "This is the only terminal node, removing it would leave the campaign impossible to finish");
+        }
+    }
+
+    private void validateTerminalNodes(Campaign campaign) {
+        List<CampaignDifficulty> difficulties = campaignDifficultyRepository
+                .findByCampaign_IdAndActiveTrue(campaign.getId());
         if (difficulties.stream().noneMatch(d -> !d.isBarrier())) {
             throw new ValidationException("Campaign must have at least one difficulty");
         }
-        List<CampaignDifficultyPath> paths = campaignDifficultyPathRepository
-                .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaignId);
-
-        Set<UUID> nodesWithOutgoing = paths.stream()
-                .map(p -> p.getComesFromCampaignDifficulty().getId())
-                .collect(Collectors.toCollection(HashSet::new));
-
-        List<UUID> barrierIds = difficulties.stream().filter(CampaignDifficulty::isBarrier)
-                .map(CampaignDifficulty::getId).toList();
-        if (!barrierIds.isEmpty()) {
-            barrierAffectedRepository.findByBarrier_IdIn(barrierIds)
-                    .forEach(a -> nodesWithOutgoing.add(a.getId().getCampaignDifficultyId()));
+        if (campaign.getCompletionMode() == CampaignCompletionMode.ALL) {
+            return;
         }
-
-        Set<UUID> sinks = difficulties.stream()
-                .filter(d -> !d.isBarrier())
-                .map(CampaignDifficulty::getId)
-                .collect(Collectors.toCollection(HashSet::new));
-        sinks.removeAll(nodesWithOutgoing);
-        if (sinks.size() != 1) {
-            throw new ValidationException("Campaign graph must have exactly one terminal endpoint");
+        if (difficulties.stream().noneMatch(d -> d.isTerminal() && !d.isBarrier())) {
+            throw new ValidationException("At least one node must be flagged as terminal");
         }
     }
 
@@ -2767,6 +2787,7 @@ public class CampaignService {
                 .targetMode(difficulty.getTargetMode())
                 .targets(assets.targets())
                 .prerequisiteMode(difficulty.getPrerequisiteMode())
+                .terminal(difficulty.isTerminal())
                 .description(difficulty.getDescription())
                 .checkpointLabel(difficulty.getCheckpointLabel())
                 .checkpointLabelPosition(difficulty.getCheckpointLabelPosition())

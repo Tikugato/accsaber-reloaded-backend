@@ -21,6 +21,7 @@ public class UpdateCampaignDifficultyRequest {
 
     private CampaignRequirementType requirementType;
     private CampaignPrerequisiteMode prerequisiteMode;
+    private Boolean terminal;
     private BigDecimal requirementValue;
     private BigDecimal requirementValueMax;
     private Set<CampaignBound> clear;

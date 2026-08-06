@@ -88,4 +88,6 @@ public class AddCampaignDifficultyRequest {
     private List<CampaignModifierRequirementRequest> modifiers;
 
     private CampaignPrerequisiteMode prerequisiteMode;
+
+    private Boolean terminal;
 }

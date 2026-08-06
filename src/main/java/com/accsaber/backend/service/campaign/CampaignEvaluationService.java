@@ -333,6 +333,27 @@ public class CampaignEvaluationService {
         }
     }
 
+    @Transactional
+    public void recomputeCampaignCompletion(UUID campaignId) {
+        List<UserCampaign> participants = userCampaignRepository.findByCampaignAndStatuses(campaignId,
+                List.of(UserCampaignStatus.IN_PROGRESS, UserCampaignStatus.COMPLETED));
+        if (participants.isEmpty()) {
+            return;
+        }
+        Graph graph = loadGraph(campaignId);
+        for (UserCampaign uc : participants) {
+            Set<UUID> completedIds = loadCompletedIds(uc.getUser().getId(), campaignId);
+            if (uc.getStatus() == UserCampaignStatus.COMPLETED
+                    && !isComplete(uc.getCampaign(), graph, completedIds)) {
+                uc.setStatus(UserCampaignStatus.IN_PROGRESS);
+                uc.setCompletedAt(null);
+                userCampaignRepository.save(uc);
+                continue;
+            }
+            evaluateCampaignCompletion(uc, graph, completedIds, false);
+        }
+    }
+
     private Set<UUID> descendantsOf(UUID campaignId, Set<UUID> seeds) {
         List<CampaignDifficultyPath> paths = campaignDifficultyPathRepository
                 .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaignId);
@@ -817,22 +838,14 @@ public class CampaignEvaluationService {
         List<CampaignDifficultyPath> paths = campaignDifficultyPathRepository
                 .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaignId);
         Map<UUID, List<UUID>> prereqs = new HashMap<>();
-        Set<UUID> withOutgoing = new HashSet<>();
         for (CampaignDifficultyPath p : paths) {
-            UUID to = p.getCampaignDifficulty().getId();
-            UUID from = p.getComesFromCampaignDifficulty().getId();
-            prereqs.computeIfAbsent(to, k -> new ArrayList<>()).add(from);
-            withOutgoing.add(from);
+            prereqs.computeIfAbsent(p.getCampaignDifficulty().getId(), k -> new ArrayList<>())
+                    .add(p.getComesFromCampaignDifficulty().getId());
         }
-        Set<UUID> gatedByBarrier = barrierIds.isEmpty()
-                ? Collections.emptySet()
-                : barrierAffectedRepository.findByBarrier_IdIn(List.copyOf(barrierIds)).stream()
-                        .map(link -> link.getAffectedDifficulty().getId())
-                        .collect(Collectors.toSet());
         Set<UUID> terminalIds = new HashSet<>();
-        for (UUID id : byId.keySet()) {
-            if (!withOutgoing.contains(id) && !barrierIds.contains(id) && !gatedByBarrier.contains(id)) {
-                terminalIds.add(id);
+        for (CampaignDifficulty d : difficulties) {
+            if (d.isTerminal() && !d.isBarrier()) {
+                terminalIds.add(d.getId());
             }
         }
         return new Graph(byId, prereqs, modes, barrierIds, terminalIds);

@@ -52,6 +52,7 @@ import com.accsaber.backend.model.entity.campaign.Campaign;
 import com.accsaber.backend.model.entity.campaign.CampaignBackgroundPlacement;
 import com.accsaber.backend.model.entity.campaign.CampaignCollaboratorStatus;
 import com.accsaber.backend.model.entity.campaign.CampaignCompletionItem;
+import com.accsaber.backend.model.entity.campaign.CampaignCompletionMode;
 import com.accsaber.backend.model.entity.campaign.CampaignDifficulty;
 import com.accsaber.backend.model.entity.campaign.CampaignDifficultyItem;
 import com.accsaber.backend.model.entity.campaign.CampaignNodeBorderLayer;
@@ -622,33 +623,26 @@ class CampaignServiceTest {
         @Nested
         class Publish {
 
-                @Test
-                void publishesWhenSingleSink() {
-                        CampaignDifficulty a = CampaignDifficulty.builder()
+                private CampaignDifficulty node(int x, String acc, boolean terminal) {
+                        return CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0))
+                                        .requirementValue(new BigDecimal(acc))
+                                        .terminal(terminal)
+                                        .positionX(BigDecimal.valueOf(x)).positionY(BigDecimal.valueOf(0))
                                         .xp(BigDecimal.ZERO).active(true).build();
-                        CampaignDifficulty b = CampaignDifficulty.builder()
-                                        .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
-                                        .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(BigDecimal.valueOf(1)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
+                }
 
+                private void stubPublish(List<CampaignDifficulty> difficulties) {
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
                         when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(List.of(a, b));
-                        when(campaignDifficultyPathRepository
-                                        .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(List.of(
-                                                        com.accsaber.backend.model.entity.campaign.CampaignDifficultyPath
-                                                                        .builder()
-                                                                        .id(UUID.randomUUID()).campaignDifficulty(b)
-                                                                        .comesFromCampaignDifficulty(a).active(true)
-                                                                        .build()));
+                                        .thenReturn(difficulties);
+                }
+
+                @Test
+                void publishesWhenANodeIsFlaggedTerminal() {
+                        stubPublish(List.of(node(0, "0.90", false), node(1, "0.95", true)));
                         when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
                         when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
 
@@ -659,36 +653,8 @@ class CampaignServiceTest {
                 }
 
                 @Test
-                void ignoresBarriersWithoutPathsWhenCountingSinks() {
-                        CampaignDifficulty a = CampaignDifficulty.builder()
-                                        .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
-                                        .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
-                        CampaignDifficulty b = CampaignDifficulty.builder()
-                                        .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
-                                        .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(BigDecimal.valueOf(1)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
-                        CampaignDifficulty gate = CampaignDifficulty.builder()
-                                        .id(UUID.randomUUID()).campaign(campaign).barrier(true)
-                                        .positionX(BigDecimal.valueOf(2)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
-
-                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(Optional.of(campaign));
-                        when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(List.of(a, b, gate));
-                        when(campaignDifficultyPathRepository
-                                        .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(List.of(
-                                                        com.accsaber.backend.model.entity.campaign.CampaignDifficultyPath
-                                                                        .builder()
-                                                                        .id(UUID.randomUUID()).campaignDifficulty(b)
-                                                                        .comesFromCampaignDifficulty(a).active(true)
-                                                                        .build()));
+                void publishesWithSeveralTerminalsAndDisconnectedBranches() {
+                        stubPublish(List.of(node(0, "0.90", true), node(1, "0.95", true), node(2, "0.97", false)));
                         when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
                         when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
 
@@ -698,41 +664,17 @@ class CampaignServiceTest {
                 }
 
                 @Test
-                void allowsBarrierWithIncomingPathsAndNoOutgoing() {
-                        CampaignDifficulty a = CampaignDifficulty.builder()
-                                        .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
-                                        .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
-                        CampaignDifficulty b = CampaignDifficulty.builder()
-                                        .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
-                                        .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(BigDecimal.valueOf(1)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
-                        CampaignDifficulty gate = CampaignDifficulty.builder()
-                                        .id(UUID.randomUUID()).campaign(campaign).barrier(true)
-                                        .positionX(BigDecimal.valueOf(2)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
+                void rejectsWhenNoNodeIsFlaggedTerminal() {
+                        stubPublish(List.of(node(0, "0.90", false), node(1, "0.95", false)));
 
-                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(Optional.of(campaign));
-                        when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(List.of(a, b, gate));
-                        when(campaignDifficultyPathRepository
-                                        .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(List.of(
-                                                        com.accsaber.backend.model.entity.campaign.CampaignDifficultyPath
-                                                                        .builder()
-                                                                        .id(UUID.randomUUID()).campaignDifficulty(b)
-                                                                        .comesFromCampaignDifficulty(a).active(true)
-                                                                        .build(),
-                                                        com.accsaber.backend.model.entity.campaign.CampaignDifficultyPath
-                                                                        .builder()
-                                                                        .id(UUID.randomUUID()).campaignDifficulty(gate)
-                                                                        .comesFromCampaignDifficulty(a).active(true)
-                                                                        .build()));
+                        assertThatThrownBy(() -> campaignService.publish(campaign.getId()))
+                                        .isInstanceOf(ValidationException.class);
+                }
+
+                @Test
+                void ignoresTerminalFlagsWhenEveryNodeMustBeCleared() {
+                        campaign.setCompletionMode(CampaignCompletionMode.ALL);
+                        stubPublish(List.of(node(0, "0.90", false), node(1, "0.95", false)));
                         when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
                         when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
 
@@ -742,81 +684,12 @@ class CampaignServiceTest {
                 }
 
                 @Test
-                void treatsBarrierRequiredMapsAsNonTerminal() {
-                        CampaignDifficulty a = CampaignDifficulty.builder()
-                                        .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
-                                        .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
-                        CampaignDifficulty b = CampaignDifficulty.builder()
-                                        .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
-                                        .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(BigDecimal.valueOf(1)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
-                        CampaignDifficulty terminal = CampaignDifficulty.builder()
-                                        .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
-                                        .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.97"))
+                void rejectsWhenOnlyABarrierIsFlaggedTerminal() {
+                        CampaignDifficulty gate = CampaignDifficulty.builder()
+                                        .id(UUID.randomUUID()).campaign(campaign).barrier(true).terminal(true)
                                         .positionX(BigDecimal.valueOf(2)).positionY(BigDecimal.valueOf(0))
                                         .xp(BigDecimal.ZERO).active(true).build();
-                        CampaignDifficulty gate = CampaignDifficulty.builder()
-                                        .id(UUID.randomUUID()).campaign(campaign).barrier(true)
-                                        .positionX(BigDecimal.valueOf(3)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
-
-                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(Optional.of(campaign));
-                        when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(List.of(a, b, terminal, gate));
-                        when(campaignDifficultyPathRepository
-                                        .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(List.of(
-                                                        com.accsaber.backend.model.entity.campaign.CampaignDifficultyPath
-                                                                        .builder()
-                                                                        .id(UUID.randomUUID())
-                                                                        .campaignDifficulty(terminal)
-                                                                        .comesFromCampaignDifficulty(a).active(true)
-                                                                        .build()));
-                        when(barrierAffectedRepository.findByBarrier_IdIn(List.of(gate.getId())))
-                                        .thenReturn(List.of(
-                                                        com.accsaber.backend.model.entity.campaign.CampaignBarrierAffectedDifficulty
-                                                                        .builder()
-                                                                        .id(new com.accsaber.backend.model.entity.campaign.CampaignBarrierAffectedDifficulty.CampaignBarrierAffectedDifficultyId(
-                                                                                        gate.getId(), b.getId()))
-                                                                        .barrier(gate).affectedDifficulty(b)
-                                                                        .build()));
-                        when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
-                        when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
-
-                        CampaignResponse result = campaignService.publish(campaign.getId());
-
-                        assertThat(result.getStatus()).isEqualTo(CampaignStatus.PUBLISHED);
-                }
-
-                @Test
-                void rejectsWhenMultipleSinks() {
-                        CampaignDifficulty a = CampaignDifficulty.builder()
-                                        .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
-                                        .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
-                        CampaignDifficulty b = CampaignDifficulty.builder()
-                                        .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
-                                        .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(BigDecimal.valueOf(1)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
-
-                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(Optional.of(campaign));
-                        when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(List.of(a, b));
-                        when(campaignDifficultyPathRepository
-                                        .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(List.of());
+                        stubPublish(List.of(node(0, "0.90", false), gate));
 
                         assertThatThrownBy(() -> campaignService.publish(campaign.getId()))
                                         .isInstanceOf(ValidationException.class);
@@ -828,17 +701,12 @@ class CampaignServiceTest {
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.95"))
+                                        .terminal(true)
                                         .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0))
                                         .xp(BigDecimal.ZERO).active(true)
                                         .requirementDirty(true).build();
 
-                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(Optional.of(campaign));
-                        when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(List.of(node));
-                        when(campaignDifficultyPathRepository
-                                        .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(List.of());
+                        stubPublish(List.of(node));
                         when(campaignDifficultyRepository
                                         .findByCampaign_IdAndActiveTrueAndRequirementDirtyTrue(campaign.getId()))
                                         .thenReturn(List.of(node));
@@ -930,6 +798,7 @@ class CampaignServiceTest {
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(new BigDecimal("0.90"))
+                                        .terminal(true)
                                         .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0))
                                         .xp(BigDecimal.ZERO).active(true).build();
 
@@ -937,9 +806,6 @@ class CampaignServiceTest {
                                         .thenReturn(Optional.of(campaign));
                         when(campaignDifficultyRepository.findByCampaign_IdAndActiveTrue(campaign.getId()))
                                         .thenReturn(List.of(single));
-                        when(campaignDifficultyPathRepository
-                                        .findByCampaignDifficulty_Campaign_IdAndActiveTrue(campaign.getId()))
-                                        .thenReturn(List.of());
                         when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
                         when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
                         when(staffUserRepository.findByIdAndActiveTrue(curator.getId()))

@@ -81,7 +81,13 @@ docker run --rm -v "$OUT_DIR:/backup:ro" "$IMAGE" \
 mv "$PARTIAL" "$DUMP"
 
 log "dumping cluster globals"
-docker exec "$CONTAINER" pg_dumpall -U "$DB_USER" --globals-only > "$GLOBALS"
+if docker exec "$CONTAINER" pg_dumpall -U "$DB_USER" --globals-only > "$GLOBALS" 2> "$GLOBALS.err"; then
+  rm -f "$GLOBALS.err"
+else
+  log "warning: globals dump failed, data dump is unaffected"
+  while read -r line; do log "  $line"; done < "$GLOBALS.err"
+  rm -f "$GLOBALS" "$GLOBALS.err"
+fi
 
 if [[ "$(date -u +%u)" == "$WEEKLY_DOW" ]]; then
   ln -f "$DUMP" "$WEEKLY_DIR/$NAME"
@@ -89,10 +95,15 @@ if [[ "$(date -u +%u)" == "$WEEKLY_DOW" ]]; then
 fi
 
 prune() {
-  local dir="$1" pattern="$2" keep="$3" f
-  ls -1t "$dir"/$pattern 2>/dev/null | tail -n "+$((keep + 1))" | while read -r f; do
-    log "pruning $(basename "$f")"
-    rm -f "$f"
+  local dir="$1" pattern="$2" keep="$3" f i
+  local files=()
+  while IFS= read -r f; do
+    files+=("$f")
+  done < <(find "$dir" -maxdepth 1 -type f -name "$pattern" -printf '%T@ %p\n' 2>/dev/null \
+    | sort -rn | cut -d' ' -f2-)
+  for ((i = keep; i < ${#files[@]}; i++)); do
+    log "pruning $(basename "${files[i]}")"
+    rm -f "${files[i]}"
   done
 }
 

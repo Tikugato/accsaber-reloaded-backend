@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CONTAINER="${CONTAINER:-accsaber-postgres}"
+CONTAINER="${CONTAINER:-}"
+COMPOSE_PROJECT="${COMPOSE_PROJECT:-}"
+COMPOSE_SERVICE="${COMPOSE_SERVICE:-postgres}"
 IMAGE="${IMAGE:-postgres:18-alpine}"
 DB="${POSTGRES_DB:-accsaber}"
 DB_USER="${POSTGRES_USER:-accsaber}"
@@ -25,6 +27,36 @@ log() { echo "[$(date -u +%H:%M:%S)] $*"; }
 trap 'rm -f "$PARTIAL"' EXIT
 
 mkdir -p "$DAILY_DIR" "$WEEKLY_DIR"
+
+resolve_container() {
+  local matches count
+  matches="$(docker ps \
+    --filter "label=com.docker.compose.project=$COMPOSE_PROJECT" \
+    --filter "label=com.docker.compose.service=$COMPOSE_SERVICE" \
+    --format '{{.Names}}')"
+  count="$(printf '%s\n' "$matches" | grep -c . || true)"
+  if (( count == 0 )); then
+    log "error: no running container for project '$COMPOSE_PROJECT' service '$COMPOSE_SERVICE'"
+    log "check 'docker ps --filter label=com.docker.compose.project=$COMPOSE_PROJECT'"
+    exit 1
+  fi
+  if (( count > 1 )); then
+    log "error: $count containers match project '$COMPOSE_PROJECT' service '$COMPOSE_SERVICE':"
+    while read -r m; do log "  $m"; done <<< "$matches"
+    log "set CONTAINER explicitly to disambiguate"
+    exit 1
+  fi
+  CONTAINER="$matches"
+}
+
+if [[ -z "$CONTAINER" ]]; then
+  if [[ -z "$COMPOSE_PROJECT" ]]; then
+    log "error: set CONTAINER or COMPOSE_PROJECT"
+    exit 1
+  fi
+  resolve_container
+  log "resolved container: $CONTAINER"
+fi
 
 if ! docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null | grep -q true; then
   log "error: container '$CONTAINER' is not running"

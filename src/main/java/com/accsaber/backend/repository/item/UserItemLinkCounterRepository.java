@@ -44,4 +44,29 @@ public interface UserItemLinkCounterRepository
             @Param("linkId") UUID linkId,
             @Param("statKey") String statKey,
             @Param("delta") long delta);
+
+    @Modifying
+    @Query(value = """
+            INSERT INTO user_item_link_counters (user_item_link_id, stat_key, value, updated_at)
+            SELECT l.id, :statKey, :delta, NOW()
+            FROM user_item_links l
+            WHERE l.user_id = :userId
+              AND EXISTS (SELECT 1
+                          FROM user_item_link_modifiers lm
+                          JOIN item_modifiers m ON m.id = lm.modifier_id
+                          WHERE lm.user_item_link_id = l.id
+                            AND m.key = 'strange')
+              AND EXISTS (SELECT 1
+                          FROM user_settings us
+                          WHERE us.user_id = l.user_id
+                            AND us.key LIKE 'equipped.%'
+                            AND us.value = to_jsonb(CAST(l.id AS text)))
+            ON CONFLICT (user_item_link_id, stat_key)
+            DO UPDATE SET value = user_item_link_counters.value + EXCLUDED.value,
+                          updated_at = NOW()
+            """, nativeQuery = true)
+    int incrementEquippedStrange(
+            @Param("userId") Long userId,
+            @Param("statKey") String statKey,
+            @Param("delta") long delta);
 }

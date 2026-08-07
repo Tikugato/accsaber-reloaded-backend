@@ -1,25 +1,22 @@
 package com.accsaber.backend.config;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 
-import tools.jackson.core.JsonGenerator;
-import tools.jackson.databind.JacksonModule;
-import tools.jackson.databind.SerializationContext;
-import tools.jackson.databind.ValueSerializer;
-import tools.jackson.databind.module.SimpleModule;
+public final class PlainDoubleJackson2Module {
 
-@Configuration
-public class PlainDoubleJacksonConfig {
+    private PlainDoubleJackson2Module() {
+    }
 
-    static final double MAX_EXACT_INTEGRAL = 9007199254740992.0;
-
-    public static final class PlainDoubleSerializer extends ValueSerializer<Double> {
+    private static final class PlainDoubleSerializer extends JsonSerializer<Double> {
 
         @Override
-        public void serialize(Double value, JsonGenerator gen, SerializationContext ctxt) {
+        public void serialize(Double value, JsonGenerator gen, SerializerProvider provider) throws IOException {
             if (value == null) {
                 gen.writeNull();
                 return;
@@ -29,7 +26,7 @@ public class PlainDoubleJacksonConfig {
                 gen.writeNumber(d);
                 return;
             }
-            if (d == Math.rint(d) && Math.abs(d) <= MAX_EXACT_INTEGRAL) {
+            if (d == Math.rint(d) && Math.abs(d) <= PlainDoubleJacksonConfig.MAX_EXACT_INTEGRAL) {
                 gen.writeNumber((long) d);
                 return;
             }
@@ -42,8 +39,7 @@ public class PlainDoubleJacksonConfig {
         }
     }
 
-    @Bean
-    JacksonModule plainDoubleModule() {
+    public static SimpleModule create() {
         SimpleModule module = new SimpleModule("PlainDoubleModule");
         PlainDoubleSerializer serializer = new PlainDoubleSerializer();
         module.addSerializer(Double.class, serializer);

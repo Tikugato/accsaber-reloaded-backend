@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.accsaber.backend.config.PlainDoubleJackson2Module;
 import com.accsaber.backend.model.event.NotificationCreatedEvent;
 import com.accsaber.backend.websocket.server.NotificationWebSocketHandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -22,6 +23,8 @@ public class NotificationBroadcastService {
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
             .registerModule(new JavaTimeModule())
+            .registerModule(PlainDoubleJackson2Module.create())
+            .registerModule(PlainDoubleJackson2Module.create())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     private final NotificationWebSocketHandler notificationHandler;

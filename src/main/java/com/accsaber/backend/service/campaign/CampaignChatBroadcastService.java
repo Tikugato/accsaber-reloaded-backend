@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.accsaber.backend.config.PlainDoubleJackson2Module;
 import com.accsaber.backend.model.event.CampaignChatMessageEvent;
 import com.accsaber.backend.websocket.server.CampaignChatBroadcast;
 import com.accsaber.backend.websocket.server.CampaignPresenceWebSocketHandler;
@@ -24,6 +25,7 @@ public class CampaignChatBroadcastService {
     private static final Logger log = LoggerFactory.getLogger(CampaignChatBroadcastService.class);
     private static final ObjectMapper MAPPER = new ObjectMapper()
             .registerModule(new JavaTimeModule())
+            .registerModule(PlainDoubleJackson2Module.create())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     private final CampaignPresenceWebSocketHandler presenceHandler;

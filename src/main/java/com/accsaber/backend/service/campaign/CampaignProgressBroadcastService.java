@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.accsaber.backend.config.PlainDoubleJackson2Module;
 import com.accsaber.backend.model.dto.response.campaign.CampaignLeaderboardPlayer;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.model.event.CampaignCompletedEvent;
@@ -28,6 +29,7 @@ public class CampaignProgressBroadcastService {
     private static final Logger log = LoggerFactory.getLogger(CampaignProgressBroadcastService.class);
     private static final ObjectMapper MAPPER = new ObjectMapper()
             .registerModule(new JavaTimeModule())
+            .registerModule(PlainDoubleJackson2Module.create())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
             .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
 

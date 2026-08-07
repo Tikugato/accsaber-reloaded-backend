@@ -56,7 +56,7 @@ public class ScoreResponse {
     private Instant timeSet;
     private boolean reweightDerivative;
     private Double xpGained;
-    private Double baseXp;
+    private Integer baseXp;
     private Double bonusXp;
     private boolean active;
     private boolean partial;

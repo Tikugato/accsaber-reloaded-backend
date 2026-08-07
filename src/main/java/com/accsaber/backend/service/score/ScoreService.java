@@ -1179,7 +1179,7 @@ public class ScoreService {
                                 .timeSet(s.getTimeSet())
                                 .reweightDerivative(s.isReweightDerivative())
                                 .xpGained(s.getXpGained())
-                                .baseXp((double) (xpCalculationService.getBaseXpPerScore()))
+                                .baseXp(xpCalculationService.getBaseXpPerScore())
                                 .bonusXp(s.getXpGained() != null
                                                 ?Math.max((s.getXpGained() - (double) (xpCalculationService
                                                                                 .getBaseXpPerScore())), 0.0)

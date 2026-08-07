@@ -41,7 +41,7 @@ Common stuff every build pulls from the context:
 
 ### Per mission type
 
-- **PLAY_N_MAPS** - just a count, no map picked. Count picked by band. I have this disabled currently since not everyone will have the plugin at the start, but just gotta turn bool to true in DB
+- **PLAY_N_MAPS** - just a count, no map picked. Count picked by band. I have this disabled currently since not everyone will have the plugin at the start, but just gotta turn bool to true in DB. Counts partials by default - set `requirePass` if you don't want that (see the credit gate below).
 - **XP_IN_WINDOW** - `rollingDailyXp * bandMultiplier`, floored at 100.
 - **ACC_ON_MAP / AP_ON_MAP** - full map-target pipeline (below). The acc variant converts to acc + score at the end; the AP variant uses the rawAp directly.
 - **PB_SPECIFIC_MAP** - same pipeline, plus a `pbFreshnessBoost` XP bonus if the existing PB is recent. With no score on the picked map the band clamps to easy for the whole target computation (anchor, floors, caps, `minMeaningfulTarget`, XP and the stored band), since completion for this type is just "an active score on the target map". The map is still sampled and WR-floor checked against the rolled band, so a strong map stays a strong map and only the ask drops.
@@ -59,6 +59,20 @@ Common stuff every build pulls from the context:
 ### Event-only types
 
 `STREAK_SUM_N`, `SNIPE_RIVAL_ANY_MAP`, `AP_GAIN_OVERALL`, `BATCH_PLAY_N`, `PB_RANKED_BEFORE_N` and `CAMPAIGN_COMPLETE_N` have **no build path** - `buildMission` returns `failBuild("event-only-type")` and `chk_mission_templates_event_only_types` pins them to `pool = 'event'`. Their targets are fixed in `event_targets`, so they skip the whole band/skill/map-pick/XP-curve pipeline. That's what makes them cheap: `AP_GAIN_OVERALL` in particular has no calibration anchor available (`rawApForOneGain` is NULL for overall by construction), which would be a blocker for a daily/weekly variant but is irrelevant to a fixed event target. To promote one, drop it from that constraint and give it a real `build*` method.
+
+### The credit gate (`requirePass`)
+
+`event_targets.requirePass` is an optional boolean on the template, checked in `MissionProgressService.isCreditable` before a score is dispatched to any `evaluate` branch. When it's true the score only earns credit if it is **not partial** and **carries no No Fail**. Absent or false, nothing changes, which is why every pre-existing test passes untouched.
+
+It exists because the repeatable `alphas_end_w4_play_20` (Marathon, 20 plays for 200 XP + a tradeable Alpha Crate, uncapped) was farmable without ever finishing a map: `evalPlayN` credits any `ScoreSubmittedEvent`, and partials fire one. Quit at five seconds, twenty times, collect a crate. NF is the other half of the same hole, since with it on you can fail the map and still hand in a full completion.
+
+Two things to know if you reuse it:
+
+- It sits in `evaluateAllForUser`, **not** inside `evaluate`, so the `IllegalStateException` guarding non-score types stays reachable. Keep it there.
+- The check is per-mission (it reads that mission's own template), so setting it on one event template doesn't touch daily/weekly. `creditXpToWindowMissions` bypasses it on purpose - mission-reward XP isn't a play.
+- Deploy order matters: the field has to exist in `EventMissionTargets` **before** any row carries it, or Jackson fails the unknown property and reading the template row blows up.
+
+It deliberately does not cover the other two things that make Marathon cheap: no accuracy floor, and no distinct-map dedupe (the same 90-second map twenty times still counts). Those were considered and left out.
 
 ### Triggers
 

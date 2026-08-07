@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.accsaber.backend.model.dto.EventMissionTargets;
 import com.accsaber.backend.model.dto.response.mission.MissionCompletedResponse;
 import com.accsaber.backend.model.dto.response.mission.MissionResponse;
 import com.accsaber.backend.model.dto.response.score.ScoreResponse;
@@ -42,6 +43,7 @@ import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserRelationRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.infra.ModifierCacheService;
 import com.accsaber.backend.service.item.ItemService;
 import com.accsaber.backend.service.item.LevelUpAwardService;
 
@@ -65,6 +67,7 @@ public class MissionProgressService {
     private final BatchRepository batchRepository;
     private final MapDifficultyRepository mapDifficultyRepository;
     private final UserRelationRepository userRelationRepository;
+    private final ModifierCacheService modifierCacheService;
 
     @Value("${accsaber.missions.enabled:false}")
     private boolean missionsEnabled;
@@ -110,11 +113,21 @@ public class MissionProgressService {
         for (UserMission mission : openMissionsFor(userId, MissionTrigger.SCORE)) {
             if (mission.getStatus() != MissionStatus.active)
                 continue;
+            if (!isCreditable(mission, latestScore))
+                continue;
             if (evaluate(mission, latestScore, ctx)) {
                 completeMission(mission, userId,
                         latestScore.getTimeSet() != null ? latestScore.getTimeSet() : Instant.now());
             }
         }
+    }
+
+    private boolean isCreditable(UserMission mission, ScoreResponse score) {
+        EventMissionTargets targets = mission.getTemplate().getEventTargets();
+        if (targets == null || !Boolean.TRUE.equals(targets.requirePass())) {
+            return true;
+        }
+        return !score.isPartial() && !modifierCacheService.containsNoFail(score.getModifierIds());
     }
 
     private boolean evalCampaignComplete(UserMission mission, CampaignCompletedEvent event) {

@@ -119,7 +119,7 @@ class MissionResponseTest {
                 .type(MissionType.AP_GAIN_OVERALL)
                 .pool(MissionPool.event)
                 .eventTargets(new EventMissionTargets(null, null, null, null, 5.0,
-                        null, null, null, null, null, null, null))
+                        null, null, null, null, null, null, null, null))
                 .build();
 
         MissionResponse response = MissionResponse.fromTemplate(template, event, Instant.now(),

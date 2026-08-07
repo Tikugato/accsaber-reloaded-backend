@@ -21,6 +21,7 @@ public class ModifierCacheService {
     private final ModifierRepository modifierRepository;
     private volatile Map<String, UUID> modifierCodeToId;
     private volatile Set<UUID> bannedModifierIds;
+    private volatile Set<UUID> noFailIds;
 
     public Map<String, UUID> getModifierCodeToId() {
         if (modifierCodeToId == null) {
@@ -48,6 +49,18 @@ public class ModifierCacheService {
         return bannedModifierIds;
     }
 
+    public Set<UUID> getNoFailIds() {
+        if (noFailIds == null) {
+            synchronized (this) {
+                if (noFailIds == null) {
+                    UUID id = getModifierCodeToId().get("NF");
+                    noFailIds = id == null ? Set.of() : Set.of(id);
+                }
+            }
+        }
+        return noFailIds;
+    }
+
     public boolean containsBannedModifier(Collection<UUID> modifierIds) {
         if (modifierIds == null || modifierIds.isEmpty()) {
             return false;
@@ -56,8 +69,17 @@ public class ModifierCacheService {
         return modifierIds.stream().anyMatch(banned::contains);
     }
 
+    public boolean containsNoFail(Collection<UUID> modifierIds) {
+        if (modifierIds == null || modifierIds.isEmpty()) {
+            return false;
+        }
+        Set<UUID> noFail = getNoFailIds();
+        return modifierIds.stream().anyMatch(noFail::contains);
+    }
+
     public void invalidate() {
         modifierCodeToId = null;
         bannedModifierIds = null;
+        noFailIds = null;
     }
 }

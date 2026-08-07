@@ -41,7 +41,7 @@ class EventMissionTargetsTest {
     void roundTripsThroughJson() throws Exception {
         EventMissionTargets original = new EventMissionTargets(UUID.randomUUID(), null, "76561198000000001",
                 null, 5.0, null, 10, null, null, null,
-                Instant.parse("2023-01-01T00:00:00Z"), true);
+                Instant.parse("2023-01-01T00:00:00Z"), true, true);
 
         EventMissionTargets round = mapper.readValue(mapper.writeValueAsString(original),
                 EventMissionTargets.class);
@@ -50,5 +50,15 @@ class EventMissionTargetsTest {
         assertThat(round.curatedOnly()).isEqualTo(original.curatedOnly());
         assertThat(round.playerIdAsLong()).isEqualTo(76561198000000001L);
         assertThat(round.categoryId()).isEqualTo(original.categoryId());
+        assertThat(round.requirePass()).isEqualTo(original.requirePass());
+    }
+
+    @Test
+    void requirePassDeserializesFromSeedShape() throws Exception {
+        EventMissionTargets targets = mapper.readValue("{\"count\":20,\"requirePass\":true}",
+                EventMissionTargets.class);
+
+        assertThat(targets.count()).isEqualTo(20);
+        assertThat(targets.requirePass()).isTrue();
     }
 }

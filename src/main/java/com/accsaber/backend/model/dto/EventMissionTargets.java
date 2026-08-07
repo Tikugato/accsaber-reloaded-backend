@@ -18,7 +18,8 @@ public record EventMissionTargets(
         Double thresholdAp,
         Integer streak,
         Instant rankedBefore,
-        Boolean curatedOnly) {
+        Boolean curatedOnly,
+        Boolean requirePass) {
 
     public Long playerIdAsLong() {
         return playerId == null ? null : Long.valueOf(playerId);

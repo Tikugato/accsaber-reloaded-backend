@@ -26,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.accsaber.backend.model.dto.EventMissionTargets;
 import com.accsaber.backend.model.dto.response.score.ScoreResponse;
 import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.campaign.CampaignStatus;
@@ -46,6 +47,7 @@ import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserRelationRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.infra.ModifierCacheService;
 import com.accsaber.backend.service.item.ItemService;
 import com.accsaber.backend.service.item.LevelUpAwardService;
 
@@ -77,6 +79,8 @@ class MissionProgressServiceTest {
         private MapDifficultyRepository mapDifficultyRepository;
         @Mock
         private UserRelationRepository userRelationRepository;
+        @Mock
+        private ModifierCacheService modifierCacheService;
 
         @InjectMocks
         private MissionProgressService service;
@@ -520,6 +524,75 @@ class MissionProgressServiceTest {
                                         CampaignStatus.CURATED, Instant.now()));
 
                         verify(userMissionRepository, never()).findAllActiveByUser(anyLong());
+                }
+        }
+
+        @Nested
+        class RequirePass {
+
+                private UserMission passOnly(MissionType type) {
+                        UserMission m = mission(type);
+                        m.getTemplate().setEventTargets(new EventMissionTargets(null, null, null, null, null,
+                                        null, 20, null, null, null, null, null, true));
+                        m.setTargetCount(20);
+                        return m;
+                }
+
+                @Test
+                void partialAttemptEarnsNoCredit() {
+                        UserMission m = passOnly(MissionType.PLAY_N_MAPS);
+                        givenMissions(m);
+
+                        ScoreResponse partial = score(false).toBuilder().partial(true).build();
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(partial));
+
+                        assertThat(m.getProgressCount()).isZero();
+                }
+
+                @Test
+                void noFailScoreEarnsNoCredit() {
+                        UUID noFailId = UUID.randomUUID();
+                        UserMission m = passOnly(MissionType.PLAY_N_MAPS);
+                        givenMissions(m);
+                        when(modifierCacheService.containsNoFail(List.of(noFailId))).thenReturn(true);
+
+                        ScoreResponse nf = score(true).toBuilder().modifierIds(List.of(noFailId)).build();
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(nf));
+
+                        assertThat(m.getProgressCount()).isZero();
+                }
+
+                @Test
+                void completedPassEarnsCredit() {
+                        UserMission m = passOnly(MissionType.PLAY_N_MAPS);
+                        givenMissions(m);
+
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
+
+                        assertThat(m.getProgressCount()).isEqualTo(1);
+                }
+
+                @Test
+                void worseButCompletedScoreStillEarnsCredit() {
+                        UserMission m = passOnly(MissionType.PLAY_N_MAPS);
+                        givenMissions(m);
+
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(score(false)));
+
+                        assertThat(m.getProgressCount()).isEqualTo(1);
+                }
+
+                @Test
+                void templateWithoutTheFlagStillCountsPartials() {
+                        UserMission m = mission(MissionType.PLAY_N_MAPS);
+                        m.setTargetCount(20);
+                        givenMissions(m);
+
+                        ScoreResponse partial = score(false).toBuilder().partial(true).build();
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(partial));
+
+                        assertThat(m.getProgressCount()).isEqualTo(1);
+                        verify(modifierCacheService, never()).containsNoFail(any());
                 }
         }
 

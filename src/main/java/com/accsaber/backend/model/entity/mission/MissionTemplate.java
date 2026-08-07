@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.mission;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -71,21 +70,21 @@ public class MissionTemplate {
     @JoinColumn(name = "xp_curve_id")
     private Curve xpCurve;
 
-    @Column(name = "xp_multiplier", nullable = false, precision = 8, scale = 4)
+    @Column(name = "xp_multiplier", nullable = false)
     @Builder.Default
-    private BigDecimal xpMultiplier = BigDecimal.ONE;
+    private double xpMultiplier = 1.0;
 
-    @Column(name = "band_easy", nullable = false, precision = 8, scale = 4)
+    @Column(name = "band_easy", nullable = false)
     @Builder.Default
-    private BigDecimal bandEasy = new BigDecimal("0.92");
+    private double bandEasy = 0.92;
 
-    @Column(name = "band_medium", nullable = false, precision = 8, scale = 4)
+    @Column(name = "band_medium", nullable = false)
     @Builder.Default
-    private BigDecimal bandMedium = BigDecimal.ONE;
+    private double bandMedium = 1.0;
 
-    @Column(name = "band_hard", nullable = false, precision = 8, scale = 4)
+    @Column(name = "band_hard", nullable = false)
     @Builder.Default
-    private BigDecimal bandHard = new BigDecimal("1.08");
+    private double bandHard = 1.08;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "awards_item_id")

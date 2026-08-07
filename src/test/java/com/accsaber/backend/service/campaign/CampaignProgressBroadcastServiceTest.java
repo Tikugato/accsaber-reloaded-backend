@@ -6,7 +6,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -59,7 +58,7 @@ class CampaignProgressBroadcastServiceTest {
         when(userRepository.findByIdAndActiveTrue(USER_ID)).thenReturn(Optional.of(player()));
         when(campaignService.getCampaignSummary(campaignId)).thenReturn(campaign(campaignId));
         when(campaignService.getCampaignNode(nodeId)).thenReturn(CampaignDifficultyResponse.builder()
-                .id(nodeId).songName("Reality Check").mapAuthor("Mapper").xp(new BigDecimal("120")).build());
+                .id(nodeId).songName("Reality Check").mapAuthor("Mapper").xp(120.0).build());
 
         service.onNodeCompleted(new CampaignNodeCompletedEvent(USER_ID, campaignId, nodeId,
                 Instant.parse("2026-07-03T21:00:00Z")));

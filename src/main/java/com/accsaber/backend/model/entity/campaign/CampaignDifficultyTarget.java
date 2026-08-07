@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.campaign;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -41,11 +40,11 @@ public class CampaignDifficultyTarget {
     @Column(name = "requirement_type", nullable = false)
     private CampaignRequirementType requirementType;
 
-    @Column(name = "requirement_value", precision = 20, scale = 6)
-    private BigDecimal requirementValue;
+    @Column(name = "requirement_value")
+    private Double requirementValue;
 
-    @Column(name = "requirement_value_max", precision = 20, scale = 6)
-    private BigDecimal requirementValueMax;
+    @Column(name = "requirement_value_max")
+    private Double requirementValueMax;
 
     @Column(nullable = false)
     @Builder.Default

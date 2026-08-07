@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.campaign;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,11 +50,11 @@ public class CampaignDifficulty {
     @Column(name = "requirement_type")
     private CampaignRequirementType requirementType;
 
-    @Column(name = "requirement_value", precision = 20, scale = 6)
-    private BigDecimal requirementValue;
+    @Column(name = "requirement_value")
+    private Double requirementValue;
 
-    @Column(name = "requirement_value_max", precision = 20, scale = 6)
-    private BigDecimal requirementValueMax;
+    @Column(name = "requirement_value_max")
+    private Double requirementValueMax;
 
     @Column(nullable = false)
     @Builder.Default
@@ -68,11 +67,11 @@ public class CampaignDifficulty {
     @Column(name = "barrier_condition_type")
     private BarrierConditionType barrierConditionType;
 
-    @Column(name = "barrier_condition_value", precision = 20, scale = 6)
-    private BigDecimal barrierConditionValue;
+    @Column(name = "barrier_condition_value")
+    private Double barrierConditionValue;
 
-    @Column(name = "barrier_condition_value_max", precision = 20, scale = 6)
-    private BigDecimal barrierConditionValueMax;
+    @Column(name = "barrier_condition_value_max")
+    private Double barrierConditionValueMax;
 
     @Column(name = "prerequisite_mode", nullable = false)
     @Builder.Default
@@ -116,14 +115,14 @@ public class CampaignDifficulty {
     private Integer checkpointSize;
 
     @Column(name = "position_x", nullable = false)
-    private BigDecimal positionX;
+    private double positionX;
 
     @Column(name = "position_y", nullable = false)
-    private BigDecimal positionY;
+    private double positionY;
 
-    @Column(nullable = false, precision = 20, scale = 6)
+    @Column(nullable = false)
     @Builder.Default
-    private BigDecimal xp = BigDecimal.ZERO;
+    private double xp = 0.0;
 
     @Column(nullable = false)
     @Builder.Default

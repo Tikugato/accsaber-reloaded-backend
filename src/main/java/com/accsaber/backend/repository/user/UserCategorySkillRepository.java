@@ -1,6 +1,5 @@
 package com.accsaber.backend.repository.user;
 
-import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -82,13 +81,13 @@ public interface UserCategorySkillRepository extends JpaRepository<UserCategoryS
         int upsert(
                         @Param("userId") Long userId,
                         @Param("categoryId") UUID categoryId,
-                        @Param("skillLevel") BigDecimal skillLevel,
-                        @Param("rankScore") BigDecimal rankScore,
-                        @Param("sustainedScore") BigDecimal sustainedScore,
-                        @Param("peakScore") BigDecimal peakScore,
-                        @Param("combinedScore") BigDecimal combinedScore,
-                        @Param("rawApForOneGain") BigDecimal rawApForOneGain,
-                        @Param("topAp") BigDecimal topAp,
+                        @Param("skillLevel") Double skillLevel,
+                        @Param("rankScore") Double rankScore,
+                        @Param("sustainedScore") Double sustainedScore,
+                        @Param("peakScore") Double peakScore,
+                        @Param("combinedScore") Double combinedScore,
+                        @Param("rawApForOneGain") Double rawApForOneGain,
+                        @Param("topAp") Double topAp,
                         @Param("categoryRank") Integer categoryRank,
                         @Param("activePlayers") Long activePlayers);
 }

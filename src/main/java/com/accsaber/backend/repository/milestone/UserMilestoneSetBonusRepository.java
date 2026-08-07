@@ -16,7 +16,7 @@ public interface UserMilestoneSetBonusRepository extends JpaRepository<UserMiles
             SELECT COALESCE(SUM(umsb.milestoneSet.setBonusXp), 0) FROM UserMilestoneSetBonus umsb
             WHERE umsb.user.id = :userId
             """)
-    java.math.BigDecimal sumSetBonusXpByUserId(@Param("userId") Long userId);
+    double sumSetBonusXpByUserId(@Param("userId") Long userId);
 
     @Query(value = """
             SELECT COALESCE(SUM(ms.set_bonus_xp), 0)
@@ -25,5 +25,5 @@ public interface UserMilestoneSetBonusRepository extends JpaRepository<UserMiles
             WHERE umsb.user_id = :userId
             AND umsb.claimed_at >= NOW() - INTERVAL '24 hours'
             """, nativeQuery = true)
-    java.math.BigDecimal sumSetBonusXpGainedLast24h(@Param("userId") Long userId);
+    double sumSetBonusXpGainedLast24h(@Param("userId") Long userId);
 }

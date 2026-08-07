@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.campaign;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,9 +25,9 @@ public class AddCampaignDifficultyRequest {
     @NotNull
     private CampaignRequirementType requirementType;
 
-    private BigDecimal requirementValue;
+    private Double requirementValue;
 
-    private BigDecimal requirementValueMax;
+    private Double requirementValueMax;
 
     @Valid
     @Size(max = 8)
@@ -72,12 +71,12 @@ public class AddCampaignDifficultyRequest {
     private Integer checkpointSize;
 
     @NotNull
-    private BigDecimal positionX;
+    private Double positionX;
 
     @NotNull
-    private BigDecimal positionY;
+    private Double positionY;
 
-    private BigDecimal xp;
+    private Double xp;
 
     @Valid
     @Size(max = 25)

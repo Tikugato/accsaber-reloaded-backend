@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -40,7 +39,7 @@ public class Modifier {
 
     @Column(nullable = false)
     @Builder.Default
-    private BigDecimal multiplier = BigDecimal.ONE;
+    private double multiplier = 1.0;
 
     @Column(nullable = false)
     @Builder.Default

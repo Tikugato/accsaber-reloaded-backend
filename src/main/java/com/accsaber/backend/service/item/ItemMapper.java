@@ -1,5 +1,7 @@
 package com.accsaber.backend.service.item;
 
+import com.accsaber.backend.util.Rounding;
+
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -184,10 +186,8 @@ public final class ItemMapper {
                 .rewardItem(toItemResponse(content.getRewardItem()))
                 .dropWeight(content.getDropWeight())
                 .dropChance(totalWeight <= 0
-                        ? java.math.BigDecimal.ZERO
-                        : java.math.BigDecimal.valueOf(content.getDropWeight())
-                                .divide(java.math.BigDecimal.valueOf(totalWeight), 6,
-                                        java.math.RoundingMode.HALF_UP))
+                        ? 0.0
+                        : Rounding.round((double) content.getDropWeight() / totalWeight, 6))
                 .build();
     }
 

@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.map;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -324,7 +323,7 @@ public class BatchService {
                 allDifficultyIds.add(d.getId());
             }
         }
-        Map<UUID, BigDecimal> complexities = allDifficultyIds.isEmpty()
+        Map<UUID, Double> complexities = allDifficultyIds.isEmpty()
                 ? Map.of()
                 : complexityService.findActiveComplexitiesForDifficulties(allDifficultyIds);
         Map<UUID, MapDifficultyStatisticsResponse> stats = allDifficultyIds.isEmpty()
@@ -340,7 +339,7 @@ public class BatchService {
             return List.of();
 
         List<UUID> ids = difficulties.stream().map(MapDifficulty::getId).toList();
-        Map<UUID, BigDecimal> complexities = complexityService.findActiveComplexitiesForDifficulties(ids);
+        Map<UUID, Double> complexities = complexityService.findActiveComplexitiesForDifficulties(ids);
         Map<UUID, MapDifficultyStatisticsResponse> stats = statisticsService.findActiveForDifficulties(ids);
 
         return difficulties.stream()
@@ -361,7 +360,7 @@ public class BatchService {
                 .build();
     }
 
-    private MapDifficultyResponse toDifficultyResponse(MapDifficulty d, BigDecimal complexity,
+    private MapDifficultyResponse toDifficultyResponse(MapDifficulty d, Double complexity,
             MapDifficultyStatisticsResponse stats) {
         com.accsaber.backend.model.entity.map.Map map = d.getMap();
         return MapDifficultyResponse.builder()

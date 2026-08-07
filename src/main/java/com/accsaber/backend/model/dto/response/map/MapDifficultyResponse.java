@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.map;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -39,9 +38,9 @@ public class MapDifficultyResponse {
     String blLeaderboardId;
     Integer maxScore;
     MapDifficultyMetadata metadata;
-    BigDecimal nps;
+    Double nps;
     Integer maxCombo;
-    BigDecimal complexity;
+    Double complexity;
     Instant rankedAt;
     Instant createdAt;
     UUID createdBy;
@@ -58,6 +57,6 @@ public class MapDifficultyResponse {
     int reweightDownvotes;
     int unrankUpvotes;
     int unrankDownvotes;
-    BigDecimal averageVoteComplexity;
+    Double averageVoteComplexity;
     MapDifficultyStatisticsResponse statistics;
 }

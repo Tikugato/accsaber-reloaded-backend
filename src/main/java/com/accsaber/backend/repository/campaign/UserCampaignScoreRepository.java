@@ -1,6 +1,5 @@
 package com.accsaber.backend.repository.campaign;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -61,7 +60,7 @@ public interface UserCampaignScoreRepository extends JpaRepository<UserCampaignS
                               AND uc.active = true AND uc.status = 'completed' AND c.status = 'curated'
                         ) parts
                         """, nativeQuery = true)
-        BigDecimal sumCampaignXpGainedSince(@Param("userId") Long userId, @Param("since") Instant since);
+        double sumCampaignXpGainedSince(@Param("userId") Long userId, @Param("since") Instant since);
 
         @Modifying
         @Query("delete from UserCampaignScore ucs where ucs.campaignDifficulty.id = :campaignDifficultyId")

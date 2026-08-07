@@ -1,7 +1,5 @@
 package com.accsaber.backend.service.score;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -9,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import com.accsaber.backend.model.entity.Curve;
 import com.accsaber.backend.repository.CurveRepository;
+import com.accsaber.backend.util.Rounding;
 
 import lombok.RequiredArgsConstructor;
 
@@ -18,8 +17,8 @@ public class XPCalculationService {
 
     private static final UUID XP_CURVE_ID = UUID.fromString("acc00000-0000-0000-0000-000000000003");
     private static final int XP_SCALE = 6;
-    private static final BigDecimal REFERENCE_COMPLEXITY = BigDecimal.valueOf(10);
-    private static final BigDecimal MIN_COMPLEXITY = new BigDecimal("4.5");
+    private static final double REFERENCE_COMPLEXITY = 10.0;
+    private static final double MIN_COMPLEXITY = 4.5;
 
     private final APCalculationService apCalculationService;
     private final CurveRepository curveRepository;
@@ -36,29 +35,24 @@ public class XPCalculationService {
     private volatile Curve cachedXpCurve;
     private final Object curveLock = new Object();
 
-    public BigDecimal calculateXpForNewMap(BigDecimal accuracy, BigDecimal complexity) {
-        BigDecimal curveBonus = computeCurveBonus(accuracy, complexity);
-        return BigDecimal.valueOf(baseXpPerScore).add(curveBonus)
-                .setScale(XP_SCALE, RoundingMode.HALF_UP);
+    public double calculateXpForNewMap(double accuracy, double complexity) {
+        return Rounding.round(baseXpPerScore + computeCurveBonus(accuracy, complexity), XP_SCALE);
     }
 
-    public BigDecimal calculateXpForImprovement(BigDecimal newAccuracy, BigDecimal oldAccuracy,
-            BigDecimal complexity) {
-        BigDecimal curveBonus = computeCurveBonus(newAccuracy, complexity);
-        BigDecimal oldCurveBonus = oldAccuracy != null
+    public double calculateXpForImprovement(double newAccuracy, Double oldAccuracy, double complexity) {
+        double curveBonus = computeCurveBonus(newAccuracy, complexity);
+        double oldCurveBonus = oldAccuracy != null
                 ? computeCurveBonus(oldAccuracy, complexity)
-                : BigDecimal.ZERO;
-        BigDecimal curveDelta = curveBonus.subtract(oldCurveBonus).max(BigDecimal.ZERO);
-        BigDecimal boostedDelta = curveDelta.multiply(BigDecimal.valueOf(improvementMultiplier));
-        return BigDecimal.valueOf(baseXpPerScore).add(boostedDelta)
-                .setScale(XP_SCALE, RoundingMode.HALF_UP);
+                : 0.0;
+        double curveDelta = Math.max(curveBonus - oldCurveBonus, 0.0);
+        return Rounding.round(baseXpPerScore + curveDelta * improvementMultiplier, XP_SCALE);
     }
 
-    public BigDecimal calculateXpForWorseScore() {
-        return BigDecimal.valueOf(baseXpPerScore).setScale(XP_SCALE, RoundingMode.HALF_UP);
+    public double calculateXpForWorseScore() {
+        return Rounding.round(baseXpPerScore, XP_SCALE);
     }
 
-    public BigDecimal computeCurveBonus(BigDecimal accuracy, BigDecimal complexity) {
+    public double computeCurveBonus(double accuracy, double complexity) {
         Curve curve = cachedXpCurve;
         if (curve == null) {
             synchronized (curveLock) {
@@ -70,12 +64,10 @@ public class XPCalculationService {
                 }
             }
         }
-        BigDecimal normalizedXP = apCalculationService.interpolate(curve, accuracy);
-        BigDecimal clampedComplexity = complexity.max(MIN_COMPLEXITY);
-        double complexityMultiplier = Math.cbrt(clampedComplexity.doubleValue() / REFERENCE_COMPLEXITY.doubleValue());
-        return normalizedXP.multiply(BigDecimal.valueOf(maxBonusXpPerScore))
-                .multiply(BigDecimal.valueOf(complexityMultiplier))
-                .setScale(XP_SCALE, RoundingMode.HALF_UP);
+        double normalizedXP = apCalculationService.interpolate(curve, accuracy);
+        double clampedComplexity = Math.max(complexity, MIN_COMPLEXITY);
+        double complexityMultiplier = Math.cbrt(clampedComplexity / REFERENCE_COMPLEXITY);
+        return Rounding.round(normalizedXP * maxBonusXpPerScore * complexityMultiplier, XP_SCALE);
     }
 
     public void evictXpCurveCache() {

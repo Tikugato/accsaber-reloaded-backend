@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -78,7 +77,7 @@ class LeaderboardServiceTest {
                                 .build();
         }
 
-        private UserCategoryStatistics buildStats(BigDecimal ap, String country, int ranking, int countryRanking) {
+        private UserCategoryStatistics buildStats(Double ap, String country, int ranking, int countryRanking) {
                 User user = User.builder()
                                 .id(Math.abs(UUID.randomUUID().getMostSignificantBits()))
                                 .name("Player")
@@ -103,8 +102,8 @@ class LeaderboardServiceTest {
                 @Test
                 void returnsPagedResults() {
                         PageRequest pageable = PageRequest.of(0, 2);
-                        UserCategoryStatistics s1 = buildStats(new BigDecimal("300"), "US", 1, 1);
-                        UserCategoryStatistics s2 = buildStats(new BigDecimal("200"), "FR", 2, 1);
+                        UserCategoryStatistics s1 = buildStats(300.0, "US", 1, 1);
+                        UserCategoryStatistics s2 = buildStats(200.0, "FR", 2, 1);
                         Page<UserCategoryStatistics> page = new PageImpl<>(List.of(s1, s2), pageable, 3);
 
                         when(categoryRepository.findByIdAndActiveTrue(category.getId()))
@@ -154,8 +153,8 @@ class LeaderboardServiceTest {
                 @Test
                 void returnsFilteredPagedResults() {
                         PageRequest pageable = PageRequest.of(0, 20);
-                        UserCategoryStatistics us1 = buildStats(new BigDecimal("300"), "US", 1, 1);
-                        UserCategoryStatistics us2 = buildStats(new BigDecimal("100"), "US", 3, 2);
+                        UserCategoryStatistics us1 = buildStats(300.0, "US", 1, 1);
+                        UserCategoryStatistics us2 = buildStats(100.0, "US", 3, 2);
                         Page<UserCategoryStatistics> page = new PageImpl<>(List.of(us1, us2), pageable, 2);
 
                         when(categoryRepository.findByIdAndActiveTrue(category.getId()))

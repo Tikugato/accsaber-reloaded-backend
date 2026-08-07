@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.map;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,6 +26,6 @@ public class BulkReweightRequest {
 
         @NotNull
         @DecimalMin("0.0")
-        private BigDecimal complexity;
+        private Double complexity;
     }
 }

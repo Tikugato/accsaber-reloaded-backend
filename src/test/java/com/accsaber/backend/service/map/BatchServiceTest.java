@@ -378,8 +378,8 @@ class BatchServiceTest {
                         when(batchRepository.save(any())).thenReturn(batch);
                         when(complexityService.findActiveComplexitiesForDifficulties(any()))
                                         .thenReturn(java.util.Map.of(
-                                                        diff1.getId(), java.math.BigDecimal.valueOf(8.0),
-                                                        diff2.getId(), java.math.BigDecimal.valueOf(9.0)));
+                                                        diff1.getId(), (double) (8.0),
+                                                        diff2.getId(), (double) (9.0)));
                         when(statisticsService.findActiveForDifficulties(any()))
                                         .thenReturn(java.util.Map.of());
 
@@ -405,8 +405,8 @@ class BatchServiceTest {
                         when(batchRepository.save(any())).thenReturn(batch);
                         when(complexityService.findActiveComplexitiesForDifficulties(any()))
                                         .thenReturn(java.util.Map.of(
-                                                        diff1.getId(), java.math.BigDecimal.valueOf(8.0),
-                                                        diff2.getId(), java.math.BigDecimal.valueOf(9.0)));
+                                                        diff1.getId(), (double) (8.0),
+                                                        diff2.getId(), (double) (9.0)));
                         when(statisticsService.findActiveForDifficulties(any()))
                                         .thenReturn(java.util.Map.of());
 
@@ -464,12 +464,12 @@ class BatchServiceTest {
 
                         ApproveReweightRequest item1 = new ApproveReweightRequest();
                         item1.setMapDifficultyId(diff1.getId());
-                        item1.setComplexity(java.math.BigDecimal.valueOf(8.5));
+                        item1.setComplexity((double) (8.5));
                         item1.setReason("reweight reason");
 
                         ApproveReweightRequest item2 = new ApproveReweightRequest();
                         item2.setMapDifficultyId(diff2.getId());
-                        item2.setComplexity(java.math.BigDecimal.valueOf(9.0));
+                        item2.setComplexity((double) (9.0));
                         item2.setReason("reweight reason 2");
 
                         List<ApproveReweightRequest> items = List.of(item1, item2);
@@ -530,7 +530,7 @@ class BatchServiceTest {
 
                         ApproveReweightRequest item = new ApproveReweightRequest();
                         item.setMapDifficultyId(UUID.randomUUID());
-                        item.setComplexity(java.math.BigDecimal.valueOf(8.0));
+                        item.setComplexity((double) (8.0));
 
                         assertThatThrownBy(() -> batchService.reweightBatch(
                                         batch.getId(), List.of(item), staffUserId, staffId))
@@ -549,7 +549,7 @@ class BatchServiceTest {
 
                         ApproveReweightRequest item = new ApproveReweightRequest();
                         item.setMapDifficultyId(UUID.randomUUID());
-                        item.setComplexity(java.math.BigDecimal.valueOf(8.0));
+                        item.setComplexity((double) (8.0));
 
                         assertThatThrownBy(() -> batchService.reweightBatch(
                                         batch.getId(), List.of(item), staffUserId, staffId))

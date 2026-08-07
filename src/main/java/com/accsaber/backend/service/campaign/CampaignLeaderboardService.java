@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.campaign;
 
-import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -88,8 +87,8 @@ public class CampaignLeaderboardService {
                     .rank(startRank + i)
                     .player(player(row))
                     .score(asInt(row[5]))
-                    .accuracy(asBigDecimal(row[6]))
-                    .ap(asBigDecimal(row[7]))
+                    .accuracy(asDouble(row[6]))
+                    .ap(asDouble(row[7]))
                     .build());
             i++;
         }
@@ -111,8 +110,8 @@ public class CampaignLeaderboardService {
         return switch (board) {
             case COMPLETIONS -> builder.rank(rank).completedAt(asInstant(row[5])).build();
             case AVG_ACCURACY, AVG_AP -> builder.rank(rank)
-                    .averageAccuracy(asBigDecimal(row[5]))
-                    .averageAp(asBigDecimal(row[6]))
+                    .averageAccuracy(asDouble(row[5]))
+                    .averageAp(asDouble(row[6]))
                     .nodesCounted(asInt(row[7]))
                     .build();
             case PROGRESS -> builder
@@ -146,14 +145,14 @@ public class CampaignLeaderboardService {
         return value == null ? null : value.toString();
     }
 
-    private static BigDecimal asBigDecimal(Object value) {
+    private static Double asDouble(Object value) {
         if (value == null) {
             return null;
         }
-        if (value instanceof BigDecimal bd) {
+        if (value instanceof Double bd) {
             return bd;
         }
-        return new BigDecimal(value.toString());
+        return Double.parseDouble(value.toString());
     }
 
     private static Instant asInstant(Object value) {

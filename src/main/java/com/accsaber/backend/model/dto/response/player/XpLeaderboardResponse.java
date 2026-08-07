@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.player;
 
-import java.math.BigDecimal;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,7 +19,7 @@ public class XpLeaderboardResponse {
     private String country;
     private String avatarUrl;
     private String cdnAvatarUrl;
-    private BigDecimal totalXp;
+    private Double totalXp;
     private Integer level;
     private boolean playerInactive;
     private Integer rankingLastWeek;

@@ -1,6 +1,7 @@
 package com.accsaber.backend.service.map;
 
-import java.math.BigDecimal;
+import com.accsaber.backend.util.Rounding;
+
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Collection;
@@ -79,7 +80,7 @@ public class MapService {
 
     record VoteSummary(int rankUpvotes, int rankDownvotes, int criteriaUpvotes, int criteriaDownvotes,
             VoteType headCriteriaVote, int reweightUpvotes, int reweightDownvotes,
-            int unrankUpvotes, int unrankDownvotes, BigDecimal averageVoteComplexity) {
+            int unrankUpvotes, int unrankDownvotes, Double averageVoteComplexity) {
     }
 
     private static final VoteSummary EMPTY_SUMMARY = new VoteSummary(0, 0, 0, 0, null, 0, 0, 0, 0, null);
@@ -91,14 +92,14 @@ public class MapService {
 
     public Page<PublicMapDifficultyResponse> findDifficultiesPublic(UUID categoryId,
             Collection<MapDifficultyStatus> statuses,
-            BigDecimal complexityMin, BigDecimal complexityMax, String search, Long excludeUserId, Pageable pageable) {
+            Double complexityMin, Double complexityMax, String search, Long excludeUserId, Pageable pageable) {
         return findDifficulties(categoryId, null, statuses, complexityMin, complexityMax, search, excludeUserId,
                 true, pageable)
                 .map(MapService::toPublicDifficultyResponse);
     }
 
     public List<PublicMapDifficultyResponse> findDifficultiesWithUserScoreAbovePublic(
-            Long userId, BigDecimal apMin, UUID categoryId) {
+            Long userId, Double apMin, UUID categoryId) {
         List<MapDifficulty> difficulties = mapDifficultyRepository.findWithUserScoreAboveAp(
                 userId, apMin, categoryId);
 
@@ -106,7 +107,7 @@ public class MapService {
             return List.of();
 
         List<UUID> ids = difficulties.stream().map(MapDifficulty::getId).toList();
-        java.util.Map<UUID, BigDecimal> complexities = complexityService.findActiveComplexitiesForDifficulties(ids);
+        java.util.Map<UUID, Double> complexities = complexityService.findActiveComplexitiesForDifficulties(ids);
         java.util.Map<UUID, MapDifficultyStatisticsResponse> stats = statisticsService.findActiveForDifficulties(ids);
         java.util.Map<UUID, StaffInfo> staffInfo = loadStaffInfo(difficulties);
         java.util.Map<UUID, VoteSummary> voteSummaries = loadVoteSummaries(ids);
@@ -149,7 +150,7 @@ public class MapService {
         }
         List<UUID> ids = difficultyIds.stream().distinct().toList();
         List<MapDifficulty> difficulties = mapDifficultyRepository.findAllByIdInAndActiveTrueWithMapAndCategory(ids);
-        java.util.Map<UUID, BigDecimal> complexities = complexityService.findActiveComplexitiesForDifficulties(ids);
+        java.util.Map<UUID, Double> complexities = complexityService.findActiveComplexitiesForDifficulties(ids);
         java.util.Map<UUID, MapDifficultyStatisticsResponse> stats = statisticsService.findActiveForDifficulties(ids);
         java.util.Map<UUID, StaffInfo> staffInfo = loadStaffInfo(difficulties);
         java.util.Map<UUID, PublicMapDifficultyResponse> result = new java.util.HashMap<>();
@@ -177,7 +178,7 @@ public class MapService {
                 .collect(Collectors.groupingBy(d -> d.getMap().getId()));
 
         List<UUID> difficultyIds = allDifficulties.stream().map(MapDifficulty::getId).toList();
-        java.util.Map<UUID, BigDecimal> complexities = complexityService
+        java.util.Map<UUID, Double> complexities = complexityService
                 .findActiveComplexitiesForDifficulties(difficultyIds);
         java.util.Map<UUID, MapDifficultyStatisticsResponse> stats = statisticsService
                 .findActiveForDifficulties(difficultyIds);
@@ -261,7 +262,7 @@ public class MapService {
 
     public Page<MapDifficultyResponse> findDifficulties(UUID categoryId, UUID batchId,
             Collection<MapDifficultyStatus> statuses,
-            BigDecimal complexityMin, BigDecimal complexityMax, String search, Long excludeUserId,
+            Double complexityMin, Double complexityMax, String search, Long excludeUserId,
             boolean active, Pageable pageable) {
         boolean hasSearch = search != null && !search.isBlank();
         Collection<MapDifficultyStatus> statusFilter = resolveStatusFilter(statuses, active);
@@ -278,7 +279,7 @@ public class MapService {
             return difficulties.map(d -> toDifficultyResponse(d, null, null, null));
 
         List<UUID> ids = difficulties.getContent().stream().map(MapDifficulty::getId).toList();
-        java.util.Map<UUID, BigDecimal> complexities = complexityService.findActiveComplexitiesForDifficulties(ids);
+        java.util.Map<UUID, Double> complexities = complexityService.findActiveComplexitiesForDifficulties(ids);
         java.util.Map<UUID, MapDifficultyStatisticsResponse> stats = statisticsService.findActiveForDifficulties(ids);
         java.util.Map<UUID, StaffInfo> staffInfo = loadStaffInfo(difficulties.getContent());
         java.util.Map<UUID, VoteSummary> voteSummaries = loadVoteSummaries(ids);
@@ -371,7 +372,7 @@ public class MapService {
                         .songHash((String) row[1])
                         .songName((String) row[2])
                         .difficulty((Difficulty) row[3])
-                        .complexity((BigDecimal) row[4])
+                        .complexity((Double) row[4])
                         .categoryCode((String) row[5])
                         .ssLeaderboardId((String) row[6])
                         .blLeaderboardId((String) row[7])
@@ -497,7 +498,7 @@ public class MapService {
             campaignScoreGate.refresh();
         }
 
-        BigDecimal complexity = complexityService.findActiveComplexity(difficultyId).orElse(null);
+        Double complexity = complexityService.findActiveComplexity(difficultyId).orElse(null);
         MapDifficultyStatisticsResponse stats = statisticsService.findActive(difficultyId).orElse(null);
         StaffInfo info = resolveStaffInfo(staffId);
         return toDifficultyResponse(difficulty, complexity, stats, info);
@@ -518,7 +519,7 @@ public class MapService {
         difficulty.setLastUpdatedBy(staffId);
         mapDifficultyRepository.save(difficulty);
 
-        BigDecimal complexity = complexityService.setComplexity(
+        Double complexity = complexityService.setComplexity(
                 difficulty, request.getComplexity(), request.getReason(), staffUserId);
         MapDifficultyStatisticsResponse stats = statisticsService.findActive(difficultyId).orElse(null);
         StaffInfo info = resolveStaffInfo(staffId);
@@ -538,7 +539,7 @@ public class MapService {
         difficulty.setLastUpdatedBy(staffId);
         mapDifficultyRepository.save(difficulty);
 
-        BigDecimal complexity = complexityService.findActiveComplexity(difficultyId).orElse(null);
+        Double complexity = complexityService.findActiveComplexity(difficultyId).orElse(null);
         MapDifficultyStatisticsResponse stats = statisticsService.findActive(difficultyId).orElse(null);
         StaffInfo info = resolveStaffInfo(staffId);
         return toDifficultyResponse(difficulty, complexity, stats, info);
@@ -556,10 +557,10 @@ public class MapService {
     public MapDifficultyResponse getDifficultyResponse(UUID difficultyId) {
         MapDifficulty difficulty = mapDifficultyRepository.findByIdAndActiveTrue(difficultyId)
                 .orElseThrow(() -> new ResourceNotFoundException("MapDifficulty", difficultyId));
-        BigDecimal complexity = complexityService.findActiveComplexity(difficultyId).orElse(null);
+        Double complexity = complexityService.findActiveComplexity(difficultyId).orElse(null);
         MapDifficultyStatisticsResponse stats = statisticsService.findActive(difficultyId).orElse(null);
         StaffInfo info = resolveStaffInfo(difficulty.getLastUpdatedBy());
-        BigDecimal avgComplexity = loadAvgReweightComplexity(List.of(difficultyId)).get(difficultyId);
+        Double avgComplexity = loadAvgReweightComplexity(List.of(difficultyId)).get(difficultyId);
         VoteSummary votes = new VoteSummary(0, 0, 0, 0, null, 0, 0, 0, 0, avgComplexity);
         return toDifficultyResponse(difficulty, complexity, stats, info, null, votes);
     }
@@ -605,7 +606,7 @@ public class MapService {
             return List.of();
 
         List<UUID> ids = difficulties.stream().map(MapDifficulty::getId).toList();
-        java.util.Map<UUID, BigDecimal> complexities = complexityService.findActiveComplexitiesForDifficulties(ids);
+        java.util.Map<UUID, Double> complexities = complexityService.findActiveComplexitiesForDifficulties(ids);
         java.util.Map<UUID, MapDifficultyStatisticsResponse> stats = statisticsService.findActiveForDifficulties(ids);
         java.util.Map<UUID, StaffInfo> staffInfo = loadStaffInfo(difficulties);
         java.util.Map<UUID, VoteSummary> voteSummaries = loadVoteSummaries(ids);
@@ -680,7 +681,7 @@ public class MapService {
                 pair[1] = count;
         }
 
-        java.util.Map<UUID, BigDecimal> avgComplexities = loadAvgReweightComplexity(difficultyIds);
+        java.util.Map<UUID, Double> avgComplexities = loadAvgReweightComplexity(difficultyIds);
 
         java.util.Map<UUID, VoteSummary> result = new java.util.HashMap<>();
         for (UUID id : difficultyIds) {
@@ -694,15 +695,15 @@ public class MapService {
         return result;
     }
 
-    private java.util.Map<UUID, BigDecimal> loadAvgReweightComplexity(List<UUID> difficultyIds) {
-        java.util.Map<UUID, BigDecimal> result = new java.util.HashMap<>();
+    private java.util.Map<UUID, Double> loadAvgReweightComplexity(List<UUID> difficultyIds) {
+        java.util.Map<UUID, Double> result = new java.util.HashMap<>();
         if (difficultyIds.isEmpty())
             return result;
         for (Object[] row : voteRepository.sumSuggestedComplexityByDifficultyIds(difficultyIds)) {
-            BigDecimal sum = (BigDecimal) row[1];
+            Double sum = (Double) row[1];
             long count = ((Number) row[2]).longValue();
             if (sum != null && count > 0)
-                result.put((UUID) row[0], sum.divide(BigDecimal.valueOf(count), 6, RoundingMode.HALF_UP));
+                result.put((UUID) row[0], Rounding.round(sum / (double) (count), 6));
         }
         return result;
     }
@@ -733,7 +734,7 @@ public class MapService {
                 .build();
     }
 
-    private MapDifficultyResponse toDifficultyResponse(MapDifficulty d, BigDecimal complexity,
+    private MapDifficultyResponse toDifficultyResponse(MapDifficulty d, Double complexity,
             MapDifficultyStatisticsResponse stats, StaffInfo lastUpdatedByInfo,
             StaffInfo createdByInfo, VoteSummary votes) {
         Map map = d.getMap();
@@ -783,7 +784,7 @@ public class MapService {
                 .build();
     }
 
-    private MapDifficultyResponse toDifficultyResponse(MapDifficulty d, BigDecimal complexity,
+    private MapDifficultyResponse toDifficultyResponse(MapDifficulty d, Double complexity,
             MapDifficultyStatisticsResponse stats, StaffInfo lastUpdatedByInfo) {
         return toDifficultyResponse(d, complexity, stats, lastUpdatedByInfo, null, EMPTY_SUMMARY);
     }

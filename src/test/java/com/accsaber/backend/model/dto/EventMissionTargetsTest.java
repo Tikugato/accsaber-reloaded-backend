@@ -2,7 +2,6 @@ package com.accsaber.backend.model.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -25,7 +24,7 @@ class EventMissionTargetsTest {
         assertThat(targets.count()).isEqualTo(5);
         assertThat(targets.rankedBefore()).isEqualTo(Instant.parse("2023-01-01T00:00:00Z"));
         assertThat(targets.curatedOnly()).isTrue();
-        assertThat(targets.ap()).isEqualByComparingTo("5");
+        assertThat(targets.ap()).isEqualByComparingTo(5.0);
     }
 
     @Test
@@ -41,7 +40,7 @@ class EventMissionTargetsTest {
     @Test
     void roundTripsThroughJson() throws Exception {
         EventMissionTargets original = new EventMissionTargets(UUID.randomUUID(), null, "76561198000000001",
-                null, new BigDecimal("5"), null, 10, null, null, null,
+                null, 5.0, null, 10, null, null, null,
                 Instant.parse("2023-01-01T00:00:00Z"), true);
 
         EventMissionTargets round = mapper.readValue(mapper.writeValueAsString(original),

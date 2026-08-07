@@ -9,7 +9,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -71,12 +70,12 @@ class OverallStatisticsServiceTest {
                 lenient().when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         }
 
-        private UserCategoryStatistics buildStat(BigDecimal ap, BigDecimal averageAcc, int rankedPlays) {
-                return buildStat(ap, averageAcc, rankedPlays, BigDecimal.ZERO);
+        private UserCategoryStatistics buildStat(Double ap, Double averageAcc, int rankedPlays) {
+                return buildStat(ap, averageAcc, rankedPlays, 0.0);
         }
 
-        private UserCategoryStatistics buildStat(BigDecimal ap, BigDecimal averageAcc, int rankedPlays,
-                        BigDecimal scoreXp) {
+        private UserCategoryStatistics buildStat(Double ap, Double averageAcc, int rankedPlays,
+                        Double scoreXp) {
                 Category cat = Category.builder()
                                 .id(UUID.randomUUID())
                                 .code("true_acc")
@@ -100,9 +99,9 @@ class OverallStatisticsServiceTest {
 
                 @Test
                 void apSummedAcrossMultipleCategories() {
-                        UserCategoryStatistics s1 = buildStat(new BigDecimal("500.000000"), new BigDecimal("0.980000"),
+                        UserCategoryStatistics s1 = buildStat(500.000000, 0.980000,
                                         10);
-                        UserCategoryStatistics s2 = buildStat(new BigDecimal("300.000000"), new BigDecimal("0.960000"),
+                        UserCategoryStatistics s2 = buildStat(300.000000, 0.960000,
                                         5);
                         when(statisticsRepository.findActiveByUserWhereCountForOverall(userId))
                                         .thenReturn(List.of(s1, s2));
@@ -116,14 +115,14 @@ class OverallStatisticsServiceTest {
                         ArgumentCaptor<UserCategoryStatistics> captor = ArgumentCaptor
                                         .forClass(UserCategoryStatistics.class);
                         verify(statisticsRepository, times(1)).saveAndFlush(captor.capture());
-                        assertThat(captor.getValue().getAp()).isEqualByComparingTo(new BigDecimal("800.000000"));
+                        assertThat(captor.getValue().getAp()).isEqualByComparingTo(800.000000);
                 }
 
                 @Test
                 void rankedPlaysSummedAcrossMultipleCategories() {
-                        UserCategoryStatistics s1 = buildStat(new BigDecimal("500.000000"), new BigDecimal("0.980000"),
+                        UserCategoryStatistics s1 = buildStat(500.000000, 0.980000,
                                         10);
-                        UserCategoryStatistics s2 = buildStat(new BigDecimal("300.000000"), new BigDecimal("0.960000"),
+                        UserCategoryStatistics s2 = buildStat(300.000000, 0.960000,
                                         5);
                         when(statisticsRepository.findActiveByUserWhereCountForOverall(userId))
                                         .thenReturn(List.of(s1, s2));
@@ -142,10 +141,10 @@ class OverallStatisticsServiceTest {
 
                 @Test
                 void scoreXpSummedAcrossMultipleCategories() {
-                        UserCategoryStatistics s1 = buildStat(new BigDecimal("500.000000"),
-                                        new BigDecimal("0.980000"), 10, new BigDecimal("300.000000"));
-                        UserCategoryStatistics s2 = buildStat(new BigDecimal("300.000000"),
-                                        new BigDecimal("0.960000"), 5, new BigDecimal("150.000000"));
+                        UserCategoryStatistics s1 = buildStat(500.000000,
+                                        0.980000, 10, 300.000000);
+                        UserCategoryStatistics s2 = buildStat(300.000000,
+                                        0.960000, 5, 150.000000);
                         when(statisticsRepository.findActiveByUserWhereCountForOverall(userId))
                                         .thenReturn(List.of(s1, s2));
                         when(statisticsRepository.findActiveForUpdate(userId,
@@ -159,18 +158,18 @@ class OverallStatisticsServiceTest {
                                         .forClass(UserCategoryStatistics.class);
                         verify(statisticsRepository, times(1)).saveAndFlush(captor.capture());
                         assertThat(captor.getValue().getScoreXp())
-                                        .isEqualByComparingTo(new BigDecimal("450.000000"));
+                                        .isEqualByComparingTo(450.000000);
                 }
 
                 @Test
                 void existingOverallStats_deactivatedAndNewVersionCreated() {
-                        UserCategoryStatistics s1 = buildStat(new BigDecimal("500.000000"), new BigDecimal("0.980000"),
+                        UserCategoryStatistics s1 = buildStat(500.000000, 0.980000,
                                         10);
                         UserCategoryStatistics existing = UserCategoryStatistics.builder()
                                         .id(UUID.randomUUID())
                                         .user(user)
                                         .category(overallCategory)
-                                        .ap(new BigDecimal("400.000000"))
+                                        .ap(400.000000)
                                         .rankedPlays(8)
                                         .active(true)
                                         .build();
@@ -193,7 +192,7 @@ class OverallStatisticsServiceTest {
 
                 @Test
                 void rankingServiceCalledWithOverallCategoryId() {
-                        UserCategoryStatistics s1 = buildStat(new BigDecimal("500.000000"), new BigDecimal("0.980000"),
+                        UserCategoryStatistics s1 = buildStat(500.000000, 0.980000,
                                         10);
                         when(statisticsRepository.findActiveByUserWhereCountForOverall(userId)).thenReturn(List.of(s1));
                         when(statisticsRepository.findActiveForUpdate(userId,
@@ -220,7 +219,7 @@ class OverallStatisticsServiceTest {
                                         .forClass(UserCategoryStatistics.class);
                         verify(statisticsRepository, times(1)).saveAndFlush(captor.capture());
                         UserCategoryStatistics saved = captor.getValue();
-                        assertThat(saved.getAp()).isEqualByComparingTo(BigDecimal.ZERO);
+                        assertThat(saved.getAp()).isEqualByComparingTo(0.0);
                         assertThat(saved.getRankedPlays()).isEqualTo(0);
                         assertThat(saved.isActive()).isTrue();
                 }
@@ -231,7 +230,7 @@ class OverallStatisticsServiceTest {
                                         .id(UUID.randomUUID())
                                         .user(user)
                                         .category(overallCategory)
-                                        .ap(new BigDecimal("400.000000"))
+                                        .ap(400.000000)
                                         .rankedPlays(5)
                                         .active(true)
                                         .build();

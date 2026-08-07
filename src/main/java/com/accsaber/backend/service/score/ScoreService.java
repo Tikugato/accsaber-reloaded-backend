@@ -1,6 +1,7 @@
 package com.accsaber.backend.service.score;
 
-import java.math.BigDecimal;
+import com.accsaber.backend.util.Rounding;
+
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
@@ -112,16 +113,16 @@ public class ScoreService {
                 List<Modifier> modifiers = resolveModifiers(request.getModifierIds());
                 Integer modifiedScore = applyModifierMultiplier(request.getScore(), modifiers);
 
-                BigDecimal accuracy = computeAccuracy(modifiedScore, difficulty.getMaxScore());
-                BigDecimal complexity = mapComplexityService.findActiveComplexity(difficulty.getId())
+                Double accuracy = computeAccuracy(modifiedScore, difficulty.getMaxScore());
+                Double complexity = mapComplexityService.findActiveComplexity(difficulty.getId())
                                 .orElseThrow(() -> new ValidationException(
                                                 "No active complexity set for this map difficulty"));
 
                 APResult apResult = apCalculationService.calculateRawAP(
                                 accuracy, complexity, difficulty.getCategory().getScoreCurve());
-                BigDecimal rawAp = apResult.rawAP();
+                Double rawAp = apResult.rawAP();
 
-                BigDecimal xpGained;
+                Double xpGained;
                 boolean isPartial = request.isPartial();
                 boolean isWorseThanExisting = existing.isPresent()
                                 && request.getScoreNoMods().compareTo(existing.get().getScoreNoMods()) <= 0;
@@ -153,7 +154,7 @@ public class ScoreService {
                 Score supersedes = existing.orElse(null);
                 int newRank;
                 if (supersedes != null) {
-                        BigDecimal oldAccuracy = computeAccuracy(supersedes.getScore(), difficulty.getMaxScore());
+                        Double oldAccuracy = computeAccuracy(supersedes.getScore(), difficulty.getMaxScore());
                         xpGained = xpCalculationService.calculateXpForImprovement(
                                         accuracy, oldAccuracy, complexity);
                         int oldRank = supersedes.getRank();
@@ -245,12 +246,12 @@ public class ScoreService {
                 List<Modifier> modifiers = resolveModifiers(request.getModifierIds());
                 Integer modifiedScore = applyModifierMultiplier(request.getScore(), modifiers);
 
-                Score attempt = buildScore(request, user, difficulty, modifiedScore, BigDecimal.ZERO, null);
+                Score attempt = buildScore(request, user, difficulty, modifiedScore, 0.0, null);
                 attempt.setRank(0);
                 attempt.setRankWhenSet(0);
                 attempt.setActive(false);
                 attempt.setSupersedesReason("Campaign attempt");
-                attempt.setXpGained(BigDecimal.ZERO);
+                attempt.setXpGained(0.0);
                 Score saved = scoreRepository.saveAndFlush(attempt);
                 saveModifierLinks(saved, modifiers);
 
@@ -274,12 +275,12 @@ public class ScoreService {
                 List<Modifier> modifiers = resolveModifiers(request.getModifierIds());
                 Integer modifiedScore = applyModifierMultiplier(request.getScore(), modifiers);
 
-                Score attempt = buildScore(request, user, difficulty, modifiedScore, BigDecimal.ZERO, null);
+                Score attempt = buildScore(request, user, difficulty, modifiedScore, 0.0, null);
                 attempt.setRank(0);
                 attempt.setRankWhenSet(0);
                 attempt.setActive(false);
                 attempt.setSupersedesReason("Campaign attempt");
-                attempt.setXpGained(BigDecimal.ZERO);
+                attempt.setXpGained(0.0);
                 Score saved = scoreRepository.saveAndFlush(attempt);
                 saveModifierLinks(saved, modifiers);
         }
@@ -303,18 +304,18 @@ public class ScoreService {
         @Transactional
         public void submitForBackfill(SubmitScoreRequest request) {
                 MapDifficulty difficulty = loadRankedDifficulty(request.getMapDifficultyId());
-                BigDecimal complexity = mapComplexityService.findActiveComplexity(difficulty.getId())
+                Double complexity = mapComplexityService.findActiveComplexity(difficulty.getId())
                                 .orElseThrow(() -> new ValidationException(
                                                 "No active complexity set for this map difficulty"));
                 doSubmitForBackfill(request, difficulty, complexity);
         }
 
         @Transactional
-        public void submitForBackfill(SubmitScoreRequest request, MapDifficulty difficulty, BigDecimal complexity) {
+        public void submitForBackfill(SubmitScoreRequest request, MapDifficulty difficulty, Double complexity) {
                 doSubmitForBackfill(request, difficulty, complexity);
         }
 
-        private void doSubmitForBackfill(SubmitScoreRequest request, MapDifficulty difficulty, BigDecimal complexity) {
+        private void doSubmitForBackfill(SubmitScoreRequest request, MapDifficulty difficulty, Double complexity) {
                 acquireSubmitLock(request.getUserId(), difficulty.getId());
                 validateScoreBounds(request, difficulty, false);
                 User user = loadUserForBackfill(request.getUserId());
@@ -333,12 +334,12 @@ public class ScoreService {
                 List<Modifier> modifiers = resolveModifiers(request.getModifierIds());
                 Integer modifiedScore = applyModifierMultiplier(request.getScore(), modifiers);
 
-                BigDecimal accuracy = computeAccuracy(modifiedScore, difficulty.getMaxScore());
+                Double accuracy = computeAccuracy(modifiedScore, difficulty.getMaxScore());
                 APResult apResult = apCalculationService.calculateRawAP(
                                 accuracy, complexity, difficulty.getCategory().getScoreCurve());
-                BigDecimal rawAp = apResult.rawAP();
+                Double rawAp = apResult.rawAP();
 
-                BigDecimal xpGained;
+                Double xpGained;
                 boolean isPartial = request.isPartial();
                 boolean isWorseThanExisting = existing.isPresent()
                                 && request.getScoreNoMods().compareTo(existing.get().getScoreNoMods()) <= 0;
@@ -356,7 +357,7 @@ public class ScoreService {
 
                 Score supersedes = existing.orElse(null);
                 if (supersedes != null) {
-                        BigDecimal oldAccuracy = computeAccuracy(supersedes.getScore(), difficulty.getMaxScore());
+                        Double oldAccuracy = computeAccuracy(supersedes.getScore(), difficulty.getMaxScore());
                         xpGained = xpCalculationService.calculateXpForImprovement(
                                         accuracy, oldAccuracy, complexity);
                         supersedes.setActive(false);
@@ -393,14 +394,14 @@ public class ScoreService {
                 if (score == null || !score.isActive())
                         return null;
                 MapDifficulty difficulty = score.getMapDifficulty();
-                BigDecimal complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
+                Double complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
                 if (complexity == null)
                         return null;
                 return doRecalculateScoreForBatch(score, difficulty, complexity);
         }
 
         @Transactional
-        public RecalcResult recalculateScoreForBatch(UUID scoreId, MapDifficulty difficulty, BigDecimal complexity) {
+        public RecalcResult recalculateScoreForBatch(UUID scoreId, MapDifficulty difficulty, Double complexity) {
                 Score score = scoreRepository.findByIdWithUser(scoreId).orElse(null);
                 if (score == null || !score.isActive())
                         return null;
@@ -411,17 +412,17 @@ public class ScoreService {
                 return doRecalculateScoreForBatch(score, difficulty, complexity);
         }
 
-        private RecalcResult doRecalculateScoreForBatch(Score score, MapDifficulty difficulty, BigDecimal complexity) {
-                BigDecimal accuracy = computeAccuracy(score.getScore(), difficulty.getMaxScore());
+        private RecalcResult doRecalculateScoreForBatch(Score score, MapDifficulty difficulty, Double complexity) {
+                Double accuracy = computeAccuracy(score.getScore(), difficulty.getMaxScore());
                 APResult apResult = apCalculationService.calculateRawAP(
                                 accuracy, complexity, difficulty.getCategory().getScoreCurve());
 
-                if (apResult.rawAP().compareTo(score.getAp()) == 0)
+                if ((apResult.rawAP() == score.getAp()))
                         return null;
 
-                BigDecimal oldXp = score.getXpGained() != null ? score.getXpGained() : BigDecimal.ZERO;
+                Double oldXp = score.getXpGained() != null ? score.getXpGained() : 0.0;
                 score.setActive(false);
-                score.setXpGained(BigDecimal.ZERO);
+                score.setXpGained(0.0);
                 scoreRepository.saveAndFlush(score);
 
                 Score recalculated = Score.builder()
@@ -432,9 +433,9 @@ public class ScoreService {
                                 .rank(score.getRank())
                                 .rankWhenSet(score.getRankWhenSet())
                                 .ap(apResult.rawAP())
-                                .weightedAp(BigDecimal.ZERO)
+                                .weightedAp(0.0)
                                 .reweightDerivative(true)
-                                .xpGained(BigDecimal.ZERO)
+                                .xpGained(0.0)
                                 .supersedes(score)
                                 .supersedesReason("Complexity reweight")
                                 .active(true)
@@ -446,8 +447,8 @@ public class ScoreService {
 
                 scoreRepository.saveAndFlush(recalculated);
                 copyModifierLinks(score, recalculated);
-                if (oldXp.compareTo(BigDecimal.ZERO) > 0) {
-                        levelUpAwardService.addXp(score.getUser().getId(), oldXp.negate());
+                if (oldXp.compareTo(0.0) > 0) {
+                        levelUpAwardService.addXp(score.getUser().getId(), (-oldXp));
                 }
 
                 return new RecalcResult(score.getUser().getId(), difficulty.getCategory().getId(), difficulty.getId());
@@ -461,14 +462,14 @@ public class ScoreService {
                 MapDifficulty difficulty = score.getMapDifficulty();
                 if (difficulty.getMaxScore() == null || difficulty.getMaxScore() <= 0)
                         return null;
-                BigDecimal complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
+                Double complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
                 if (complexity == null)
                         return null;
                 return doRecalculateScoreXpForBatch(score, difficulty, complexity);
         }
 
         @Transactional
-        public Long recalculateScoreXpForBatch(UUID scoreId, MapDifficulty difficulty, BigDecimal complexity) {
+        public Long recalculateScoreXpForBatch(UUID scoreId, MapDifficulty difficulty, Double complexity) {
                 Score score = scoreRepository.findByIdWithUser(scoreId).orElse(null);
                 if (score == null || !score.isActive())
                         return null;
@@ -479,10 +480,10 @@ public class ScoreService {
                 return doRecalculateScoreXpForBatch(score, difficulty, complexity);
         }
 
-        private Long doRecalculateScoreXpForBatch(Score score, MapDifficulty difficulty, BigDecimal complexity) {
-                BigDecimal accuracy = computeAccuracy(score.getScore(), difficulty.getMaxScore());
-                BigDecimal newXpGained = xpCalculationService.calculateXpForNewMap(accuracy, complexity);
-                BigDecimal oldXpGained = score.getXpGained() != null ? score.getXpGained() : BigDecimal.ZERO;
+        private Long doRecalculateScoreXpForBatch(Score score, MapDifficulty difficulty, Double complexity) {
+                Double accuracy = computeAccuracy(score.getScore(), difficulty.getMaxScore());
+                Double newXpGained = xpCalculationService.calculateXpForNewMap(accuracy, complexity);
+                Double oldXpGained = score.getXpGained() != null ? score.getXpGained() : 0.0;
 
                 if (newXpGained.compareTo(oldXpGained) == 0)
                         return null;
@@ -512,7 +513,7 @@ public class ScoreService {
 
                 scoreRepository.saveAndFlush(recalculated);
                 copyModifierLinks(score, recalculated);
-                levelUpAwardService.addXp(score.getUser().getId(), newXpGained.subtract(oldXpGained));
+                levelUpAwardService.addXp(score.getUser().getId(), (newXpGained - oldXpGained));
 
                 return score.getUser().getId();
         }
@@ -536,7 +537,7 @@ public class ScoreService {
 
                 java.util.Map<UUID, List<UUID>> modifierIds = loadModifierIdsBatch(
                                 scores.getContent().stream().map(Score::getId).toList());
-                java.util.Map<UUID, BigDecimal> complexities = mapComplexityService
+                java.util.Map<UUID, Double> complexities = mapComplexityService
                                 .findActiveComplexitiesForDifficulties(scores.getContent().stream()
                                                 .map(s -> s.getMapDifficulty().getId()).distinct().toList());
                 java.util.Map<StreakKey, Integer> maxStreaks = loadMaxStreaksBatch(scores.getContent());
@@ -598,7 +599,7 @@ public class ScoreService {
                                                         .cdnCoverUrl((String) row[14])
                                                         .ssLeaderboardId((String) row[2])
                                                         .blLeaderboardId((String) row[3])
-                                                        .ap((BigDecimal) row[4])
+                                                        .ap((Double) row[4])
                                                         .accuracy(computeAccuracy(score, maxScore))
                                                         .score(score)
                                                         .maxScore(maxScore)
@@ -740,7 +741,7 @@ public class ScoreService {
                                 .map(s -> s.getUser().getId())
                                 .toList();
                 java.util.Map<Long, String> tiers = supporterService.findCurrentTiersByUserIds(userIds);
-                java.util.Map<Long, BigDecimal> skillLevels = skillService.findSkillLevelsByUserIds(
+                java.util.Map<Long, Double> skillLevels = skillService.findSkillLevelsByUserIds(
                                 difficulty.getCategory() != null ? difficulty.getCategory().getId() : null, userIds);
                 java.util.Map<UUID, List<UUID>> modifierIds = loadModifierIdsBatch(
                                 scores.getContent().stream().map(Score::getId).toList());
@@ -827,7 +828,7 @@ public class ScoreService {
                                 .toList();
         }
 
-        private void updateUserXp(Long userId, BigDecimal xpGained) {
+        private void updateUserXp(Long userId, Double xpGained) {
                 levelUpAwardService.addXp(userId, xpGained);
         }
 
@@ -835,17 +836,17 @@ public class ScoreService {
                 if (evaluation.completedMilestones().isEmpty() && evaluation.completedSets().isEmpty())
                         return;
 
-                BigDecimal milestoneXp = evaluation.completedMilestones().stream()
+                Double milestoneXp = evaluation.completedMilestones().stream()
                                 .map(Milestone::getXp)
                                 .filter(Objects::nonNull)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-                BigDecimal setXp = evaluation.completedSets().stream()
+                                .reduce(0.0, Double::sum);
+                Double setXp = evaluation.completedSets().stream()
                                 .map(MilestoneSet::getSetBonusXp)
                                 .filter(Objects::nonNull)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                                .reduce(0.0, Double::sum);
 
-                BigDecimal total = milestoneXp.add(setXp);
-                if (total.compareTo(BigDecimal.ZERO) > 0) {
+                Double total = (milestoneXp + setXp);
+                if (total.compareTo(0.0) > 0) {
                         updateUserXp(userId, total);
                 }
         }
@@ -968,13 +969,12 @@ public class ScoreService {
                 return user;
         }
 
-        private BigDecimal computeAccuracy(Integer score, Integer maxScore) {
-                return BigDecimal.valueOf(score).divide(BigDecimal.valueOf(maxScore), ACCURACY_SCALE,
-                                RoundingMode.HALF_UP);
+        private Double computeAccuracy(Integer score, Integer maxScore) {
+                return Rounding.round((double) (score) / (double) (maxScore), ACCURACY_SCALE);
         }
 
         private Score buildScore(SubmitScoreRequest req, User user, MapDifficulty difficulty,
-                        Integer modifiedScore, BigDecimal ap, Score supersedes) {
+                        Integer modifiedScore, Double ap, Score supersedes) {
                 Score score = Score.builder()
                                 .user(user)
                                 .mapDifficulty(difficulty)
@@ -983,7 +983,7 @@ public class ScoreService {
                                 .rank(req.getRank())
                                 .rankWhenSet(req.getRankWhenSet())
                                 .ap(ap)
-                                .weightedAp(BigDecimal.ZERO)
+                                .weightedAp(0.0)
                                 .supersedes(supersedes)
                                 .supersedesReason(supersedes != null ? "Score improved" : null)
                                 .active(true)
@@ -1006,11 +1006,10 @@ public class ScoreService {
         private Integer applyModifierMultiplier(Integer baseScore, List<Modifier> modifiers) {
                 if (modifiers.isEmpty())
                         return baseScore;
-                BigDecimal combined = modifiers.stream()
-                                .map(Modifier::getMultiplier)
-                                .reduce(BigDecimal.ONE, BigDecimal::multiply);
-                return combined.multiply(BigDecimal.valueOf(baseScore))
-                                .setScale(0, RoundingMode.HALF_UP).intValue();
+                double combined = modifiers.stream()
+                                .mapToDouble(Modifier::getMultiplier)
+                                .reduce(1.0, (a, b) -> a * b);
+                return (int) Rounding.round(combined * baseScore, 0);
         }
 
         private void saveModifierLinks(Score score, List<Modifier> modifiers) {
@@ -1119,7 +1118,7 @@ public class ScoreService {
         }
 
         public ScoreResponse mapToResponse(Score s) {
-                BigDecimal accuracy = computeAccuracy(s.getScore(), s.getMapDifficulty().getMaxScore());
+                Double accuracy = computeAccuracy(s.getScore(), s.getMapDifficulty().getMaxScore());
                 List<UUID> modifierIds = loadModifierIds(s.getId());
                 return toResponse(s, accuracy, modifierIds);
         }
@@ -1136,7 +1135,7 @@ public class ScoreService {
                 return responses;
         }
 
-        private ScoreResponse toResponse(Score s, BigDecimal accuracy, List<UUID> modifierIds) {
+        private ScoreResponse toResponse(Score s, Double accuracy, List<UUID> modifierIds) {
                 User user = s.getUser();
                 MapDifficulty diff = s.getMapDifficulty();
                 com.accsaber.backend.model.entity.map.Map map = diff.getMap();
@@ -1180,13 +1179,11 @@ public class ScoreService {
                                 .timeSet(s.getTimeSet())
                                 .reweightDerivative(s.isReweightDerivative())
                                 .xpGained(s.getXpGained())
-                                .baseXp(BigDecimal.valueOf(xpCalculationService.getBaseXpPerScore()))
+                                .baseXp((double) (xpCalculationService.getBaseXpPerScore()))
                                 .bonusXp(s.getXpGained() != null
-                                                ? s.getXpGained()
-                                                                .subtract(BigDecimal.valueOf(xpCalculationService
-                                                                                .getBaseXpPerScore()))
-                                                                .max(BigDecimal.ZERO)
-                                                : BigDecimal.ZERO)
+                                                ?Math.max((s.getXpGained() - (double) (xpCalculationService
+                                                                                .getBaseXpPerScore())), 0.0)
+                                                : 0.0)
                                 .active(s.isActive())
                                 .partial(s.isPartial())
                                 .supersedesReason(s.getSupersedesReason())

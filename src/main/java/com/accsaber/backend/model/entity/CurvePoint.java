@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -40,10 +39,10 @@ public class CurvePoint {
     private Curve curve;
 
     @Column(nullable = false)
-    private BigDecimal x;
+    private double x;
 
     @Column(nullable = false)
-    private BigDecimal y;
+    private double y;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

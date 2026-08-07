@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.map;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -17,7 +16,7 @@ public class MapComplexityHistoryResponse {
     UUID mapDifficultyId;
     Difficulty difficulty;
     String characteristic;
-    BigDecimal complexity;
+    Double complexity;
     String reason;
     boolean active;
     UUID supersedesId;

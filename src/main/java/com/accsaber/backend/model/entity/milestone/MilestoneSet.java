@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.milestone;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -42,9 +41,9 @@ public class MilestoneSet {
 
     private String description;
 
-    @Column(name = "set_bonus_xp", nullable = false, precision = 20, scale = 6)
+    @Column(name = "set_bonus_xp", nullable = false)
     @Builder.Default
-    private BigDecimal setBonusXp = BigDecimal.ZERO;
+    private double setBonusXp = 0.0;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "awards_item_id")

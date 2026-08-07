@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.player;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -102,7 +101,7 @@ public class UserService {
         return saved;
     }
 
-    public BigDecimal getTotalXp(Long userId) {
+    public Double getTotalXp(Long userId) {
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
         User user = userRepository.findByIdAndActiveTrue(resolved)
                 .orElseThrow(() -> new ResourceNotFoundException("User", resolved));

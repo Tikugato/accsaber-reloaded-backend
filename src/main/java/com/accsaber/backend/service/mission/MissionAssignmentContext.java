@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.mission;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -13,5 +12,5 @@ public record MissionAssignmentContext(
         List<Category> activeCategories,
         Map<UUID, UserCategorySkill> skillByCategoryId,
         Map<UUID, Long> rankedPlaysByCategoryId,
-        BigDecimal rollingDailyXp) {
+        Double rollingDailyXp) {
 }

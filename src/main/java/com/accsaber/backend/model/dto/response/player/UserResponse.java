@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.player;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
@@ -27,10 +26,10 @@ public class UserResponse {
     String cdnAvatarUrl;
     String country;
     String bio;
-    BigDecimal totalXp;
-    BigDecimal totalScoreXp;
-    BigDecimal totalMilestoneXp;
-    BigDecimal totalMilestoneSetBonusXp;
+    Double totalXp;
+    Double totalScoreXp;
+    Double totalMilestoneXp;
+    Double totalMilestoneSetBonusXp;
     Integer xpRanking;
     Integer xpCountryRanking;
     UserLevelData levelData;

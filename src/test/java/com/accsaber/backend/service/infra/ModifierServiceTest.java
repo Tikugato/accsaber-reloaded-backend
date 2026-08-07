@@ -3,7 +3,6 @@ package com.accsaber.backend.service.infra;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,9 +28,9 @@ class ModifierServiceTest {
     @Test
     void findAllActive_returnsModifierResponses() {
         Modifier noFail = Modifier.builder().id(UUID.randomUUID()).name("No Fail").code("NF")
-                .multiplier(new BigDecimal("0.50")).build();
+                .multiplier(0.50).build();
         Modifier fasterSong = Modifier.builder().id(UUID.randomUUID()).name("Faster Song").code("FS")
-                .multiplier(new BigDecimal("1.08")).build();
+                .multiplier(1.08).build();
 
         when(modifierRepository.findByActiveTrue()).thenReturn(List.of(noFail, fasterSong));
 

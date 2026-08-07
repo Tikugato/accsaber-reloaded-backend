@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.player;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 import lombok.AllArgsConstructor;
@@ -21,9 +20,9 @@ public class LeaderboardResponse {
     private String country;
     private String avatarUrl;
     private String cdnAvatarUrl;
-    private BigDecimal ap;
-    private BigDecimal averageAcc;
-    private BigDecimal averageAp;
+    private Double ap;
+    private Double averageAcc;
+    private Double averageAp;
     private Integer rankedPlays;
     private UUID topPlayId;
     private boolean playerInactive;

@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.campaign;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -44,15 +43,15 @@ public class CampaignText {
     private String content = "";
 
     @Column(name = "position_x", nullable = false)
-    private BigDecimal positionX;
+    private double positionX;
 
     @Column(name = "position_y", nullable = false)
-    private BigDecimal positionY;
+    private double positionY;
 
     private String font;
 
-    @Column(precision = 6, scale = 3)
-    private BigDecimal scale;
+    @Column
+    private Double scale;
 
     private String color;
 

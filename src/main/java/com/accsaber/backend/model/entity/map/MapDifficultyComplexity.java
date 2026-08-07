@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.map;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -40,7 +39,7 @@ public class MapDifficultyComplexity {
     private MapDifficulty mapDifficulty;
 
     @Column(nullable = false)
-    private BigDecimal complexity;
+    private double complexity;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supersedes_id")

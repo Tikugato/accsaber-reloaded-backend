@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -47,23 +46,23 @@ public class Curve {
     private String xParameterName;
 
     @Column(name = "x_parameter_value")
-    private BigDecimal xParameterValue;
+    private Double xParameterValue;
 
     @Column(name = "y_parameter_name")
     private String yParameterName;
 
     @Column(name = "y_parameter_value")
-    private BigDecimal yParameterValue;
+    private Double yParameterValue;
 
     @Column(name = "z_parameter_name")
     private String zParameterName;
 
     @Column(name = "z_parameter_value")
-    private BigDecimal zParameterValue;
+    private Double zParameterValue;
 
-    private BigDecimal scale;
+    private Double scale;
 
-    private BigDecimal shift;
+    private Double shift;
 
     @Column(nullable = false)
     @Builder.Default

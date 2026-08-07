@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.milestone;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -66,16 +65,16 @@ public class Milestone {
     @Builder.Default
     private MilestoneTier tier = MilestoneTier.bronze;
 
-    @Column(nullable = false, precision = 20, scale = 6)
+    @Column(nullable = false)
     @Builder.Default
-    private BigDecimal xp = BigDecimal.ZERO;
+    private double xp = 0.0;
 
     @Column(name = "query_spec", columnDefinition = "jsonb")
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private MilestoneQuerySpec querySpec;
 
-    @Column(name = "target_value", precision = 20, scale = 6)
-    private BigDecimal targetValue;
+    @Column(name = "target_value")
+    private Double targetValue;
 
     @Column(nullable = false)
     @Builder.Default

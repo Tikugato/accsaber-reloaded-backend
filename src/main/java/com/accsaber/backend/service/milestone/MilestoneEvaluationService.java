@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.milestone;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -67,14 +66,14 @@ public class MilestoneEvaluationService {
         if (toEvaluate.isEmpty())
             return new EvaluationResult(List.of(), List.of());
 
-        Map<UUID, BigDecimal> batchResults = evaluateAll(toEvaluate, userId);
+        Map<UUID, Double> batchResults = evaluateAll(toEvaluate, userId);
         Map<UUID, UserMilestoneLink> linkMap = loadLinkMap(userId, toEvaluate);
 
         List<Milestone> newlyCompleted = new ArrayList<>();
         List<UserMilestoneLink> linksToSave = new ArrayList<>();
 
         for (Milestone milestone : toEvaluate) {
-            BigDecimal currentValue = batchResults.get(milestone.getId());
+            Double currentValue = batchResults.get(milestone.getId());
             UserMilestoneLink link = getOrCreateFromMap(linkMap, userId, milestone);
             link.setProgress(currentValue);
 
@@ -104,7 +103,7 @@ public class MilestoneEvaluationService {
         }
 
         UUID categoryId = milestone.getCategory() != null ? milestone.getCategory().getId() : null;
-        BigDecimal currentValue = evaluateMilestone(milestone, userId, categoryId);
+        Double currentValue = evaluateMilestone(milestone, userId, categoryId);
         link.setProgress(currentValue);
 
         boolean newlyCompleted = isCompleted(milestone, currentValue);
@@ -129,12 +128,12 @@ public class MilestoneEvaluationService {
 
         if (newlyCompleted) {
             awardMilestoneItems(userId, List.of(milestone));
-            BigDecimal xpToAward = milestone.getXp() != null ? milestone.getXp() : BigDecimal.ZERO;
+            double xpToAward = milestone.getXp();
             List<MilestoneSet> completedSets = claimEligibleSetBonuses(userId, List.of(milestone));
             for (MilestoneSet set : completedSets) {
-                xpToAward = xpToAward.add(set.getSetBonusXp() != null ? set.getSetBonusXp() : BigDecimal.ZERO);
+                xpToAward += set.getSetBonusXp();
             }
-            if (xpToAward.compareTo(BigDecimal.ZERO) > 0) {
+            if (xpToAward > 0) {
                 awardXp(userId, xpToAward);
             }
             publishCompletionEvent(userId, List.of(milestone), completedSets);
@@ -147,14 +146,14 @@ public class MilestoneEvaluationService {
         if (uncompleted.isEmpty())
             return new EvaluationResult(List.of(), List.of());
 
-        Map<UUID, BigDecimal> batchResults = evaluateAll(uncompleted, userId);
+        Map<UUID, Double> batchResults = evaluateAll(uncompleted, userId);
         Map<UUID, UserMilestoneLink> linkMap = loadLinkMap(userId, uncompleted);
 
         List<Milestone> newlyCompleted = new ArrayList<>();
         List<UserMilestoneLink> linksToSave = new ArrayList<>();
 
         for (Milestone milestone : uncompleted) {
-            BigDecimal currentValue = batchResults.get(milestone.getId());
+            Double currentValue = batchResults.get(milestone.getId());
             UserMilestoneLink link = getOrCreateFromMap(linkMap, userId, milestone);
             link.setProgress(currentValue);
 
@@ -253,15 +252,15 @@ public class MilestoneEvaluationService {
         }
     }
 
-    private BigDecimal evaluateMilestone(Milestone milestone, Long userId, UUID categoryId) {
+    private Double evaluateMilestone(Milestone milestone, Long userId, UUID categoryId) {
         if (milestone.getQuerySpec() == null)
             return null;
         return queryBuilderService.evaluate(milestone.getQuerySpec(), userId, categoryId);
     }
 
-    private Map<UUID, BigDecimal> evaluateAll(List<Milestone> milestones, Long userId) {
+    private Map<UUID, Double> evaluateAll(List<Milestone> milestones, Long userId) {
         List<Milestone> batchable = new ArrayList<>();
-        Map<UUID, BigDecimal> results = new HashMap<>();
+        Map<UUID, Double> results = new HashMap<>();
 
         for (Milestone m : milestones) {
             if (m.getQuerySpec() == null) {
@@ -334,15 +333,15 @@ public class MilestoneEvaluationService {
         return earned;
     }
 
-    private void awardXp(Long userId, BigDecimal xp) {
+    private void awardXp(Long userId, Double xp) {
         User user = userRepository.findById(userId).orElseThrow();
-        BigDecimal oldXp = user.getTotalXp();
-        user.setTotalXp(oldXp.add(xp));
+        Double oldXp = user.getTotalXp();
+        user.setTotalXp((oldXp + xp));
         userRepository.save(user);
         levelUpAwardService.processLevelUps(userId, oldXp, xp);
     }
 
-    private boolean isCompleted(Milestone milestone, BigDecimal currentValue) {
+    private boolean isCompleted(Milestone milestone, Double currentValue) {
         if (currentValue == null || milestone.getTargetValue() == null)
             return false;
         return "LTE".equals(milestone.getComparison())

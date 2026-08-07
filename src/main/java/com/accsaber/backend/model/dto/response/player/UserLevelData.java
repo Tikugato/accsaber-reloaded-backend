@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.player;
 
-import java.math.BigDecimal;
 
 import lombok.Builder;
 import lombok.Value;
@@ -11,7 +10,7 @@ public class UserLevelData {
 
     int level;
     String title;
-    BigDecimal xpForCurrentLevel;
-    BigDecimal xpForNextLevel;
-    BigDecimal progressPercent;
+    Double xpForCurrentLevel;
+    Double xpForNextLevel;
+    Double progressPercent;
 }

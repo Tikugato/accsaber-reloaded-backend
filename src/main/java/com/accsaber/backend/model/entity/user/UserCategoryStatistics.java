@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.user;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -51,19 +50,19 @@ public class UserCategoryStatistics {
     @Column(name = "country_ranking")
     private Integer countryRanking;
 
-    @Column(nullable = false, precision = 20, scale = 6)
+    @Column(nullable = false)
     @Builder.Default
-    private BigDecimal ap = BigDecimal.ZERO;
+    private double ap = 0.0;
 
-    @Column(name = "average_acc", precision = 20, scale = 6)
-    private BigDecimal averageAcc;
+    @Column(name = "average_acc")
+    private Double averageAcc;
 
-    @Column(name = "average_ap", precision = 20, scale = 6)
-    private BigDecimal averageAp;
+    @Column(name = "average_ap")
+    private Double averageAp;
 
-    @Column(name = "score_xp", nullable = false, precision = 20, scale = 6)
+    @Column(name = "score_xp", nullable = false)
     @Builder.Default
-    private BigDecimal scoreXp = BigDecimal.ZERO;
+    private double scoreXp = 0.0;
 
     @Column(name = "ranked_plays", nullable = false)
     @Builder.Default

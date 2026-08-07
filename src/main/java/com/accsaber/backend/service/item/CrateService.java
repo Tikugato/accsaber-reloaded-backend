@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.item;
 
-import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -132,8 +131,8 @@ public class CrateService {
     }
 
     @Transactional
-    public CrateModifier upsertModifier(UUID crateItemId, UUID modifierId, BigDecimal dropChance) {
-        if (dropChance == null || dropChance.signum() <= 0 || dropChance.compareTo(BigDecimal.ONE) > 0) {
+    public CrateModifier upsertModifier(UUID crateItemId, UUID modifierId, Double dropChance) {
+        if (dropChance == null || Math.signum(dropChance) <= 0 || dropChance.compareTo(1.0) > 0) {
             throw new ValidationException("dropChance", "must be between 0 (exclusive) and 1 (inclusive)");
         }
         Item crate = loadCrateItem(crateItemId);

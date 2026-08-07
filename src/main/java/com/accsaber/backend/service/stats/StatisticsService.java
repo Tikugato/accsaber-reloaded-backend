@@ -1,8 +1,5 @@
 package com.accsaber.backend.service.stats;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +30,7 @@ import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.player.DuplicateUserService;
 import com.accsaber.backend.service.score.APCalculationService;
+import com.accsaber.backend.util.Rounding;
 import com.accsaber.backend.util.TimeRangeUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -42,7 +40,6 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class StatisticsService {
 
-    private static final MathContext MC = new MathContext(16, RoundingMode.HALF_UP);
     private static final int SCALE = 6;
 
     private final ScoreRepository scoreRepository;
@@ -90,10 +87,10 @@ public class StatisticsService {
         List<Score> scores = scoreRepository.findActiveByUserAndCategoryOrderByApDesc(userId, categoryId);
         recalculateWeightedAps(scores, category);
 
-        BigDecimal totalAp = sumWeightedAps(scores);
-        BigDecimal scoreXp = sumScoreXp(scores);
-        BigDecimal averageAcc = computeAverageAcc(scores);
-        BigDecimal averageAp = computeAverageAp(scores);
+        double totalAp = sumWeightedAps(scores);
+        double scoreXp = sumScoreXp(scores);
+        Double averageAcc = computeAverageAcc(scores);
+        double averageAp = computeAverageAp(scores);
         Score topPlay = scores.isEmpty() ? null : scores.get(0);
 
         if (current != null) {
@@ -182,16 +179,16 @@ public class StatisticsService {
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
 
         Instant since = Instant.now().minus(1, java.time.temporal.ChronoUnit.DAYS);
-        BigDecimal scoreXpDiff = scoreRepository.sumXpGainedByUserIdSince(resolved, since);
-        BigDecimal milestoneXpDiff = userMilestoneLinkRepository.sumMilestoneXpGainedLast24h(resolved);
-        BigDecimal milestoneSetBonusXpDiff = userMilestoneSetBonusRepository.sumSetBonusXpGainedLast24h(resolved);
-        BigDecimal missionXpDiff = userMissionRepository.sumMissionXpGainedLast24h(resolved);
-        BigDecimal campaignXpDiff = userCampaignScoreRepository.sumCampaignXpGainedSince(resolved, since);
-        boolean hasAnyXp = scoreXpDiff.compareTo(BigDecimal.ZERO) > 0
-                || milestoneXpDiff.compareTo(BigDecimal.ZERO) > 0
-                || milestoneSetBonusXpDiff.compareTo(BigDecimal.ZERO) > 0
-                || missionXpDiff.compareTo(BigDecimal.ZERO) > 0
-                || campaignXpDiff.compareTo(BigDecimal.ZERO) > 0;
+        double scoreXpDiff = scoreRepository.sumXpGainedByUserIdSince(resolved, since);
+        double milestoneXpDiff = userMilestoneLinkRepository.sumMilestoneXpGainedLast24h(resolved);
+        double milestoneSetBonusXpDiff = userMilestoneSetBonusRepository.sumSetBonusXpGainedLast24h(resolved);
+        double missionXpDiff = userMissionRepository.sumMissionXpGainedLast24h(resolved);
+        double campaignXpDiff = userCampaignScoreRepository.sumCampaignXpGainedSince(resolved, since);
+        boolean hasAnyXp = scoreXpDiff > 0
+                || milestoneXpDiff > 0
+                || milestoneSetBonusXpDiff > 0
+                || missionXpDiff > 0
+                || campaignXpDiff > 0;
 
         Optional<UserCategoryStatistics> baseOpt = statisticsRepository
                 .findLatestBeforeLastDay(resolved, categoryCode);
@@ -218,12 +215,12 @@ public class StatisticsService {
 
         return Optional.of(StatsDiffResponse.builder()
                 .categoryId(latest.getCategory().getId())
-                .apDiff(latest.getAp().subtract(base.getAp()))
-                .scoreXpDiff(scoreXpDiff)
-                .milestoneXpDiff(milestoneXpDiff)
-                .milestoneSetBonusXpDiff(milestoneSetBonusXpDiff)
-                .missionXpDiff(missionXpDiff)
-                .campaignXpDiff(campaignXpDiff)
+                .apDiff(Rounding.round(latest.getAp() - base.getAp(), SCALE))
+                .scoreXpDiff(Rounding.round(scoreXpDiff, SCALE))
+                .milestoneXpDiff(Rounding.round(milestoneXpDiff, SCALE))
+                .milestoneSetBonusXpDiff(Rounding.round(milestoneSetBonusXpDiff, SCALE))
+                .missionXpDiff(Rounding.round(missionXpDiff, SCALE))
+                .campaignXpDiff(Rounding.round(campaignXpDiff, SCALE))
                 .averageAccDiff(diffNullable(latest.getAverageAcc(), base.getAverageAcc()))
                 .averageApDiff(diffNullable(latest.getAverageAp(), base.getAverageAp()))
                 .rankingDiff(diffNullableInt(latest.getRanking(), base.getRanking()))
@@ -234,10 +231,10 @@ public class StatisticsService {
                 .build());
     }
 
-    private static BigDecimal diffNullable(BigDecimal a, BigDecimal b) {
+    private static Double diffNullable(Double a, Double b) {
         if (a == null || b == null)
             return null;
-        return a.subtract(b);
+        return Rounding.round(a - b, SCALE);
     }
 
     private static Integer diffNullableInt(Integer a, Integer b) {
@@ -249,44 +246,47 @@ public class StatisticsService {
     private void recalculateWeightedAps(List<Score> scores, Category category) {
         for (int i = 0; i < scores.size(); i++) {
             Score s = scores.get(i);
-            BigDecimal weighted = apCalculationService.calculateWeightedAP(s.getAp(), i, category.getWeightCurve());
-            s.setWeightedAp(weighted);
+            s.setWeightedAp(apCalculationService.calculateWeightedAP(s.getAp(), i, category.getWeightCurve()));
         }
         scoreRepository.saveAll(scores);
     }
 
-    private BigDecimal sumWeightedAps(List<Score> scores) {
-        return scores.stream()
-                .map(Score::getWeightedAp)
-                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b, MC))
-                .setScale(SCALE, RoundingMode.HALF_UP);
+    private double sumWeightedAps(List<Score> scores) {
+        double total = 0.0;
+        for (Score s : scores) {
+            total += s.getWeightedAp();
+        }
+        return Rounding.round(total, SCALE);
     }
 
-    private BigDecimal sumScoreXp(List<Score> scores) {
-        return scores.stream()
-                .map(Score::getXpGained)
-                .filter(xp -> xp != null)
-                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b, MC))
-                .setScale(SCALE, RoundingMode.HALF_UP);
+    private double sumScoreXp(List<Score> scores) {
+        double total = 0.0;
+        for (Score s : scores) {
+            if (s.getXpGained() != null) {
+                total += s.getXpGained();
+            }
+        }
+        return Rounding.round(total, SCALE);
     }
 
-    private BigDecimal computeAverageAcc(List<Score> scores) {
+    private Double computeAverageAcc(List<Score> scores) {
         if (scores.isEmpty())
             return null;
-        BigDecimal sum = scores.stream()
-                .map(s -> BigDecimal.valueOf(s.getScore())
-                        .divide(BigDecimal.valueOf(s.getMapDifficulty().getMaxScore()), MC))
-                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b, MC));
-        return sum.divide(BigDecimal.valueOf(scores.size()), SCALE, RoundingMode.HALF_UP);
+        double sum = 0.0;
+        for (Score s : scores) {
+            sum += (double) s.getScore() / s.getMapDifficulty().getMaxScore();
+        }
+        return Rounding.round(sum / scores.size(), SCALE);
     }
 
-    private BigDecimal computeAverageAp(List<Score> scores) {
+    private double computeAverageAp(List<Score> scores) {
         if (scores.isEmpty())
-            return BigDecimal.ZERO;
-        BigDecimal sum = scores.stream()
-                .map(Score::getAp)
-                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b, MC));
-        return sum.divide(BigDecimal.valueOf(scores.size()), SCALE, RoundingMode.HALF_UP);
+            return 0.0;
+        double sum = 0.0;
+        for (Score s : scores) {
+            sum += s.getAp();
+        }
+        return Rounding.round(sum / scores.size(), SCALE);
     }
 
     static UserCategoryStatisticsResponse toResponse(UserCategoryStatistics s) {

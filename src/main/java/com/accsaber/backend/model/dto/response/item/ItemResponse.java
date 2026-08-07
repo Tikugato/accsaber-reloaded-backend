@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.item;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 

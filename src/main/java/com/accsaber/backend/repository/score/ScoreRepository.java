@@ -124,7 +124,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         AND s.active = true
                         AND u.active = true AND u.banned = false
                         """)
-        java.math.BigDecimal findMaxApInCategory(@Param("categoryId") UUID categoryId);
+        Double findMaxApInCategory(@Param("categoryId") UUID categoryId);
 
         @Query("""
                         SELECT MAX(s.weightedAp) FROM Score s
@@ -132,7 +132,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                           AND s.mapDifficulty.category.id = :categoryId
                           AND s.active = true
                         """)
-        java.math.BigDecimal findMaxWeightedApByUserAndCategory(
+        Double findMaxWeightedApByUserAndCategory(
                         @Param("userId") Long userId,
                         @Param("categoryId") UUID categoryId);
 
@@ -155,6 +155,12 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         """)
         List<Score> findByMapDifficultyIdAndActiveTrueWithUserAndCategory(
                         @Param("mapDifficultyId") UUID mapDifficultyId);
+
+        @Query("""
+                        SELECT s.id FROM Score s
+                        WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
+                        """)
+        List<UUID> findActiveIdsByMapDifficultyId(@Param("mapDifficultyId") UUID mapDifficultyId);
 
         @Query("""
                         SELECT s FROM Score s
@@ -304,7 +310,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                           AND s.active = true
                           AND u.active = true AND u.banned = false
                         """)
-        java.math.BigDecimal findMaxApByMapDifficulty(@Param("mapDifficultyId") UUID mapDifficultyId);
+        Double findMaxApByMapDifficulty(@Param("mapDifficultyId") UUID mapDifficultyId);
 
         @Query("""
                         SELECT s FROM Score s
@@ -382,8 +388,8 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
         List<Integer> findTopStreak115ValuesByUserAndCategoryAndComplexityRange(
                         @Param("userId") Long userId,
                         @Param("categoryId") java.util.UUID categoryId,
-                        @Param("minComplexity") java.math.BigDecimal minComplexity,
-                        @Param("maxComplexityExclusive") java.math.BigDecimal maxComplexityExclusive,
+                        @Param("minComplexity") Double minComplexity,
+                        @Param("maxComplexityExclusive") Double maxComplexityExclusive,
                         org.springframework.data.domain.Pageable pageable);
 
         @Query("""
@@ -405,7 +411,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         @Param("excludeUserId") Long excludeUserId,
                         @Param("minScore") Integer minScore,
                         @Param("categoryId") UUID categoryId,
-                        @Param("targetAp") java.math.BigDecimal targetAp,
+                        @Param("targetAp") Double targetAp,
                         org.springframework.data.domain.Pageable pageable);
 
         @Query("""
@@ -617,7 +623,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         @Param("mapDifficultyIds") Collection<UUID> mapDifficultyIds);
 
         @Query("SELECT COALESCE(SUM(s.xpGained), 0) FROM Score s WHERE s.user.id = :userId")
-        java.math.BigDecimal sumXpGainedByUserId(@Param("userId") Long userId);
+        double sumXpGainedByUserId(@Param("userId") Long userId);
 
         @Query("""
                         SELECT COUNT(s) FROM Score s
@@ -630,7 +636,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         @Param("mapDifficultyId") UUID mapDifficultyId);
 
         @Query("SELECT COALESCE(SUM(s.xpGained), 0) FROM Score s WHERE s.user.id = :userId AND s.createdAt >= :since")
-        java.math.BigDecimal sumXpGainedByUserIdSince(@Param("userId") Long userId,
+        double sumXpGainedByUserIdSince(@Param("userId") Long userId,
                         @Param("since") java.time.Instant since);
 
         @Query("SELECT DISTINCT s.mapDifficulty.id FROM Score s")
@@ -733,7 +739,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         AND (s.ap > :ap OR (s.ap = :ap AND s.time_set < :timeSet))
                         """, nativeQuery = true)
         int countActiveScoresRankedAbove(@Param("difficultyId") UUID difficultyId,
-                        @Param("ap") java.math.BigDecimal ap,
+                        @Param("ap") Double ap,
                         @Param("timeSet") Instant timeSet);
 
         @Modifying

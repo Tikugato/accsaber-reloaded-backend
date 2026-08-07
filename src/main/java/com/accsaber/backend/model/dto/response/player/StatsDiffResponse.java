@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.player;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -12,14 +11,14 @@ import lombok.Getter;
 public class StatsDiffResponse {
 
     private UUID categoryId;
-    private BigDecimal apDiff;
-    private BigDecimal scoreXpDiff;
-    private BigDecimal milestoneXpDiff;
-    private BigDecimal milestoneSetBonusXpDiff;
-    private BigDecimal missionXpDiff;
-    private BigDecimal campaignXpDiff;
-    private BigDecimal averageAccDiff;
-    private BigDecimal averageApDiff;
+    private Double apDiff;
+    private Double scoreXpDiff;
+    private Double milestoneXpDiff;
+    private Double milestoneSetBonusXpDiff;
+    private Double missionXpDiff;
+    private Double campaignXpDiff;
+    private Double averageAccDiff;
+    private Double averageApDiff;
     private Integer rankingDiff;
     private Integer countryRankingDiff;
     private Integer rankedPlaysDiff;

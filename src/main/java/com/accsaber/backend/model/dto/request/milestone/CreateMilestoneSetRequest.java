@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.milestone;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 import jakarta.validation.constraints.NotBlank;
@@ -14,7 +13,7 @@ public class CreateMilestoneSetRequest {
 
     private String description;
 
-    private BigDecimal setBonusXp;
+    private Double setBonusXp;
 
     private UUID awardsItemId;
 }

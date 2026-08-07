@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.map;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -17,7 +16,7 @@ public class TopScoreSnapshot {
     String avatarUrl;
     String cdnAvatarUrl;
     Integer score;
-    BigDecimal accuracy;
-    BigDecimal ap;
+    Double accuracy;
+    Double ap;
     Instant timeSet;
 }

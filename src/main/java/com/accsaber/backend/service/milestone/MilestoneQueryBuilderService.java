@@ -1,6 +1,7 @@
 package com.accsaber.backend.service.milestone;
 
-import java.math.BigDecimal;
+import com.accsaber.backend.util.Rounding;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -109,7 +110,7 @@ public class MilestoneQueryBuilderService {
         }
         try {
             return switch (def.type()) {
-                case BIGDECIMAL -> value instanceof BigDecimal bd ? bd : new BigDecimal(value.toString());
+                case BIGDECIMAL -> value instanceof Double bd ? bd : Double.parseDouble(value.toString());
                 case INTEGER -> value instanceof Integer i ? i : Integer.parseInt(value.toString());
                 case LONG -> value instanceof Long l ? l : Long.parseLong(value.toString());
                 case BOOLEAN -> value instanceof Boolean b ? b : Boolean.parseBoolean(value.toString());
@@ -605,16 +606,16 @@ public class MilestoneQueryBuilderService {
         }
     }
 
-    public BigDecimal evaluate(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
-        BigDecimal mainResult = evaluateSingle(spec, userId, categoryId);
+    public Double evaluate(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
+        Double mainResult = evaluateSingle(spec, userId, categoryId);
 
         if (spec.divisor() != null) {
-            BigDecimal divisorResult = evaluateSingle(spec.divisor(), userId, categoryId);
+            Double divisorResult = evaluateSingle(spec.divisor(), userId, categoryId);
             if (mainResult == null || divisorResult == null
-                    || divisorResult.compareTo(BigDecimal.ZERO) == 0) {
+                    || divisorResult.compareTo(0.0) == 0) {
                 return null;
             }
-            return mainResult.divide(divisorResult, 6, java.math.RoundingMode.HALF_UP);
+            return Rounding.round(mainResult / divisorResult, 6);
         }
 
         return mainResult;
@@ -652,7 +653,7 @@ public class MilestoneQueryBuilderService {
         return false;
     }
 
-    private BigDecimal evaluateSingle(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
+    private Double evaluateSingle(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
         if (requiresNativeSql(spec)) {
             return evaluateNativeSql(spec, userId, categoryId);
         }
@@ -680,8 +681,8 @@ public class MilestoneQueryBuilderService {
                     + " THEN " + selectExpr + " ELSE NULL END";
             Object havingValue;
             if (having.valueQuery() != null) {
-                BigDecimal resolved = evaluateSingle(having.valueQuery(), userId, categoryId);
-                havingValue = resolved != null ? resolved : BigDecimal.ZERO;
+                Double resolved = evaluateSingle(having.valueQuery(), userId, categoryId);
+                havingValue = resolved != null ? resolved : 0.0;
             } else {
                 havingValue = coerce(having.value(), havingCol);
             }
@@ -699,7 +700,7 @@ public class MilestoneQueryBuilderService {
 
         Query query = entityManager.createQuery(jpql.toString());
         bindParameters(query, table, userId, categoryId, extraParams);
-        return toBigDecimal(query.getSingleResult());
+        return toDouble(query.getSingleResult());
     }
 
     private List<String> buildConditions(MilestoneQuerySpec spec, TableConfig table,
@@ -885,7 +886,7 @@ public class MilestoneQueryBuilderService {
         return "(" + reasonExpr + " IS NULL OR " + reasonExpr + " <> 'Campaign attempt')";
     }
 
-    private BigDecimal evaluateNativeSql(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
+    private Double evaluateNativeSql(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
         TableConfig table = TABLE_CONFIG.get(spec.from());
         Map<String, ColumnDef> columns = COLUMN_ALLOWLIST.get(spec.from());
         ColumnDef selectCol = columns.get(spec.select().column());
@@ -980,7 +981,7 @@ public class MilestoneQueryBuilderService {
         for (Object[] binding : extraParams) {
             query.setParameter((String) binding[0], binding[1]);
         }
-        return toBigDecimal(query.getSingleResult());
+        return toDouble(query.getSingleResult());
     }
 
     private String buildSingleNativeFilterCondition(FilterSpec filter, Map<String, ColumnDef> columns,
@@ -1133,7 +1134,7 @@ public class MilestoneQueryBuilderService {
     }
 
     public Score findQualifyingScore(MilestoneQuerySpec spec, Long userId, UUID categoryId,
-            BigDecimal targetValue, String comparison) {
+            Double targetValue, String comparison) {
         if (!"scores".equals(spec.from()))
             return null;
 
@@ -1173,14 +1174,14 @@ public class MilestoneQueryBuilderService {
     private record SelectExpr(String function, String column) {
     }
 
-    public Map<UUID, BigDecimal> evaluateBatch(List<Milestone> milestones, Long userId) {
+    public Map<UUID, Double> evaluateBatch(List<Milestone> milestones, Long userId) {
         if (milestones.isEmpty())
             return Map.of();
         if (milestones.size() == 1) {
             Milestone m = milestones.get(0);
             UUID catId = m.getCategory() != null ? m.getCategory().getId() : null;
-            BigDecimal result = evaluate(m.getQuerySpec(), userId, catId);
-            Map<UUID, BigDecimal> singleResult = new HashMap<>();
+            Double result = evaluate(m.getQuerySpec(), userId, catId);
+            Map<UUID, Double> singleResult = new HashMap<>();
             singleResult.put(m.getId(), result);
             return singleResult;
         }
@@ -1214,14 +1215,14 @@ public class MilestoneQueryBuilderService {
             groups.computeIfAbsent(key, k -> new ArrayList<>()).add(m);
         }
 
-        Map<UUID, BigDecimal> results = new HashMap<>();
+        Map<UUID, Double> results = new HashMap<>();
         for (var entry : groups.entrySet()) {
             results.putAll(evaluateGroup(entry.getKey(), entry.getValue(), userId));
         }
         return results;
     }
 
-    private Map<UUID, BigDecimal> evaluateGroup(BatchKey key, List<Milestone> milestones, Long userId) {
+    private Map<UUID, Double> evaluateGroup(BatchKey key, List<Milestone> milestones, Long userId) {
         TableConfig table = TABLE_CONFIG.get(key.fromTable());
         Map<String, ColumnDef> columns = COLUMN_ALLOWLIST.get(key.fromTable());
 
@@ -1259,16 +1260,16 @@ public class MilestoneQueryBuilderService {
 
         Object rawResult = query.getSingleResult();
 
-        Map<UUID, BigDecimal> results = new HashMap<>();
+        Map<UUID, Double> results = new HashMap<>();
         if (orderedSelects.size() == 1) {
-            BigDecimal value = toBigDecimal(rawResult);
+            Double value = toDouble(rawResult);
             for (UUID milestoneId : selectToMilestoneIds.get(orderedSelects.get(0))) {
                 results.put(milestoneId, value);
             }
         } else {
             Object[] row = (Object[]) rawResult;
             for (int i = 0; i < orderedSelects.size(); i++) {
-                BigDecimal value = toBigDecimal(row[i]);
+                Double value = toDouble(row[i]);
                 for (UUID milestoneId : selectToMilestoneIds.get(orderedSelects.get(i))) {
                     results.put(milestoneId, value);
                 }
@@ -1300,14 +1301,14 @@ public class MilestoneQueryBuilderService {
         return sb.toString();
     }
 
-    private BigDecimal toBigDecimal(Object value) {
+    private Double toDouble(Object value) {
         if (value == null)
             return null;
-        if (value instanceof BigDecimal bd)
+        if (value instanceof Double bd)
             return bd;
         if (value instanceof Number n)
-            return BigDecimal.valueOf(n.doubleValue());
-        return new BigDecimal(value.toString());
+            return n.doubleValue();
+        return Double.parseDouble(value.toString());
     }
 
     private String buildSelectClause(String fn, String expr) {

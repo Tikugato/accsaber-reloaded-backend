@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,12 +15,12 @@ public class CurveResponse {
     String type;
     String formula;
     String xParameterName;
-    BigDecimal xParameterValue;
+    Double xParameterValue;
     String yParameterName;
-    BigDecimal yParameterValue;
+    Double yParameterValue;
     String zParameterName;
-    BigDecimal zParameterValue;
-    BigDecimal scale;
-    BigDecimal shift;
+    Double zParameterValue;
+    Double scale;
+    Double shift;
     List<CurvePointResponse> points;
 }

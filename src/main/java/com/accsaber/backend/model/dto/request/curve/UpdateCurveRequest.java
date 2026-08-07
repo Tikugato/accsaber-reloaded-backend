@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.curve;
 
-import java.math.BigDecimal;
 
 import lombok.Data;
 
@@ -11,14 +10,14 @@ public class UpdateCurveRequest {
     private String formula;
 
     private String xParameterName;
-    private BigDecimal xParameterValue;
+    private Double xParameterValue;
 
     private String yParameterName;
-    private BigDecimal yParameterValue;
+    private Double yParameterValue;
 
     private String zParameterName;
-    private BigDecimal zParameterValue;
+    private Double zParameterValue;
 
-    private BigDecimal scale;
-    private BigDecimal shift;
+    private Double scale;
+    private Double shift;
 }

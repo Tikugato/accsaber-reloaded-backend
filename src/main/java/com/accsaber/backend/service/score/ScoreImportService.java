@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.score;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -118,7 +117,7 @@ public class ScoreImportService {
     }
 
     private Set<Long> importDifficulty(MapDifficulty difficulty) {
-        BigDecimal complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
+        Double complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
         if (complexity == null) {
             log.warn("No active complexity for difficulty {} - skipping backfill", difficulty.getId());
             return null;
@@ -175,7 +174,7 @@ public class ScoreImportService {
                     leaderboardId, mapDifficultyId);
             return;
         }
-        BigDecimal complexity = mapComplexityService.findActiveComplexity(mapDifficultyId).orElse(null);
+        Double complexity = mapComplexityService.findActiveComplexity(mapDifficultyId).orElse(null);
         if (complexity == null) {
             log.warn("No active complexity for difficulty {} - skipping alias backfill", mapDifficultyId);
             return;
@@ -536,7 +535,7 @@ public class ScoreImportService {
             return false;
         }
 
-        BigDecimal complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
+        Double complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
         if (complexity == null) {
             log.warn("No active complexity for difficulty {} - skipping user backfill entry", difficulty.getId());
             return false;
@@ -568,7 +567,7 @@ public class ScoreImportService {
             return false;
         }
 
-        BigDecimal complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
+        Double complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
         if (complexity == null) {
             log.warn("No active complexity for difficulty {} - skipping SS user backfill entry", difficulty.getId());
             return false;
@@ -716,7 +715,7 @@ public class ScoreImportService {
     }
 
     private Set<Long> startupGapFillImport(MapDifficulty difficulty, Instant since) {
-        BigDecimal complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
+        Double complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
         if (complexity == null) {
             log.warn("No active complexity for difficulty {} - skipping gap-fill", difficulty.getId());
             return null;
@@ -736,7 +735,7 @@ public class ScoreImportService {
         return affectedUserIds;
     }
 
-    private Set<Long> gapFillFromScoreSaber(MapDifficulty difficulty, BigDecimal complexity,
+    private Set<Long> gapFillFromScoreSaber(MapDifficulty difficulty, Double complexity,
             Map<String, UUID> modifiers, Instant since) {
         Set<Long> affected = new HashSet<>();
         int page = 1;
@@ -800,7 +799,7 @@ public class ScoreImportService {
         return affected;
     }
 
-    private Set<Long> gapFillFromBeatLeader(MapDifficulty difficulty, BigDecimal complexity,
+    private Set<Long> gapFillFromBeatLeader(MapDifficulty difficulty, Double complexity,
             Map<String, UUID> modifiers, Instant since) {
         Set<Long> affected = new HashSet<>();
         int page = 1;
@@ -1047,22 +1046,22 @@ public class ScoreImportService {
         if (evaluation.completedMilestones().isEmpty() && evaluation.completedSets().isEmpty())
             return;
 
-        BigDecimal milestoneXp = evaluation.completedMilestones().stream()
+        Double milestoneXp = evaluation.completedMilestones().stream()
                 .map(Milestone::getXp)
                 .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal setXp = evaluation.completedSets().stream()
+                .reduce(0.0, Double::sum);
+        Double setXp = evaluation.completedSets().stream()
                 .map(MilestoneSet::getSetBonusXp)
                 .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(0.0, Double::sum);
 
-        BigDecimal total = milestoneXp.add(setXp);
-        if (total.compareTo(BigDecimal.ZERO) > 0) {
+        Double total = (milestoneXp + setXp);
+        if (total.compareTo(0.0) > 0) {
             levelUpAwardService.addXp(userId, total);
         }
     }
 
-    private Set<Long> backfillFromBeatLeader(MapDifficulty difficulty, String blLeaderboardId, BigDecimal complexity,
+    private Set<Long> backfillFromBeatLeader(MapDifficulty difficulty, String blLeaderboardId, Double complexity,
             Map<String, UUID> modifiers) {
         Set<Long> affected = new HashSet<>();
         int page = 1;
@@ -1099,7 +1098,7 @@ public class ScoreImportService {
         return affected;
     }
 
-    private Set<Long> backfillFromScoreSaber(MapDifficulty difficulty, String ssLeaderboardId, BigDecimal complexity,
+    private Set<Long> backfillFromScoreSaber(MapDifficulty difficulty, String ssLeaderboardId, Double complexity,
             Map<String, UUID> modifiers) {
         Set<Long> affected = new HashSet<>();
         int page = 1;
@@ -1145,12 +1144,12 @@ public class ScoreImportService {
     }
 
     private Long importBeatLeaderScore(BeatLeaderScoreResponse blScore, MapDifficulty difficulty,
-            BigDecimal complexity, Map<String, UUID> modifiers, boolean forBackfill) {
+            Double complexity, Map<String, UUID> modifiers, boolean forBackfill) {
         return importBeatLeaderScore(blScore, difficulty, complexity, modifiers, forBackfill, false);
     }
 
     private Long importBeatLeaderScore(BeatLeaderScoreResponse blScore, MapDifficulty difficulty,
-            BigDecimal complexity, Map<String, UUID> modifiers, boolean forBackfill, boolean enrichOnly) {
+            Double complexity, Map<String, UUID> modifiers, boolean forBackfill, boolean enrichOnly) {
         try {
             if (PlatformScoreMapper.hasBannedModifier(blScore.getModifiers()))
                 return null;
@@ -1247,12 +1246,12 @@ public class ScoreImportService {
     }
 
     private Long importScoreSaberScore(ScoreSaberScoreResponse ssScore, MapDifficulty difficulty,
-            BigDecimal complexity, Map<String, UUID> modifiers, boolean forBackfill) {
+            Double complexity, Map<String, UUID> modifiers, boolean forBackfill) {
         return importScoreSaberScore(ssScore, difficulty, complexity, modifiers, forBackfill, false);
     }
 
     private Long importScoreSaberScore(ScoreSaberScoreResponse ssScore, MapDifficulty difficulty,
-            BigDecimal complexity, Map<String, UUID> modifiers, boolean forBackfill, boolean enrichOnly) {
+            Double complexity, Map<String, UUID> modifiers, boolean forBackfill, boolean enrichOnly) {
         try {
             if (PlatformScoreMapper.hasBannedModifier(ssScore.getMods()))
                 return null;

@@ -10,7 +10,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.quality.Strictness.LENIENT;
 
-import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -385,7 +384,7 @@ class ScoreIngestionServiceTest {
                                 .userId(String.valueOf(STEAM_ID))
                                 .mapDifficultyId(difficulty.getId())
                                 .score(950000)
-                                .ap(new BigDecimal("100.0"))
+                                .ap(100.0)
                                 .build();
         }
 }

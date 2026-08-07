@@ -11,6 +11,8 @@ spring:
       minimum-idle: 5
       idle-timeout: 300000
       connection-timeout: 20000
+      data-source-properties:
+        reWriteBatchedInserts: true
 
   jpa:
     hibernate:
@@ -21,6 +23,10 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         "[format_sql]": true
         "[default_batch_fetch_size]": 25
+        "[jdbc.batch_size]": 100
+        "[order_inserts]": true
+        "[order_updates]": true
+        "[batch_versioned_data]": true
 
   flyway:
     enabled: true

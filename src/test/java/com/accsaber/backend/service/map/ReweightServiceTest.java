@@ -8,7 +8,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -60,7 +59,7 @@ class ReweightServiceTest {
             UUID diffId = UUID.randomUUID();
             when(mapDifficultyRepository.findByIdAndActiveTrue(diffId)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> reweightService.reweight(diffId, BigDecimal.valueOf(8.0), null, null, null))
+            assertThatThrownBy(() -> reweightService.reweight(diffId, (double) (8.0), null, null, null))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
 
@@ -69,7 +68,7 @@ class ReweightServiceTest {
             MapDifficulty diff = buildDifficulty(MapDifficultyStatus.QUEUE);
             when(mapDifficultyRepository.findByIdAndActiveTrue(diff.getId())).thenReturn(Optional.of(diff));
 
-            assertThatThrownBy(() -> reweightService.reweight(diff.getId(), BigDecimal.valueOf(8.0), null, null, null))
+            assertThatThrownBy(() -> reweightService.reweight(diff.getId(), (double) (8.0), null, null, null))
                     .isInstanceOf(ValidationException.class)
                     .hasMessageContaining("RANKED");
         }
@@ -86,7 +85,7 @@ class ReweightServiceTest {
             when(mapService.getDifficultyResponse(diff.getId())).thenReturn(expected);
 
             MapDifficultyResponse result = reweightService.reweight(
-                    diff.getId(), BigDecimal.valueOf(8.5), "Reweight", null, null);
+                    diff.getId(), (double) (8.5), "Reweight", null, null);
 
             assertThat(result).isEqualTo(expected);
             verify(mapService).updateComplexity(eq(diff.getId()), any(), any(), any());
@@ -189,7 +188,7 @@ class ReweightServiceTest {
             UUID diffId = UUID.randomUUID();
             BulkReweightRequest.Item item = new BulkReweightRequest.Item();
             item.setMapDifficultyId(diffId);
-            item.setComplexity(BigDecimal.valueOf(8.0));
+            item.setComplexity((double) (8.0));
 
             when(mapDifficultyRepository.findAllById(any())).thenReturn(List.of());
 
@@ -204,7 +203,7 @@ class ReweightServiceTest {
             MapDifficulty diff = buildDifficulty(MapDifficultyStatus.QUEUE);
             BulkReweightRequest.Item item = new BulkReweightRequest.Item();
             item.setMapDifficultyId(diff.getId());
-            item.setComplexity(BigDecimal.valueOf(8.0));
+            item.setComplexity((double) (8.0));
 
             when(mapDifficultyRepository.findAllById(any())).thenReturn(List.of(diff));
 
@@ -221,10 +220,10 @@ class ReweightServiceTest {
 
             BulkReweightRequest.Item item1 = new BulkReweightRequest.Item();
             item1.setMapDifficultyId(diff1.getId());
-            item1.setComplexity(BigDecimal.valueOf(8.0));
+            item1.setComplexity((double) (8.0));
             BulkReweightRequest.Item item2 = new BulkReweightRequest.Item();
             item2.setMapDifficultyId(diff2.getId());
-            item2.setComplexity(BigDecimal.valueOf(9.0));
+            item2.setComplexity((double) (9.0));
 
             when(mapDifficultyRepository.findAllById(any())).thenReturn(List.of(diff1, diff2));
 
@@ -241,7 +240,7 @@ class ReweightServiceTest {
             UUID diffId = UUID.randomUUID();
             BulkReweightRequest.Item item = new BulkReweightRequest.Item();
             item.setMapDifficultyId(diffId);
-            item.setComplexity(BigDecimal.valueOf(8.0));
+            item.setComplexity((double) (8.0));
 
             when(mapDifficultyRepository.findAllById(any())).thenReturn(List.of());
 

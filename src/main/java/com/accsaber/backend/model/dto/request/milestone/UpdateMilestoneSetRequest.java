@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.milestone;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 import lombok.Data;
@@ -12,7 +11,7 @@ public class UpdateMilestoneSetRequest {
 
     private String description;
 
-    private BigDecimal setBonusXp;
+    private Double setBonusXp;
 
     private UUID awardsItemId;
 }

@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.stats;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -180,7 +179,7 @@ public class RankingService {
         if (!user.isActive() || user.isBanned())
             return;
 
-        BigDecimal ap = stats.getAp();
+        Double ap = stats.getAp();
         Instant tieBreaker = stats.getTopPlay() != null ? stats.getTopPlay().getTimeSet() : null;
 
         Integer oldRank = stats.getRanking();

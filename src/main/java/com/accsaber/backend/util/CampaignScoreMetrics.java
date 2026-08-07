@@ -1,6 +1,7 @@
 package com.accsaber.backend.util;
 
-import java.math.BigDecimal;
+import com.accsaber.backend.util.Rounding;
+
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Collection;
@@ -19,13 +20,12 @@ public final class CampaignScoreMetrics {
     private CampaignScoreMetrics() {
     }
 
-    public static BigDecimal accuracy(Score score) {
+    public static Double accuracy(Score score) {
         MapDifficulty md = score.getMapDifficulty();
         if (md == null || md.getMaxScore() == null || md.getMaxScore() == 0 || score.getScoreNoMods() == null) {
             return null;
         }
-        return BigDecimal.valueOf(score.getScoreNoMods())
-                .divide(BigDecimal.valueOf(md.getMaxScore()), 6, RoundingMode.HALF_UP);
+        return Rounding.round((double) (score.getScoreNoMods()) / (double) (md.getMaxScore()), 6);
     }
 
     public static boolean isFullCombo(Score score) {
@@ -40,22 +40,22 @@ public final class CampaignScoreMetrics {
         return score.getBadCuts() + score.getMisses();
     }
 
-    public static BigDecimal requirementValue(Score score, CampaignRequirementType type, ScoreModifierIndex modifiers) {
+    public static Double requirementValue(Score score, CampaignRequirementType type, ScoreModifierIndex modifiers) {
         return switch (type) {
             case ACC -> accuracy(score);
             case AP -> score.getAp();
-            case SCORE -> score.getScore() != null ? BigDecimal.valueOf(score.getScore()) : null;
-            case STREAK_115 -> score.getStreak115() != null ? BigDecimal.valueOf(score.getStreak115()) : null;
-            case FC -> isFullCombo(score) ? BigDecimal.ONE : BigDecimal.ZERO;
-            case RANK -> score.getRank() != null ? BigDecimal.valueOf(score.getRank()) : null;
-            case PASS -> modifiers.hasNoFail(score.getId()) ? BigDecimal.ZERO : BigDecimal.ONE;
+            case SCORE -> score.getScore() != null ? (double) (score.getScore()) : null;
+            case STREAK_115 -> score.getStreak115() != null ? (double) (score.getStreak115()) : null;
+            case FC -> isFullCombo(score) ? 1.0 : 0.0;
+            case RANK -> score.getRank() != null ? (double) (score.getRank()) : null;
+            case PASS -> modifiers.hasNoFail(score.getId()) ? 0.0 : 1.0;
             case COMBO -> toDecimal(score.getMaxCombo());
             case BOMB_HITS -> toDecimal(score.getBombHits());
             case MISTAKES -> toDecimal(mistakes(score));
         };
     }
 
-    public static boolean satisfies(CampaignDifficultyTarget target, BigDecimal value) {
+    public static boolean satisfies(CampaignDifficultyTarget target, Double value) {
         CampaignRequirementType type = target.getRequirementType();
         return satisfiesBounds(
                 toDisplayPrecision(value, type),
@@ -64,7 +64,7 @@ public final class CampaignScoreMetrics {
                 type.isLowerBetter());
     }
 
-    public static boolean satisfiesBounds(BigDecimal value, BigDecimal bound, BigDecimal cap,
+    public static boolean satisfiesBounds(Double value, Double bound, Double cap,
             boolean lowerBetter) {
         if (value == null || (bound == null && cap == null)) {
             return false;
@@ -78,30 +78,29 @@ public final class CampaignScoreMetrics {
         return cap == null || value.compareTo(cap) <= 0;
     }
 
-    public static BigDecimal bestAccuracy(UserMapDifficultyBests bests) {
+    public static Double bestAccuracy(UserMapDifficultyBests bests) {
         if (bests.maxScore() == null || bests.maxScore() == 0 || bests.bestScoreNoMods() == null) {
             return null;
         }
-        return BigDecimal.valueOf(bests.bestScoreNoMods())
-                .divide(BigDecimal.valueOf(bests.maxScore()), 6, RoundingMode.HALF_UP);
+        return Rounding.round((double) (bests.bestScoreNoMods()) / (double) (bests.maxScore()), 6);
     }
 
-    public static BigDecimal requirementValue(UserMapDifficultyBests bests, CampaignRequirementType type) {
+    public static Double requirementValue(UserMapDifficultyBests bests, CampaignRequirementType type) {
         return switch (type) {
             case ACC -> bestAccuracy(bests);
             case AP -> bests.bestAp();
             case SCORE -> toDecimal(bests.bestScore());
             case STREAK_115 -> toDecimal(bests.bestStreak115());
-            case FC -> bests.hasFullCombo() ? BigDecimal.ONE : BigDecimal.ZERO;
+            case FC -> bests.hasFullCombo() ? 1.0 : 0.0;
             case RANK -> toDecimal(bests.bestRank());
-            case PASS -> bests.hasNoNfPass() ? BigDecimal.ONE : BigDecimal.ZERO;
+            case PASS -> bests.hasNoNfPass() ? 1.0 : 0.0;
             case COMBO -> toDecimal(bests.bestCombo());
             case BOMB_HITS -> toDecimal(bests.fewestBombHits());
             case MISTAKES -> toDecimal(bests.fewestMistakes());
         };
     }
 
-    public static BigDecimal barrierMetric(UserMapDifficultyBests bests, BarrierConditionType type) {
+    public static Double barrierMetric(UserMapDifficultyBests bests, BarrierConditionType type) {
         return switch (type) {
             case AVERAGE_ACC, ACC_MAX -> bestAccuracy(bests);
             case AVERAGE_AP, AP_MAX -> bests.bestAp();
@@ -114,22 +113,22 @@ public final class CampaignScoreMetrics {
         };
     }
 
-    private static BigDecimal toDecimal(Integer value) {
-        return value != null ? BigDecimal.valueOf(value) : null;
+    private static Double toDecimal(Integer value) {
+        return value != null ? (double) (value) : null;
     }
 
-    public static BigDecimal toDisplayPrecision(BigDecimal value, CampaignRequirementType type) {
+    public static Double toDisplayPrecision(Double value, CampaignRequirementType type) {
         return type == CampaignRequirementType.ACC ? displayAcc(value) : value;
     }
 
-    public static BigDecimal toDisplayPrecision(BigDecimal value, BarrierConditionType type) {
+    public static Double toDisplayPrecision(Double value, BarrierConditionType type) {
         return type == BarrierConditionType.AVERAGE_ACC || type == BarrierConditionType.ACC_MAX
                 ? displayAcc(value)
                 : value;
     }
 
-    private static BigDecimal displayAcc(BigDecimal acc) {
-        return acc == null ? null : acc.setScale(4, RoundingMode.HALF_UP);
+    private static Double displayAcc(Double acc) {
+        return acc == null ? null : Rounding.round(acc, 4);
     }
 
     public static boolean isMaxAggregate(BarrierConditionType type) {
@@ -139,9 +138,9 @@ public final class CampaignScoreMetrics {
                 || type == BarrierConditionType.MAX_RANK;
     }
 
-    public static BigDecimal max(List<BigDecimal> values) {
-        BigDecimal maximum = values.get(0);
-        for (BigDecimal v : values) {
+    public static Double max(List<Double> values) {
+        Double maximum = values.get(0);
+        for (Double v : values) {
             if (v.compareTo(maximum) > 0) {
                 maximum = v;
             }
@@ -149,12 +148,12 @@ public final class CampaignScoreMetrics {
         return maximum;
     }
 
-    public static BigDecimal average(List<BigDecimal> values) {
-        BigDecimal sum = BigDecimal.ZERO;
-        for (BigDecimal v : values) {
-            sum = sum.add(v);
+    public static Double average(List<Double> values) {
+        double sum = 0.0;
+        for (Double v : values) {
+            sum += v;
         }
-        return sum.divide(BigDecimal.valueOf(values.size()), 6, RoundingMode.HALF_UP);
+        return Rounding.round(sum / values.size(), 6);
     }
 
     public static Instant effectiveTime(Score score) {
@@ -168,7 +167,7 @@ public final class CampaignScoreMetrics {
         }
         Integer bestScore = null;
         Integer bestScoreNoMods = null;
-        BigDecimal bestAp = null;
+        Double bestAp = null;
         Integer bestStreak115 = null;
         Integer bestRank = null;
         Integer bestCombo = null;
@@ -182,7 +181,7 @@ public final class CampaignScoreMetrics {
             fewestMistakes = minOf(fewestMistakes, mistakes(s));
             bestScore = maxOf(bestScore, s.getScore());
             bestScoreNoMods = maxOf(bestScoreNoMods, s.getScoreNoMods());
-            if (s.getAp() != null && (bestAp == null || s.getAp().compareTo(bestAp) > 0)) {
+            if (bestAp == null || s.getAp() > bestAp) {
                 bestAp = s.getAp();
             }
             bestStreak115 = maxOf(bestStreak115, s.getStreak115());

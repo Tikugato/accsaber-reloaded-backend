@@ -2,7 +2,6 @@ package com.accsaber.backend.service.songsuggest;
 
 import java.util.concurrent.CompletableFuture;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -44,7 +43,7 @@ public class SongSuggestService {
     private static final int MIN_RANKED_PLAYS = 50;
     private static final int TOP_SCORE_COUNT = 30;
     private static final int CONSISTENCY_ANCHOR_INDEX = 5;
-    private static final BigDecimal CONSISTENCY_THRESHOLD_RATIO = new BigDecimal("0.88");
+    private static final Double CONSISTENCY_THRESHOLD_RATIO = 0.88;
 
     private final CategoryRepository categoryRepository;
     private final UserCategoryStatisticsRepository statisticsRepository;
@@ -135,10 +134,10 @@ public class SongSuggestService {
         if (all.size() <= CONSISTENCY_ANCHOR_INDEX) {
             return null;
         }
-        BigDecimal anchor = all.get(CONSISTENCY_ANCHOR_INDEX).getAp();
-        BigDecimal threshold = anchor.multiply(CONSISTENCY_THRESHOLD_RATIO);
+        Double anchor = all.get(CONSISTENCY_ANCHOR_INDEX).getAp();
+        Double threshold = (anchor * CONSISTENCY_THRESHOLD_RATIO);
         List<Score> consistent = all.stream()
-                .filter(s -> s.getAp().compareTo(threshold) >= 0)
+                .filter(s -> (s.getAp() >= threshold))
                 .toList();
         if (consistent.size() < TOP_SCORE_COUNT) {
             return null;
@@ -159,7 +158,7 @@ public class SongSuggestService {
             Score s = sortedByRawAp.get(i);
             scores.add(SongSuggestScoreResponse.builder()
                     .songID(buildSongId(s.getMapDifficulty()))
-                    .pp(s.getAp().floatValue())
+                    .pp((float) s.getAp())
                     .rank(i + 1)
                     .build());
         }

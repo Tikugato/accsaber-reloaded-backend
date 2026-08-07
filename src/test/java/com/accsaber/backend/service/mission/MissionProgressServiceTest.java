@@ -11,7 +11,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -98,7 +97,7 @@ class MissionProgressServiceTest {
                                 .pool(MissionPool.event)
                                 .status(MissionStatus.active)
                                 .progressCount(0)
-                                .progressAp(BigDecimal.ZERO)
+                                .progressAp(0.0)
                                 .xpReward(0)
                                 .build();
         }
@@ -125,45 +124,45 @@ class MissionProgressServiceTest {
                 @Test
                 void accumulatesGainAndCompletesAtTarget() {
                         UserMission m = mission(MissionType.AP_GAIN_OVERALL);
-                        m.setTargetAp(new BigDecimal("5"));
+                        m.setTargetAp(5.0);
                         givenMissions(m);
                         when(statisticsRepository.findActiveApGainOverPrevious(USER_ID, OVERALL))
-                                        .thenReturn(Optional.of(new BigDecimal("3.5")));
+                                        .thenReturn(Optional.of(3.5));
 
                         service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
 
-                        assertThat(m.getProgressAp()).isEqualByComparingTo("3.5");
+                        assertThat(m.getProgressAp()).isEqualByComparingTo(3.5);
                         assertThat(m.getStatus()).isEqualTo(MissionStatus.active);
 
                         service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
 
-                        assertThat(m.getProgressAp()).isEqualByComparingTo("7.0");
+                        assertThat(m.getProgressAp()).isEqualByComparingTo(7.0);
                         assertThat(m.getStatus()).isEqualTo(MissionStatus.completed);
                 }
 
                 @Test
                 void ignoresInactiveScoreSoStaleGainIsNotRecounted() {
                         UserMission m = mission(MissionType.AP_GAIN_OVERALL);
-                        m.setTargetAp(new BigDecimal("5"));
+                        m.setTargetAp(5.0);
                         givenMissions(m);
 
                         service.onScoreSubmitted(new ScoreSubmittedEvent(score(false)));
 
-                        assertThat(m.getProgressAp()).isEqualByComparingTo("0");
+                        assertThat(m.getProgressAp()).isEqualByComparingTo(0.0);
                         verify(statisticsRepository, never()).findActiveApGainOverPrevious(anyLong(), anyString());
                 }
 
                 @Test
                 void ignoresNonPositiveGain() {
                         UserMission m = mission(MissionType.AP_GAIN_OVERALL);
-                        m.setTargetAp(new BigDecimal("5"));
+                        m.setTargetAp(5.0);
                         givenMissions(m);
                         when(statisticsRepository.findActiveApGainOverPrevious(USER_ID, OVERALL))
-                                        .thenReturn(Optional.of(BigDecimal.ZERO));
+                                        .thenReturn(Optional.of(0.0));
 
                         service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
 
-                        assertThat(m.getProgressAp()).isEqualByComparingTo("0");
+                        assertThat(m.getProgressAp()).isEqualByComparingTo(0.0);
                         assertThat(m.getStatus()).isEqualTo(MissionStatus.active);
                 }
         }
@@ -486,13 +485,13 @@ class MissionProgressServiceTest {
                         window.setXpReward(100);
                         givenMissions(rewarding, window);
 
-                        ScoreResponse scored = score(true).toBuilder().xpGained(new BigDecimal("50")).build();
+                        ScoreResponse scored = score(true).toBuilder().xpGained(50.0).build();
                         service.onScoreSubmitted(new ScoreSubmittedEvent(scored));
 
                         assertThat(rewarding.getStatus()).isEqualTo(MissionStatus.completed);
                         assertThat(window.getStatus()).isEqualTo(MissionStatus.completed);
                         verify(levelUpAwardService, times(1))
-                                        .addMissionXp(eq(USER_ID), eq(BigDecimal.valueOf(100)));
+                                        .addMissionXp(eq(USER_ID), eq((double) (100)));
                         verify(eventMissionService, times(1)).onEventMissionCompleted(eq(window), eq(USER_ID));
                 }
         }

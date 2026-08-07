@@ -1,6 +1,5 @@
 package com.accsaber.backend.repository.user;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -40,7 +39,7 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                           AND s.category.code = :categoryCode
                           AND s.active = true
                         """)
-        Optional<java.math.BigDecimal> findActiveApGainOverPrevious(@Param("userId") Long userId,
+        Optional<Double> findActiveApGainOverPrevious(@Param("userId") Long userId,
                         @Param("categoryCode") String categoryCode);
 
         @Query(value = """
@@ -344,7 +343,7 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
         long countActiveAheadInCategory(
                         @Param("categoryId") UUID categoryId,
                         @Param("userId") Long userId,
-                        @Param("ap") BigDecimal ap,
+                        @Param("ap") Double ap,
                         @Param("tieBreaker") Instant tieBreaker);
 
         @Query(value = """
@@ -368,7 +367,7 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                         @Param("categoryId") UUID categoryId,
                         @Param("userId") Long userId,
                         @Param("country") String country,
-                        @Param("ap") BigDecimal ap,
+                        @Param("ap") Double ap,
                         @Param("tieBreaker") Instant tieBreaker);
 
         @Modifying

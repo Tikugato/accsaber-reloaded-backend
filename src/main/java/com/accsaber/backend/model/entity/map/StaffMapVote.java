@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.map;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -48,8 +47,8 @@ public class StaffMapVote {
     @Column(nullable = false)
     private MapVoteAction type;
 
-    @Column(name = "suggested_complexity", precision = 10, scale = 6)
-    private BigDecimal suggestedComplexity;
+    @Column(name = "suggested_complexity")
+    private Double suggestedComplexity;
 
     @Column(name = "criteria_vote")
     private VoteType criteriaVote;

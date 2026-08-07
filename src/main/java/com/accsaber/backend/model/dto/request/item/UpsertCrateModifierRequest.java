@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.item;
 
-import java.math.BigDecimal;
 
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -13,5 +12,5 @@ public class UpsertCrateModifierRequest {
     @NotNull
     @DecimalMin(value = "0", inclusive = false)
     @DecimalMax("1")
-    private BigDecimal dropChance;
+    private Double dropChance;
 }

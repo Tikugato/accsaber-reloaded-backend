@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.milestone;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -50,8 +49,8 @@ public class UserMilestoneLink {
     @JoinColumn(name = "achieved_with_score_id")
     private Score achievedWithScore;
 
-    @Column(precision = 20, scale = 6)
-    private BigDecimal progress;
+    @Column
+    private Double progress;
 
     @Column(nullable = false)
     @Builder.Default

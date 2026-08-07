@@ -8,7 +8,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -292,11 +291,11 @@ class MilestoneQueryBuilderServiceTest {
                                         "scores",
                                         List.of(new FilterSpec("active", "=", true)));
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.valueOf(850));
+                        when(mockQuery.getSingleResult()).thenReturn((double) (850));
 
-                        BigDecimal result = service.evaluate(spec, 123L, null);
+                        Double result = service.evaluate(spec, 123L, null);
 
-                        assertThat(result).isEqualByComparingTo(BigDecimal.valueOf(850));
+                        assertThat(result).isEqualByComparingTo((double) (850));
 
                         ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
                         verify(entityManager).createQuery(jpqlCaptor.capture());
@@ -316,7 +315,7 @@ class MilestoneQueryBuilderServiceTest {
                                         "scores",
                                         List.of(new FilterSpec("active", "=", true)));
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.valueOf(850));
+                        when(mockQuery.getSingleResult()).thenReturn((double) (850));
 
                         service.evaluate(spec, 123L, null);
 
@@ -333,7 +332,7 @@ class MilestoneQueryBuilderServiceTest {
                                         "users",
                                         null);
 
-                        when(mockQuery.getSingleResult()).thenReturn(new BigDecimal("5000"));
+                        when(mockQuery.getSingleResult()).thenReturn(5000);
 
                         service.evaluate(spec, 999L, null);
 
@@ -349,7 +348,7 @@ class MilestoneQueryBuilderServiceTest {
                                         "users",
                                         null);
 
-                        when(mockQuery.getSingleResult()).thenReturn(new BigDecimal("5000"));
+                        when(mockQuery.getSingleResult()).thenReturn(5000);
 
                         service.evaluate(spec, 999L, null);
 
@@ -364,7 +363,7 @@ class MilestoneQueryBuilderServiceTest {
                                         "scores",
                                         null);
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.valueOf(3000));
+                        when(mockQuery.getSingleResult()).thenReturn((double) (3000));
 
                         service.evaluate(spec, 42L, categoryId);
 
@@ -381,7 +380,7 @@ class MilestoneQueryBuilderServiceTest {
                                         "users",
                                         null);
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.valueOf(100));
+                        when(mockQuery.getSingleResult()).thenReturn((double) (100));
 
                         service.evaluate(spec, 1L, categoryId);
 
@@ -398,7 +397,7 @@ class MilestoneQueryBuilderServiceTest {
                                         "scores",
                                         null);
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.ZERO);
+                        when(mockQuery.getSingleResult()).thenReturn(0.0);
 
                         service.evaluate(spec, 1L, null);
 
@@ -415,7 +414,7 @@ class MilestoneQueryBuilderServiceTest {
                                         "users",
                                         null);
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.ZERO);
+                        when(mockQuery.getSingleResult()).thenReturn(0.0);
 
                         service.evaluate(spec, 1L, null);
 
@@ -431,7 +430,7 @@ class MilestoneQueryBuilderServiceTest {
                                         "user_category_statistics",
                                         null);
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.valueOf(3500));
+                        when(mockQuery.getSingleResult()).thenReturn((double) (3500));
 
                         service.evaluate(spec, 1L, null);
 
@@ -449,7 +448,7 @@ class MilestoneQueryBuilderServiceTest {
 
                         when(mockQuery.getSingleResult()).thenReturn(null);
 
-                        BigDecimal result = service.evaluate(spec, 1L, null);
+                        Double result = service.evaluate(spec, 1L, null);
 
                         assertThat(result).isNull();
                 }
@@ -461,11 +460,11 @@ class MilestoneQueryBuilderServiceTest {
                                         "user_category_statistics",
                                         List.of(new FilterSpec("active", "=", true)));
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.valueOf(4));
+                        when(mockQuery.getSingleResult()).thenReturn((double) (4));
 
-                        BigDecimal result = service.evaluate(spec, 5L, null);
+                        Double result = service.evaluate(spec, 5L, null);
 
-                        assertThat(result).isEqualByComparingTo(BigDecimal.valueOf(4));
+                        assertThat(result).isEqualByComparingTo((double) (4));
                         ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
                         verify(entityManager).createQuery(jpqlCaptor.capture());
                         assertThat(jpqlCaptor.getValue()).contains("(MIN(ucs.countryRanking) - 1)");
@@ -506,15 +505,15 @@ class MilestoneQueryBuilderServiceTest {
                                         null, divisor, null, null, null, null);
 
                         when(mockQuery.getSingleResult())
-                                        .thenReturn(BigDecimal.valueOf(4), BigDecimal.valueOf(50));
+                                        .thenReturn((double) (4), (double) (50));
 
-                        BigDecimal result = service.evaluate(spec, 5L, null);
+                        Double result = service.evaluate(spec, 5L, null);
 
-                        assertThat(result).isEqualByComparingTo(new BigDecimal("0.08"));
+                        assertThat(result).isEqualByComparingTo(0.08);
                 }
 
                 @Test
-                void longResult_isConvertedToBigDecimal() {
+                void longResult_isConvertedToDouble() {
                         MilestoneQuerySpec spec = new MilestoneQuerySpec(
                                         new SelectSpec("COUNT", "id"),
                                         "scores",
@@ -522,9 +521,9 @@ class MilestoneQueryBuilderServiceTest {
 
                         when(mockQuery.getSingleResult()).thenReturn(42L);
 
-                        BigDecimal result = service.evaluate(spec, 1L, null);
+                        Double result = service.evaluate(spec, 1L, null);
 
-                        assertThat(result).isEqualByComparingTo(BigDecimal.valueOf(42));
+                        assertThat(result).isEqualByComparingTo((double) (42));
                 }
 
                 @Test
@@ -552,7 +551,7 @@ class MilestoneQueryBuilderServiceTest {
                                         "scores",
                                         List.of(new FilterSpec("map_difficulty_status", "=", "RANKED")));
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.valueOf(900));
+                        when(mockQuery.getSingleResult()).thenReturn((double) (900));
 
                         service.evaluate(spec, 1L, null);
 
@@ -571,7 +570,7 @@ class MilestoneQueryBuilderServiceTest {
                                         "scores",
                                         List.of(new FilterSpec("map_difficulty_status", "=", "ranked")));
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.ZERO);
+                        when(mockQuery.getSingleResult()).thenReturn(0.0);
 
                         service.evaluate(spec, 1L, null);
 
@@ -632,7 +631,7 @@ class MilestoneQueryBuilderServiceTest {
                 }
 
                 @Test
-                void coercion_integerValueForBigDecimalColumn() {
+                void coercion_integerValueForDoubleColumn() {
                         MilestoneQuerySpec spec = new MilestoneQuerySpec(
                                         new SelectSpec("COUNT", "id"),
                                         "scores",
@@ -642,7 +641,7 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, null);
 
-                        verify(mockQuery).setParameter("p0", new BigDecimal("999"));
+                        verify(mockQuery).setParameter("p0", 999.0);
                         verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
                 }
 
@@ -656,7 +655,7 @@ class MilestoneQueryBuilderServiceTest {
                                                         new FilterSpec("misses", "=", 0),
                                                         new FilterSpec("bad_cuts", "=", 0)));
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.valueOf(750));
+                        when(mockQuery.getSingleResult()).thenReturn((double) (750));
 
                         service.evaluate(spec, 1L, null);
 
@@ -675,9 +674,9 @@ class MilestoneQueryBuilderServiceTest {
 
                         when(mockQuery.getSingleResult()).thenReturn(8_500_000L);
 
-                        BigDecimal result = service.evaluate(spec, 1L, null);
+                        Double result = service.evaluate(spec, 1L, null);
 
-                        assertThat(result).isEqualByComparingTo(BigDecimal.valueOf(8_500_000));
+                        assertThat(result).isEqualByComparingTo((double) (8_500_000));
 
                         ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
                         verify(entityManager).createQuery(jpqlCaptor.capture());
@@ -716,7 +715,7 @@ class MilestoneQueryBuilderServiceTest {
                                         "scores",
                                         List.of(new FilterSpec("user_country", "IN", null, usersSubquery)));
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.valueOf(900));
+                        when(mockQuery.getSingleResult()).thenReturn((double) (900));
 
                         service.evaluate(spec, 42L, null);
 
@@ -757,7 +756,7 @@ class MilestoneQueryBuilderServiceTest {
                                                         new FilterSpec("ap", ">=", null,
                                                                         bestCountryScoreSubquery)));
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.valueOf(870));
+                        when(mockQuery.getSingleResult()).thenReturn((double) (870));
 
                         service.evaluate(spec, 42L, null);
 
@@ -786,7 +785,7 @@ class MilestoneQueryBuilderServiceTest {
                         MilestoneQuerySpec subquery = new MilestoneQuerySpec(
                                         new SelectSpec("PLAIN", "map_difficulty_uuid_id"),
                                         "map_difficulty_complexities",
-                                        List.of(new FilterSpec("complexity", ">=", new BigDecimal("8.0"))));
+                                        List.of(new FilterSpec("complexity", ">=", 8.0)));
                         MilestoneQuerySpec spec = new MilestoneQuerySpec(
                                         new SelectSpec("MAX", "ap"),
                                         "scores",
@@ -795,7 +794,7 @@ class MilestoneQueryBuilderServiceTest {
                                                         new FilterSpec("map_difficulty_uuid_id", "IN", null,
                                                                         subquery)));
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.valueOf(750));
+                        when(mockQuery.getSingleResult()).thenReturn((double) (750));
 
                         service.evaluate(spec, 5L, null);
 
@@ -810,7 +809,7 @@ class MilestoneQueryBuilderServiceTest {
                         assertThat(jpql).doesNotContain(" mdc ");
 
                         verify(mockQuery).setParameter("p0", true);
-                        verify(mockQuery).setParameter("p1", new BigDecimal("8.0"));
+                        verify(mockQuery).setParameter("p1", 8.0);
                         verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
                 }
 
@@ -833,7 +832,7 @@ class MilestoneQueryBuilderServiceTest {
                                                         new FilterSpec("map_difficulty_uuid_id", "IN", null,
                                                                         middle)));
 
-                        when(mockQuery.getSingleResult()).thenReturn(BigDecimal.valueOf(980));
+                        when(mockQuery.getSingleResult()).thenReturn((double) (980));
 
                         service.evaluate(spec, 42L, null);
 
@@ -868,7 +867,7 @@ class MilestoneQueryBuilderServiceTest {
                                                         new FilterSpec("active", "=", true),
                                                         new FilterSpec("category_code", "=", "true-acc")));
 
-                        when(mockQuery.getSingleResult()).thenReturn(new BigDecimal("4200"));
+                        when(mockQuery.getSingleResult()).thenReturn(4200);
 
                         service.evaluate(spec, 5L, null);
 

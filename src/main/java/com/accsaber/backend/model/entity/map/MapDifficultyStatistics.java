@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.map;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -40,13 +39,13 @@ public class MapDifficultyStatistics {
     private MapDifficulty mapDifficulty;
 
     @Column(name = "max_ap", nullable = false)
-    private BigDecimal maxAp;
+    private double maxAp;
 
     @Column(name = "min_ap", nullable = false)
-    private BigDecimal minAp;
+    private double minAp;
 
     @Column(name = "average_ap", nullable = false)
-    private BigDecimal averageAp;
+    private double averageAp;
 
     @Column(name = "total_scores", nullable = false)
     @Builder.Default

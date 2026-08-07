@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.mission;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -35,6 +34,6 @@ public class MissionCompletedResponse {
     private UUID categoryId;
     private String categoryCode;
     private UUID targetMapDifficultyId;
-    private BigDecimal xpAwarded;
+    private Double xpAwarded;
     private UUID itemAwardedId;
 }

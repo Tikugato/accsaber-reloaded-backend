@@ -1,6 +1,7 @@
 package com.accsaber.backend.service.map;
 
-import java.math.BigDecimal;
+import com.accsaber.backend.util.Rounding;
+
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -97,17 +98,17 @@ public class MapDifficultyStatisticsService {
         if (scores.isEmpty())
             return;
 
-        BigDecimal maxAp = scores.stream().map(Score::getAp).max(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
-        BigDecimal minAp = scores.stream().map(Score::getAp).min(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
-        BigDecimal totalAp = scores.stream().map(Score::getAp).reduce(BigDecimal.ZERO, (a, b) -> a.add(b, MC));
-        BigDecimal averageAp = totalAp.divide(BigDecimal.valueOf(scores.size()), 6, RoundingMode.HALF_UP);
+        Double maxAp = scores.stream().map(Score::getAp).max(Comparator.naturalOrder()).orElse(0.0);
+        Double minAp = scores.stream().map(Score::getAp).min(Comparator.naturalOrder()).orElse(0.0);
+        Double totalAp = scores.stream().mapToDouble(Score::getAp).sum();
+        Double averageAp = Rounding.round(totalAp / (double) (scores.size()), 6);
 
         updateStatistics(mapDifficulty, maxAp, minAp, averageAp, scores.size(), authorId);
     }
 
     @Transactional
-    public void updateStatistics(MapDifficulty mapDifficulty, BigDecimal maxAp, BigDecimal minAp,
-            BigDecimal averageAp, int totalScores, Long authorId) {
+    public void updateStatistics(MapDifficulty mapDifficulty, Double maxAp, Double minAp,
+            Double averageAp, int totalScores, Long authorId) {
         MapDifficultyStatistics current = statisticsRepository
                 .findByMapDifficultyIdAndActiveTrue(mapDifficulty.getId())
                 .orElse(null);
@@ -134,9 +135,8 @@ public class MapDifficultyStatisticsService {
     private TopScoreSnapshot toTopScoreSnapshot(Score s) {
         User user = s.getUser();
         Integer maxScore = s.getMapDifficulty().getMaxScore();
-        BigDecimal accuracy = maxScore != null && maxScore > 0
-                ? BigDecimal.valueOf(s.getScore()).divide(BigDecimal.valueOf(maxScore), ACCURACY_SCALE,
-                        RoundingMode.HALF_UP)
+        Double accuracy = maxScore != null && maxScore > 0
+                ? Rounding.round((double) (s.getScore()) / (double) (maxScore), ACCURACY_SCALE)
                 : null;
 
         return TopScoreSnapshot.builder()

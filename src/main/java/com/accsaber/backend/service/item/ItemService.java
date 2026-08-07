@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.item;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
@@ -411,7 +410,7 @@ public class ItemService {
     }
 
     @Transactional
-    public ItemModifier updateModifier(UUID id, BigDecimal globalDropChance,
+    public ItemModifier updateModifier(UUID id, Double globalDropChance,
             String seasonStart, String seasonEnd) {
         ItemModifier modifier = itemModifierRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ItemModifier", id));
@@ -422,9 +421,9 @@ public class ItemService {
         return itemModifierRepository.save(modifier);
     }
 
-    private void validateGlobalDropConfig(BigDecimal globalDropChance, String seasonStart, String seasonEnd) {
+    private void validateGlobalDropConfig(Double globalDropChance, String seasonStart, String seasonEnd) {
         if (globalDropChance != null
-                && (globalDropChance.signum() <= 0 || globalDropChance.compareTo(BigDecimal.ONE) > 0)) {
+                && (Math.signum(globalDropChance) <= 0 || globalDropChance.compareTo(1.0) > 0)) {
             throw new ValidationException("globalDropChance", "must be between 0 (exclusive) and 1 (inclusive)");
         }
         if ((seasonStart == null) != (seasonEnd == null)) {

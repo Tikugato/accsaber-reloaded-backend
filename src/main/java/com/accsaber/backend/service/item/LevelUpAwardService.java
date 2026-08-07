@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.item;
 
-import java.math.BigDecimal;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,41 +23,41 @@ public class LevelUpAwardService {
     private final UserRepository userRepository;
 
     @Transactional
-    public void addXp(Long userId, BigDecimal delta) {
+    public void addXp(Long userId, Double delta) {
         if (delta == null)
             return;
-        BigDecimal oldXp = userRepository.findTotalXpById(userId).orElse(BigDecimal.ZERO);
+        Double oldXp = userRepository.findTotalXpById(userId).orElse(0.0);
         userRepository.addXp(userId, delta);
         processLevelUps(userId, oldXp, delta);
     }
 
     @Transactional
-    public void addMissionXp(Long userId, BigDecimal delta) {
-        if (delta == null || delta.signum() <= 0)
+    public void addMissionXp(Long userId, Double delta) {
+        if (delta == null || Math.signum(delta) <= 0)
             return;
         userRepository.addMissionXp(userId, delta);
         addXp(userId, delta);
     }
 
     @Transactional
-    public void addCampaignXp(Long userId, BigDecimal delta) {
-        if (delta == null || delta.signum() <= 0)
+    public void addCampaignXp(Long userId, Double delta) {
+        if (delta == null || Math.signum(delta) <= 0)
             return;
         userRepository.addCampaignXp(userId, delta);
         addXp(userId, delta);
     }
 
     @Transactional
-    public void processLevelUps(Long userId, BigDecimal oldXp, BigDecimal xpDelta) {
-        if (xpDelta == null || xpDelta.signum() <= 0)
+    public void processLevelUps(Long userId, Double oldXp, Double xpDelta) {
+        if (xpDelta == null || Math.signum(xpDelta) <= 0)
             return;
-        BigDecimal previous = oldXp == null ? BigDecimal.ZERO : oldXp;
-        BigDecimal next = previous.add(xpDelta);
+        Double previous = oldXp == null ? 0.0 : oldXp;
+        Double next = (previous + xpDelta);
 
         int oldLevel = levelService.calculateLevel(previous).getLevel();
         int newLevel = levelService.calculateLevel(next).getLevel();
 
-        int from = previous.signum() == 0 ? oldLevel : oldLevel + 1;
+        int from = Math.signum(previous) == 0 ? oldLevel : oldLevel + 1;
         if (from > newLevel)
             return;
 

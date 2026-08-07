@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.score;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -58,11 +57,11 @@ public class Score {
     @Column(name = "rank_when_set", nullable = false)
     private Integer rankWhenSet;
 
-    @Column(nullable = false, precision = 20, scale = 6)
-    private BigDecimal ap;
+    @Column(nullable = false)
+    private double ap;
 
-    @Column(name = "weighted_ap", nullable = false, precision = 20, scale = 6)
-    private BigDecimal weightedAp;
+    @Column(name = "weighted_ap", nullable = false)
+    private double weightedAp;
 
     @Column(name = "bl_score_id")
     private Long blScoreId;
@@ -101,8 +100,8 @@ public class Score {
     @Builder.Default
     private boolean reweightDerivative = false;
 
-    @Column(name = "xp_gained", precision = 20, scale = 6)
-    private BigDecimal xpGained;
+    @Column(name = "xp_gained")
+    private Double xpGained;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supersedes_id")

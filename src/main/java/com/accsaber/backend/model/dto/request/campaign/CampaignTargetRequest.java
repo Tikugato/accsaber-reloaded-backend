@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.campaign;
 
-import java.math.BigDecimal;
 
 import com.accsaber.backend.model.entity.campaign.CampaignRequirementType;
 
@@ -13,7 +12,7 @@ public class CampaignTargetRequest {
     @NotNull
     private CampaignRequirementType requirementType;
 
-    private BigDecimal requirementValue;
+    private Double requirementValue;
 
-    private BigDecimal requirementValueMax;
+    private Double requirementValueMax;
 }

@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 
-import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.UUID;
 
@@ -33,8 +32,8 @@ class ScoreBroadcastServiceTest {
                                 .userId("76561198000000001")
                                 .mapDifficultyId(UUID.randomUUID())
                                 .score(950_000)
-                                .ap(new BigDecimal("500.000000"))
-                                .weightedAp(new BigDecimal("500.000000"))
+                                .ap(500.000000)
+                                .weightedAp(500.000000)
                                 .modifierIds(Collections.emptyList())
                                 .active(true)
                                 .build();

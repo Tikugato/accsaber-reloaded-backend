@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.map;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,12 +23,12 @@ public class MapDifficultyComplexityService {
 
     private final MapDifficultyComplexityRepository complexityRepository;
 
-    public Optional<BigDecimal> findActiveComplexity(UUID mapDifficultyId) {
+    public Optional<Double> findActiveComplexity(UUID mapDifficultyId) {
         return complexityRepository.findByMapDifficultyIdAndActiveTrue(mapDifficultyId)
                 .map(MapDifficultyComplexity::getComplexity);
     }
 
-    public Map<UUID, BigDecimal> findActiveComplexitiesForDifficulties(List<UUID> difficultyIds) {
+    public Map<UUID, Double> findActiveComplexitiesForDifficulties(List<UUID> difficultyIds) {
         return complexityRepository.findActiveByMapDifficultyIdIn(difficultyIds).stream()
                 .collect(Collectors.toMap(
                         c -> c.getMapDifficulty().getId(),
@@ -43,7 +42,7 @@ public class MapDifficultyComplexityService {
     }
 
     @Transactional
-    public BigDecimal setComplexity(MapDifficulty mapDifficulty, BigDecimal complexity,
+    public Double setComplexity(MapDifficulty mapDifficulty, Double complexity,
             String reason, Long authorId) {
         MapDifficultyComplexity current = complexityRepository
                 .findActiveForUpdate(mapDifficulty.getId())

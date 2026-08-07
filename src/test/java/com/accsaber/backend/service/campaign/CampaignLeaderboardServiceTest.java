@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -83,7 +82,7 @@ class CampaignLeaderboardServiceTest {
     @Test
     void averageBoardMapsAccuracyApAndNodes() {
         when(campaignRepository.findByIdAndActiveTrue(campaignId)).thenReturn(Optional.of(published));
-        Object[] carol = { 3L, "carol", "US", "a3", "cdn3", new BigDecimal("0.98875"), new BigDecimal("295"), 2L };
+        Object[] carol = { 3L, "carol", "US", "a3", "cdn3", 0.98875, 295, 2L };
         when(leaderboardRepository.averagesByAccuracy(eq(campaignId), any()))
                 .thenReturn(new PageImpl<>(List.<Object[]>of(carol), paging, 1));
 
@@ -91,8 +90,8 @@ class CampaignLeaderboardServiceTest {
                 null, paging).getContent().get(0);
 
         assertThat(entry.getRank()).isEqualTo(1);
-        assertThat(entry.getAverageAccuracy()).isEqualByComparingTo("0.98875");
-        assertThat(entry.getAverageAp()).isEqualByComparingTo("295");
+        assertThat(entry.getAverageAccuracy()).isEqualByComparingTo(0.98875);
+        assertThat(entry.getAverageAp()).isEqualByComparingTo(295.0);
         assertThat(entry.getNodesCounted()).isEqualTo(2);
     }
 
@@ -128,7 +127,7 @@ class CampaignLeaderboardServiceTest {
         when(campaignRepository.findByIdAndActiveTrue(campaignId)).thenReturn(Optional.of(published));
         CampaignDifficulty node = CampaignDifficulty.builder().id(nodeId).campaign(published).build();
         when(campaignDifficultyRepository.findByIdAndActiveTrue(nodeId)).thenReturn(Optional.of(node));
-        Object[] carol = { 3L, "carol", "US", "a3", "cdn3", 990000, new BigDecimal("0.99"), new BigDecimal("320") };
+        Object[] carol = { 3L, "carol", "US", "a3", "cdn3", 990000, 0.99, 320 };
         when(leaderboardRepository.nodeScores(eq(nodeId), any()))
                 .thenReturn(new PageImpl<>(List.<Object[]>of(carol), paging, 1));
 
@@ -137,8 +136,8 @@ class CampaignLeaderboardServiceTest {
         assertThat(entry.getRank()).isEqualTo(1);
         assertThat(entry.getPlayer().getUserName()).isEqualTo("carol");
         assertThat(entry.getScore()).isEqualTo(990000);
-        assertThat(entry.getAccuracy()).isEqualByComparingTo("0.99");
-        assertThat(entry.getAp()).isEqualByComparingTo("320");
+        assertThat(entry.getAccuracy()).isEqualByComparingTo(0.99);
+        assertThat(entry.getAp()).isEqualByComparingTo(320.0);
     }
 
     @Test

@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.map;
 
-import java.math.BigDecimal;
 
 import com.accsaber.backend.model.entity.map.MapVoteAction;
 import com.accsaber.backend.model.entity.map.VoteType;
@@ -17,7 +16,7 @@ public class CastVoteRequest {
     @NotNull
     private MapVoteAction type;
 
-    private BigDecimal suggestedComplexity;
+    private Double suggestedComplexity;
 
     private VoteType criteriaVote;
 

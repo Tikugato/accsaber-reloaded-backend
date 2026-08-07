@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.campaign;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,8 +16,8 @@ public class CampaignBarrierResponse {
 
     private UUID id;
     private BarrierConditionType conditionType;
-    private BigDecimal conditionValue;
-    private BigDecimal conditionValueMax;
+    private Double conditionValue;
+    private Double conditionValueMax;
     private CampaignPrerequisiteMode prerequisiteMode;
     private String description;
     private String checkpointLabel;
@@ -29,9 +28,9 @@ public class CampaignBarrierResponse {
     private String borderShape;
     private Integer size;
     private Integer checkpointSize;
-    private BigDecimal positionX;
-    private BigDecimal positionY;
-    private BigDecimal xp;
+    private Double positionX;
+    private Double positionY;
+    private Double xp;
     private List<CampaignConnectionResponse> prerequisites;
     private List<UUID> affectedCampaignDifficultyIds;
     private List<CampaignItemAwardResponse> items;

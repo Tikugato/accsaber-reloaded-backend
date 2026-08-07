@@ -5,7 +5,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -39,18 +38,18 @@ class LevelUpAwardServiceTest {
 
     @Test
     void addCampaignXpIncrementsCampaignBucketAndTotal() {
-        when(userRepository.findTotalXpById(50L)).thenReturn(Optional.of(BigDecimal.ZERO));
+        when(userRepository.findTotalXpById(50L)).thenReturn(Optional.of(0.0));
         when(levelService.calculateLevel(any())).thenReturn(LevelResponse.builder().level(0).build());
 
-        service.addCampaignXp(50L, new BigDecimal("100"));
+        service.addCampaignXp(50L, 100.0);
 
-        verify(userRepository).addCampaignXp(50L, new BigDecimal("100"));
-        verify(userRepository).addXp(50L, new BigDecimal("100"));
+        verify(userRepository).addCampaignXp(50L, 100.0);
+        verify(userRepository).addXp(50L, 100.0);
     }
 
     @Test
     void addCampaignXpIgnoresNonPositiveDelta() {
-        service.addCampaignXp(50L, BigDecimal.ZERO);
+        service.addCampaignXp(50L, 0.0);
 
         verify(userRepository, never()).addCampaignXp(any(), any());
         verify(userRepository, never()).addXp(any(), any());

@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.item;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -17,7 +16,7 @@ public class ItemModifierResponse {
     private String description;
     private String colorHex;
     private Object effectSpec;
-    private BigDecimal globalDropChance;
+    private Double globalDropChance;
     private String seasonStart;
     private String seasonEnd;
     private boolean active;

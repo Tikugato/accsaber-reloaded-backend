@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.mission;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -27,10 +26,10 @@ public class MissionTemplateResponse {
     private UUID xpCurveId;
     private UUID awardsItemId;
     private String awardsItemName;
-    private BigDecimal xpMultiplier;
-    private BigDecimal bandEasy;
-    private BigDecimal bandMedium;
-    private BigDecimal bandHard;
+    private Double xpMultiplier;
+    private Double bandEasy;
+    private Double bandMedium;
+    private Double bandHard;
     private Integer targetCountMin;
     private Integer targetCountMax;
     private boolean active;

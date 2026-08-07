@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.statistics;
 
-import java.math.BigDecimal;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -16,5 +15,5 @@ public class CollectionCompletionResponse {
     private String country;
     private long ownedCount;
     private long catalogTotal;
-    private BigDecimal completionPercent;
+    private Double completionPercent;
 }

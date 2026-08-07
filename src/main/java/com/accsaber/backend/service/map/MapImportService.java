@@ -1,6 +1,7 @@
 package com.accsaber.backend.service.map;
 
-import java.math.BigDecimal;
+import com.accsaber.backend.util.Rounding;
+
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
@@ -150,7 +151,7 @@ public class MapImportService {
                 ssId);
         MapDifficultyResponse response = mapService.importMapDifficulty(request, staffId, status);
 
-        BigDecimal complexity = importRequest.getComplexity();
+        Double complexity = importRequest.getComplexity();
         if (complexity == null) {
             complexity = estimateAiComplexity(songHash, importRequest.getDifficulty(),
                     importRequest.getCharacteristic());
@@ -490,8 +491,8 @@ public class MapImportService {
                 .build();
     }
 
-    public BigDecimal estimateAiComplexity(String songHash, Difficulty difficulty, String characteristic) {
-        BigDecimal aiAcc = beatLeaderClient
+    public Double estimateAiComplexity(String songHash, Difficulty difficulty, String characteristic) {
+        Double aiAcc = beatLeaderClient
                 .getAiAccuracy(songHash, characteristic, difficulty.getNumericValue())
                 .orElse(null);
         if (aiAcc == null)
@@ -501,19 +502,19 @@ public class MapImportService {
         if (complexityCurve == null)
             return null;
 
-        BigDecimal shiftedAccuracy = aiAcc.add(BigDecimal.valueOf(accuracyShift));
-        BigDecimal rawMultiplier = apCalculationService.interpolate(complexityCurve, shiftedAccuracy);
+        Double shiftedAccuracy = (aiAcc + (double) (accuracyShift));
+        Double rawMultiplier = apCalculationService.interpolate(complexityCurve, shiftedAccuracy);
 
-        double transformedMultiplier = transformMultiplier(rawMultiplier.doubleValue(),
+        double transformedMultiplier = transformMultiplier(rawMultiplier,
                 transformOffset, transformScale, transformBase);
         if (transformedMultiplier <= 0)
             return null;
 
-        double scale = complexityCurve.getScale().doubleValue();
-        double shift = complexityCurve.getShift().doubleValue();
+        double scale = complexityCurve.getScale();
+        double shift = complexityCurve.getShift();
         double complexity = apTarget / (transformedMultiplier * scale) + shift;
 
-        return BigDecimal.valueOf(complexity).setScale(1, RoundingMode.HALF_UP);
+        return Rounding.round((double) (complexity), 1);
     }
 
     private static MapDifficultyMetadata extractMetadata(BeatSaverMapResponse beatSaverMap, Difficulty difficulty,

@@ -8,7 +8,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -98,7 +97,7 @@ class DuplicateUserServiceTest {
                                 .id(PRIMARY_ID)
                                 .name("Player")
                                 .country("US")
-                                .totalXp(new BigDecimal("1000"))
+                                .totalXp(1000)
                                 .active(true)
                                 .build();
 
@@ -106,7 +105,7 @@ class DuplicateUserServiceTest {
                                 .id(SECONDARY_ID)
                                 .name("Player")
                                 .country("US")
-                                .totalXp(new BigDecimal("500"))
+                                .totalXp(500)
                                 .active(true)
                                 .build();
 
@@ -223,13 +222,13 @@ class DuplicateUserServiceTest {
                         Score secScore1 = Score.builder()
                                         .id(UUID.randomUUID()).user(secondaryUser).mapDifficulty(diff1)
                                         .score(900000).scoreNoMods(900000).rank(5).rankWhenSet(5)
-                                        .ap(new BigDecimal("400")).weightedAp(new BigDecimal("400"))
-                                        .xpGained(new BigDecimal("50")).active(true).build();
+                                        .ap(400).weightedAp(400)
+                                        .xpGained(50.0).active(true).build();
                         Score secScore2 = Score.builder()
                                         .id(UUID.randomUUID()).user(secondaryUser).mapDifficulty(diff2)
                                         .score(800000).scoreNoMods(800000).rank(10).rankWhenSet(10)
-                                        .ap(new BigDecimal("300")).weightedAp(new BigDecimal("300"))
-                                        .xpGained(new BigDecimal("30")).active(true).build();
+                                        .ap(300).weightedAp(300)
+                                        .xpGained(30.0).active(true).build();
 
                         when(userRepository.findById(PRIMARY_ID)).thenReturn(Optional.of(primaryUser));
                         when(userRepository.findById(SECONDARY_ID)).thenReturn(Optional.of(secondaryUser));
@@ -246,7 +245,7 @@ class DuplicateUserServiceTest {
                                         .thenReturn(List.of(secScore1, secScore2));
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(PRIMARY_ID, diffId1))
                                         .thenReturn(Optional.of(Score.builder().id(UUID.randomUUID())
-                                                        .ap(new BigDecimal("500")).build()));
+                                                        .ap(500).build()));
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(PRIMARY_ID, diffId2))
                                         .thenReturn(Optional.empty());
                         when(scoreRepository.saveAndFlush(any())).thenAnswer(inv -> {
@@ -269,7 +268,7 @@ class DuplicateUserServiceTest {
                         assertThat(secondaryUser.isActive()).isFalse();
 
                         assertThat(primaryUser.getTotalXp())
-                                        .isEqualByComparingTo(new BigDecimal("1000"));
+                                        .isEqualByComparingTo(1000.0);
 
                         ArgumentCaptor<Score> savedScores = ArgumentCaptor.forClass(Score.class);
                         verify(scoreRepository, org.mockito.Mockito.atLeast(3)).saveAndFlush(savedScores.capture());
@@ -291,7 +290,7 @@ class DuplicateUserServiceTest {
 
                         Score secScore = Score.builder()
                                         .id(UUID.randomUUID()).user(secondaryUser).mapDifficulty(diff)
-                                        .score(900000).ap(new BigDecimal("300")).active(true).build();
+                                        .score(900000).ap(300).active(true).build();
 
                         when(userRepository.findById(PRIMARY_ID)).thenReturn(Optional.of(primaryUser));
                         when(userRepository.findById(SECONDARY_ID)).thenReturn(Optional.of(secondaryUser));
@@ -308,7 +307,7 @@ class DuplicateUserServiceTest {
                                         .thenReturn(List.of(secScore));
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(PRIMARY_ID, diffId))
                                         .thenReturn(Optional.of(Score.builder().id(UUID.randomUUID())
-                                                        .ap(new BigDecimal("500")).build()));
+                                                        .ap(500).build()));
                         when(scoreRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
                         lenient().when(categoryRepository.findByActiveTrue()).thenReturn(List.of());
 
@@ -352,8 +351,8 @@ class DuplicateUserServiceTest {
                         Score secScore = Score.builder()
                                         .id(UUID.randomUUID()).user(secondaryUser).mapDifficulty(diff)
                                         .score(900000).scoreNoMods(800000).rank(5).rankWhenSet(5)
-                                        .ap(new BigDecimal("400")).weightedAp(new BigDecimal("400"))
-                                        .xpGained(new BigDecimal("50")).active(true).build();
+                                        .ap(400).weightedAp(400)
+                                        .xpGained(50.0).active(true).build();
 
                         ScoreModifierLink modLink = ScoreModifierLink.builder()
                                         .id(UUID.randomUUID()).score(secScore).modifier(nfMod).build();
@@ -481,13 +480,13 @@ class DuplicateUserServiceTest {
                         Score deactivatedSecondary = Score.builder()
                                         .id(UUID.randomUUID()).user(secondaryUser).mapDifficulty(diff)
                                         .score(900000).scoreNoMods(900000).rank(5).rankWhenSet(5)
-                                        .ap(new BigDecimal("400")).weightedAp(new BigDecimal("400"))
+                                        .ap(400).weightedAp(400)
                                         .active(false).build();
                         Score createdMerged = Score.builder()
                                         .id(UUID.randomUUID()).user(primaryUser).mapDifficulty(diff)
                                         .score(900000).scoreNoMods(900000).rank(5).rankWhenSet(5)
-                                        .ap(new BigDecimal("400")).weightedAp(new BigDecimal("400"))
-                                        .xpGained(new BigDecimal("50"))
+                                        .ap(400).weightedAp(400)
+                                        .xpGained(50.0)
                                         .supersedesReason("User merge").active(true).build();
 
                         UserDuplicateLink link = UserDuplicateLink.builder()
@@ -521,7 +520,7 @@ class DuplicateUserServiceTest {
                         assertThat(response.isMerged()).isFalse();
                         assertThat(deactivatedSecondary.isActive()).isTrue();
                         assertThat(createdMerged.isActive()).isFalse();
-                        assertThat(createdMerged.getXpGained()).isEqualByComparingTo(BigDecimal.ZERO);
+                        assertThat(createdMerged.getXpGained()).isEqualByComparingTo(0.0);
                         assertThat(secondaryUser.isActive()).isTrue();
                         verify(mergeScoreActionRepository).deleteByLink_Id(linkId);
                 }
@@ -569,13 +568,13 @@ class DuplicateUserServiceTest {
 
                         Score deactivatedSecondary = Score.builder()
                                         .id(UUID.randomUUID()).user(secondaryUser).mapDifficulty(diff)
-                                        .score(950000).ap(new BigDecimal("500")).active(false).build();
+                                        .score(950000).ap(500).active(false).build();
                         Score deactivatedPrimary = Score.builder()
                                         .id(UUID.randomUUID()).user(primaryUser).mapDifficulty(diff)
-                                        .score(900000).ap(new BigDecimal("400")).active(false).build();
+                                        .score(900000).ap(400).active(false).build();
                         Score createdMerged = Score.builder()
                                         .id(UUID.randomUUID()).user(primaryUser).mapDifficulty(diff)
-                                        .score(950000).ap(new BigDecimal("500"))
+                                        .score(950000).ap(500)
                                         .supersedesReason("User merge").active(true).build();
 
                         UserDuplicateLink link = UserDuplicateLink.builder()
@@ -622,7 +621,7 @@ class DuplicateUserServiceTest {
                 void mergesAllUnmergedLinks() {
                         User thirdUser = User.builder()
                                         .id(THIRD_ID).name("Third").country("US")
-                                        .totalXp(new BigDecimal("200")).active(true).build();
+                                        .totalXp(200).active(true).build();
 
                         UserDuplicateLink link1 = UserDuplicateLink.builder()
                                         .id(UUID.randomUUID())

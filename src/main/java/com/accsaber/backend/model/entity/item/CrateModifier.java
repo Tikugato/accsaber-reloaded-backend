@@ -1,7 +1,6 @@
 package com.accsaber.backend.model.entity.item;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -46,7 +45,7 @@ public class CrateModifier {
     private ItemModifier modifier;
 
     @Column(name = "drop_chance", nullable = false)
-    private BigDecimal dropChance;
+    private double dropChance;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

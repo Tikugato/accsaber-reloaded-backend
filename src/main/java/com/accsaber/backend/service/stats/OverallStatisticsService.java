@@ -1,8 +1,7 @@
 package com.accsaber.backend.service.stats;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
+import com.accsaber.backend.util.Rounding;
+
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -26,7 +25,6 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class OverallStatisticsService {
 
-        private static final MathContext MC = new MathContext(16, RoundingMode.HALF_UP);
         private static final int SCALE = 6;
 
         private final UserCategoryStatisticsRepository statisticsRepository;
@@ -51,18 +49,17 @@ public class OverallStatisticsService {
                 List<UserCategoryStatistics> sourceStats = statisticsRepository
                                 .findActiveByUserWhereCountForOverall(userId);
 
-                BigDecimal totalAp = sumAp(sourceStats);
-                BigDecimal totalScoreXp = sumScoreXp(sourceStats);
+                Double totalAp = sumAp(sourceStats);
+                Double totalScoreXp = sumScoreXp(sourceStats);
                 int totalPlays = sumRankedPlays(sourceStats);
-                BigDecimal avgAcc = computeWeightedAverageAcc(sourceStats, totalPlays);
-                BigDecimal avgAp = totalPlays == 0
-                                ? BigDecimal.ZERO
-                                : totalAp.divide(BigDecimal.valueOf(totalPlays), SCALE, RoundingMode.HALF_UP);
+                Double avgAcc = computeWeightedAverageAcc(sourceStats, totalPlays);
+                Double avgAp = totalPlays == 0
+                                ? 0.0
+                                : Rounding.round(totalAp / (double) (totalPlays), SCALE);
                 Score topPlay = sourceStats.stream()
                                 .map(UserCategoryStatistics::getTopPlay)
                                 .filter(Objects::nonNull)
-                                .filter(s -> s.getAp() != null)
-                                .max(Comparator.comparing(Score::getAp))
+                                .max(Comparator.comparingDouble(Score::getAp))
                                 .orElse(null);
 
                 if (current != null) {
@@ -98,11 +95,10 @@ public class OverallStatisticsService {
                                 .ifPresent(c -> rankingService.updateRankings(c.getId()));
         }
 
-        private BigDecimal sumAp(List<UserCategoryStatistics> stats) {
-                return stats.stream()
-                                .map(UserCategoryStatistics::getAp)
-                                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b, MC))
-                                .setScale(SCALE, RoundingMode.HALF_UP);
+        private Double sumAp(List<UserCategoryStatistics> stats) {
+                return Rounding.round(stats.stream()
+                                .mapToDouble(UserCategoryStatistics::getAp)
+                                .sum(), SCALE);
         }
 
         private int sumRankedPlays(List<UserCategoryStatistics> stats) {
@@ -111,14 +107,13 @@ public class OverallStatisticsService {
                                 .sum();
         }
 
-        private BigDecimal sumScoreXp(List<UserCategoryStatistics> stats) {
-                return stats.stream()
-                                .map(UserCategoryStatistics::getScoreXp)
-                                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b, MC))
-                                .setScale(SCALE, RoundingMode.HALF_UP);
+        private Double sumScoreXp(List<UserCategoryStatistics> stats) {
+                return Rounding.round(stats.stream()
+                                .mapToDouble(UserCategoryStatistics::getScoreXp)
+                                .sum(), SCALE);
         }
 
-        private BigDecimal computeWeightedAverageAcc(List<UserCategoryStatistics> stats, int totalPlays) {
+        private Double computeWeightedAverageAcc(List<UserCategoryStatistics> stats, int totalPlays) {
                 if (totalPlays == 0)
                         return null;
                 List<UserCategoryStatistics> withAcc = stats.stream()
@@ -126,9 +121,9 @@ public class OverallStatisticsService {
                                 .toList();
                 if (withAcc.isEmpty())
                         return null;
-                BigDecimal weightedSum = withAcc.stream()
-                                .map(s -> s.getAverageAcc().multiply(BigDecimal.valueOf(s.getRankedPlays()), MC))
-                                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b, MC));
-                return weightedSum.divide(BigDecimal.valueOf(totalPlays), SCALE, RoundingMode.HALF_UP);
+                double weightedSum = withAcc.stream()
+                                .mapToDouble(s -> s.getAverageAcc() * s.getRankedPlays())
+                                .sum();
+                return Rounding.round(weightedSum / totalPlays, SCALE);
         }
 }

@@ -15,11 +15,11 @@ import lombok.NoArgsConstructor;
 public class CampaignBackgroundPlacement {
 
     @Column(name = "background_size")
-    private Integer size;
+    private Double size;
 
     @Column(name = "background_x")
-    private Integer x;
+    private Double x;
 
     @Column(name = "background_y")
-    private Integer y;
+    private Double y;
 }

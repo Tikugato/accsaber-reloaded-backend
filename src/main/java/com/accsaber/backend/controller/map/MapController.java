@@ -1,6 +1,5 @@
 package com.accsaber.backend.controller.map;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -72,8 +71,8 @@ public class MapController {
     public ResponseEntity<Page<PublicMapDifficultyResponse>> listDifficulties(
             @RequestParam(required = false) String categoryId,
             @RequestParam(required = false) List<MapDifficultyStatus> status,
-            @RequestParam(required = false) BigDecimal complexityMin,
-            @RequestParam(required = false) BigDecimal complexityMax,
+            @RequestParam(required = false) Double complexityMin,
+            @RequestParam(required = false) Double complexityMax,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "rankedAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity

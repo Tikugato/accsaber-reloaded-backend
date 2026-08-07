@@ -8,7 +8,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -81,7 +80,7 @@ class MilestoneServiceMapLinkTest {
                                 .id(UUID.randomUUID())
                                 .title("Map Milestones")
                                 .description("Milestones tied to maps")
-                                .setBonusXp(BigDecimal.ZERO)
+                                .setBonusXp(0.0)
                                 .build();
 
                 querySpec = new MilestoneQuerySpec(
@@ -97,9 +96,9 @@ class MilestoneServiceMapLinkTest {
                 request.setDescription("Tied to specific maps");
                 request.setType("milestone");
                 request.setTier(MilestoneTier.gold);
-                request.setXp(BigDecimal.valueOf(250));
+                request.setXp((double) (250));
                 request.setQuerySpec(querySpec);
-                request.setTargetValue(BigDecimal.valueOf(95));
+                request.setTargetValue((double) (95));
                 request.setComparison("GTE");
                 request.setMapDifficultyIds(mapDifficultyIds);
                 return request;
@@ -121,9 +120,9 @@ class MilestoneServiceMapLinkTest {
                                         .title("Map Milestone")
                                         .type("milestone")
                                         .tier(MilestoneTier.gold)
-                                        .xp(BigDecimal.valueOf(250))
+                                        .xp((double) (250))
                                         .querySpec(querySpec)
-                                        .targetValue(BigDecimal.valueOf(95))
+                                        .targetValue((double) (95))
                                         .comparison("GTE")
                                         .build();
 
@@ -152,9 +151,9 @@ class MilestoneServiceMapLinkTest {
                                         .title("Map Milestone")
                                         .type("milestone")
                                         .tier(MilestoneTier.gold)
-                                        .xp(BigDecimal.valueOf(250))
+                                        .xp((double) (250))
                                         .querySpec(querySpec)
-                                        .targetValue(BigDecimal.valueOf(95))
+                                        .targetValue((double) (95))
                                         .comparison("GTE")
                                         .build();
 
@@ -183,9 +182,9 @@ class MilestoneServiceMapLinkTest {
                                         .title("No Maps")
                                         .type("milestone")
                                         .tier(MilestoneTier.bronze)
-                                        .xp(BigDecimal.valueOf(100))
+                                        .xp((double) (100))
                                         .querySpec(querySpec)
-                                        .targetValue(BigDecimal.ONE)
+                                        .targetValue(1.0)
                                         .comparison("GTE")
                                         .build();
 
@@ -207,9 +206,9 @@ class MilestoneServiceMapLinkTest {
                                         .title("Empty Maps")
                                         .type("milestone")
                                         .tier(MilestoneTier.bronze)
-                                        .xp(BigDecimal.valueOf(100))
+                                        .xp((double) (100))
                                         .querySpec(querySpec)
-                                        .targetValue(BigDecimal.ONE)
+                                        .targetValue(1.0)
                                         .comparison("GTE")
                                         .build();
 
@@ -232,9 +231,9 @@ class MilestoneServiceMapLinkTest {
                                         .title("Bad Link")
                                         .type("milestone")
                                         .tier(MilestoneTier.bronze)
-                                        .xp(BigDecimal.ONE)
+                                        .xp(1.0)
                                         .querySpec(querySpec)
-                                        .targetValue(BigDecimal.ONE)
+                                        .targetValue(1.0)
                                         .comparison("GTE")
                                         .build();
 
@@ -262,9 +261,9 @@ class MilestoneServiceMapLinkTest {
                                         .title("Existing Milestone")
                                         .type("milestone")
                                         .tier(MilestoneTier.silver)
-                                        .xp(BigDecimal.valueOf(200))
+                                        .xp((double) (200))
                                         .querySpec(querySpec)
-                                        .targetValue(BigDecimal.valueOf(90))
+                                        .targetValue((double) (90))
                                         .comparison("GTE")
                                         .build();
                 }

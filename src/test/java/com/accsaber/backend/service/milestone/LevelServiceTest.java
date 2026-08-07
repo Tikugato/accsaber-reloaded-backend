@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -46,9 +45,9 @@ class LevelServiceTest {
                 .type(CurveType.FORMULA)
                 .formula("POWER_FLOOR")
                 .xParameterName("base")
-                .xParameterValue(BigDecimal.valueOf(52))
+                .xParameterValue((double) (52))
                 .yParameterName("exponent")
-                .yParameterValue(BigDecimal.valueOf(1.2))
+                .yParameterValue((double) (1.2))
                 .build();
         when(curveRepository.findById(LEVEL_CURVE_ID)).thenReturn(Optional.of(levelCurve));
         service.evictLevelCurveCache();
@@ -60,24 +59,24 @@ class LevelServiceTest {
         @Test
         void level1_returnsExpectedValue() {
             // floor(52 * 1^1.2) = 52
-            assertThat(service.xpForLevel(1)).isEqualByComparingTo(BigDecimal.valueOf(52));
+            assertThat(service.xpForLevel(1)).isEqualByComparingTo((double) (52));
         }
 
         @Test
         void level2_returnsExpectedValue() {
             // floor(52 * 2^1.2) = floor(52 * 2.2974) = floor(119.46) = 119
-            assertThat(service.xpForLevel(2).intValue()).isEqualTo(119);
+            assertThat((int) (service.xpForLevel(2))).isEqualTo(119);
         }
 
         @Test
         void level10_returnsExpectedValue() {
             // floor(52 * 10^1.2) = floor(52 * 15.8489) = floor(824.14) = 824
-            assertThat(service.xpForLevel(10).intValue()).isEqualTo(824);
+            assertThat((int) (service.xpForLevel(10))).isEqualTo(824);
         }
 
         @Test
         void level100_returnsCapValue() {
-            BigDecimal level100Cost = service.xpForLevel(100);
+            Double level100Cost = service.xpForLevel(100);
             // floor(52 * 100^1.2) = floor(52 * 251.189) = 13061
             assertThat(level100Cost.intValue()).isEqualTo(13061);
         }
@@ -103,11 +102,11 @@ class LevelServiceTest {
 
         @Test
         void zeroXp_returnsLevel0() {
-            LevelResponse response = service.calculateLevel(BigDecimal.ZERO);
+            LevelResponse response = service.calculateLevel(0.0);
 
             assertThat(response.getLevel()).isEqualTo(0);
-            assertThat(response.getTotalXp()).isEqualByComparingTo(BigDecimal.ZERO);
-            assertThat(response.getProgressPercent()).isEqualByComparingTo(BigDecimal.ZERO);
+            assertThat(response.getTotalXp()).isEqualByComparingTo(0.0);
+            assertThat(response.getProgressPercent()).isEqualByComparingTo(0.0);
             assertThat(response.getTitle()).isNull();
         }
 
@@ -120,7 +119,7 @@ class LevelServiceTest {
 
         @Test
         void exactlyEnoughForLevel1_returnsLevel1() {
-            BigDecimal totalXp = BigDecimal.valueOf(52);
+            Double totalXp = (double) (52);
             when(levelThresholdRepository.findHighestTitleAtOrBelow(1))
                     .thenReturn(Optional.of(LevelThreshold.builder().level(0).title("Newcomer").build()));
 
@@ -128,12 +127,12 @@ class LevelServiceTest {
 
             assertThat(response.getLevel()).isEqualTo(1);
             assertThat(response.getTitle()).isEqualTo("Newcomer");
-            assertThat(response.getXpForCurrentLevel()).isEqualByComparingTo(BigDecimal.ZERO);
+            assertThat(response.getXpForCurrentLevel()).isEqualByComparingTo(0.0);
         }
 
         @Test
         void justUnderLevel1_returnsLevel0() {
-            BigDecimal totalXp = BigDecimal.valueOf(51);
+            Double totalXp = (double) (51);
             when(levelThresholdRepository.findHighestTitleAtOrBelow(0))
                     .thenReturn(Optional.of(LevelThreshold.builder().level(0).title("Newcomer").build()));
 
@@ -145,19 +144,19 @@ class LevelServiceTest {
         @Test
         void progressPercent_isCalculatedCorrectly() {
             // level1 = 52, level2 = 119 → at 52 + 59 = 111 → 59/119 ≈ 49.58%
-            BigDecimal totalXp = BigDecimal.valueOf(111);
+            Double totalXp = (double) (111);
             when(levelThresholdRepository.findHighestTitleAtOrBelow(anyInt()))
                     .thenReturn(Optional.empty());
 
             LevelResponse response = service.calculateLevel(totalXp);
 
             assertThat(response.getLevel()).isEqualTo(1);
-            assertThat(response.getProgressPercent().doubleValue()).isCloseTo(49.58, within(1.0));
+            assertThat(response.getProgressPercent()).isCloseTo(49.58, within(1.0));
         }
 
         @Test
         void xpForNextLevel_reportedCorrectly() {
-            BigDecimal totalXp = BigDecimal.valueOf(52);
+            Double totalXp = (double) (52);
             when(levelThresholdRepository.findHighestTitleAtOrBelow(anyInt()))
                     .thenReturn(Optional.empty());
 
@@ -167,7 +166,7 @@ class LevelServiceTest {
 
         @Test
         void highLevel_titleFromHighestMatchingThreshold() {
-            BigDecimal bigXp = BigDecimal.valueOf(5_000_000);
+            Double bigXp = (double) (5_000_000);
             LevelThreshold grandmaster = LevelThreshold.builder()
                     .level(60).title("Grandmaster").build();
             when(levelThresholdRepository.findHighestTitleAtOrBelow(anyInt()))
@@ -181,7 +180,7 @@ class LevelServiceTest {
 
         @Test
         void infiniteLevels_noCapOnLevel() {
-            BigDecimal massiveXp = BigDecimal.valueOf(1_000_000_000);
+            Double massiveXp = (double) (1_000_000_000);
             when(levelThresholdRepository.findHighestTitleAtOrBelow(anyInt()))
                     .thenReturn(Optional.empty());
 
@@ -192,11 +191,11 @@ class LevelServiceTest {
 
         @Test
         void aboveLevel100_xpForNextUsesLevel100Cost() {
-            BigDecimal level100Cost = service.xpForLevel(100);
+            Double level100Cost = service.xpForLevel(100);
 
-            BigDecimal cumulativeFor101 = BigDecimal.ZERO;
+            Double cumulativeFor101 = 0.0;
             for (int i = 1; i <= 101; i++) {
-                cumulativeFor101 = cumulativeFor101.add(service.xpForLevel(i));
+                cumulativeFor101 = (cumulativeFor101 + service.xpForLevel(i));
             }
 
             when(levelThresholdRepository.findHighestTitleAtOrBelow(anyInt()))
@@ -210,7 +209,7 @@ class LevelServiceTest {
 
         @Test
         void totalXp_setInResponse() {
-            BigDecimal totalXp = BigDecimal.valueOf(500);
+            Double totalXp = (double) (500);
             when(levelThresholdRepository.findHighestTitleAtOrBelow(anyInt()))
                     .thenReturn(Optional.empty());
 

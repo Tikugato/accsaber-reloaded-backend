@@ -1,6 +1,5 @@
 package com.accsaber.backend.repository.user;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -92,20 +91,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Modifying
     @Transactional
     @Query("UPDATE User u SET u.totalXp = u.totalXp + :xp WHERE u.id = :id")
-    void addXp(@Param("id") Long id, @Param("xp") BigDecimal xp);
+    void addXp(@Param("id") Long id, @Param("xp") Double xp);
 
     @Modifying
     @Transactional
     @Query("UPDATE User u SET u.missionXp = u.missionXp + :xp WHERE u.id = :id")
-    void addMissionXp(@Param("id") Long id, @Param("xp") BigDecimal xp);
+    void addMissionXp(@Param("id") Long id, @Param("xp") Double xp);
 
     @Modifying
     @Transactional
     @Query("UPDATE User u SET u.campaignXp = u.campaignXp + :xp WHERE u.id = :id")
-    void addCampaignXp(@Param("id") Long id, @Param("xp") BigDecimal xp);
+    void addCampaignXp(@Param("id") Long id, @Param("xp") Double xp);
 
     @Query("SELECT u.totalXp FROM User u WHERE u.id = :id")
-    java.util.Optional<BigDecimal> findTotalXpById(@Param("id") Long id);
+    java.util.Optional<Double> findTotalXpById(@Param("id") Long id);
 
     @Modifying
     @Transactional

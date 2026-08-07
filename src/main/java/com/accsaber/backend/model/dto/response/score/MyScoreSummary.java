@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.score;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -13,9 +12,9 @@ public class MyScoreSummary {
 
     private UUID id;
     private Integer score;
-    private BigDecimal accuracy;
-    private BigDecimal ap;
-    private BigDecimal weightedAp;
+    private Double accuracy;
+    private Double ap;
+    private Double weightedAp;
     private Integer rank;
     private Instant timeSet;
 }

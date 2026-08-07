@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.item;
 
-import java.math.BigDecimal;
 import java.util.Map;
 
 import com.accsaber.backend.model.entity.item.ItemRarity;

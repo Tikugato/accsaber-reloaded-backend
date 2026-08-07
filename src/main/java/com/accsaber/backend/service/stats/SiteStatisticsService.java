@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.stats;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -131,7 +130,7 @@ public class SiteStatisticsService {
                                 .difficulty(Difficulty.fromDbValue((String) row[7]))
                                 .categoryId((UUID) row[8])
                                 .categoryName((String) row[9])
-                                .averageWeightedAp((BigDecimal) row[10])
+                                .averageWeightedAp((Double) row[10])
                                 .scoreCount(((Number) row[11]).longValue())
                                 .latestScoreTimeSet(row[12] != null ? (Instant) row[12] : null)
                                 .latestScoreId(row[13] != null ? (UUID) row[13] : null)
@@ -674,7 +673,7 @@ public class SiteStatisticsService {
                                 .country((String) row[4])
                                 .ownedCount(((Number) row[5]).longValue())
                                 .catalogTotal(((Number) row[6]).longValue())
-                                .completionPercent((BigDecimal) row[7])
+                                .completionPercent((Double) row[7])
                                 .build());
         }
 

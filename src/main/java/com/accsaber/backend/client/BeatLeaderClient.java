@@ -1,6 +1,5 @@
 package com.accsaber.backend.client;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -142,7 +141,7 @@ public class BeatLeaderClient {
     }
 
     @SuppressWarnings("unchecked")
-    public Optional<BigDecimal> getAiAccuracy(String songHash, String characteristic, int difficulty) {
+    public Optional<Double> getAiAccuracy(String songHash, String characteristic, int difficulty) {
         try {
             String stageBaseUrl = properties.getBeatleaderStageBaseUrl();
             Map<String, Object> response = webClient.get()
@@ -161,7 +160,7 @@ public class BeatLeaderClient {
             if (notes == null || notes.get("AIacc") == null)
                 return Optional.empty();
 
-            return Optional.of(new BigDecimal(notes.get("AIacc").toString()));
+            return Optional.of(Double.parseDouble(notes.get("AIacc").toString()));
         } catch (WebClientResponseException.NotFound e) {
             return Optional.empty();
         } catch (Exception e) {

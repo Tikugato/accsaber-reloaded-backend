@@ -13,7 +13,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -202,7 +201,7 @@ class CampaignServiceTest {
                                 .name("Test Campaign")
                                 .slug("test-campaign")
                                 .status(CampaignStatus.DRAFT)
-                                .completionXp(BigDecimal.ZERO)
+                                .completionXp(0.0)
                                 .active(true)
                                 .campaignDifficulties(List.of())
                                 .build();
@@ -327,18 +326,31 @@ class CampaignServiceTest {
                 @Test
                 void storesBackgroundPlacementWhenAllThreeSupplied() {
                         UpdateCampaignRequest request = new UpdateCampaignRequest();
-                        request.setBackground(new CampaignBackgroundPlacement(140, 50, 20));
+                        request.setBackground(placement("140", "50", "20"));
                         stubUpdate();
 
                         CampaignResponse result = campaignService.updateCampaign(campaign.getId(), request);
 
                         assertThat(result.getBackground())
-                                        .isEqualTo(new CampaignBackgroundPlacement(140, 50, 20));
+                                        .isEqualTo(placement("140", "50", "20"));
+                }
+
+                @Test
+                void keepsDecimalBackgroundPlacement() {
+                        UpdateCampaignRequest request = new UpdateCampaignRequest();
+                        request.setBackground(placement("140.5", "2.5", "-3.25"));
+                        stubUpdate();
+
+                        CampaignResponse result = campaignService.updateCampaign(campaign.getId(), request);
+
+                        assertThat(result.getBackground().getSize()).isEqualByComparingTo(140.5);
+                        assertThat(result.getBackground().getX()).isEqualByComparingTo(2.5);
+                        assertThat(result.getBackground().getY()).isEqualByComparingTo(-3.25);
                 }
 
                 @Test
                 void emptyBackgroundObjectClearsPlacement() {
-                        campaign.setBackground(new CampaignBackgroundPlacement(140, 50, 20));
+                        campaign.setBackground(placement("140", "50", "20"));
                         UpdateCampaignRequest request = new UpdateCampaignRequest();
                         request.setBackground(new CampaignBackgroundPlacement());
                         stubUpdate();
@@ -351,7 +363,7 @@ class CampaignServiceTest {
 
                 @Test
                 void omittedBackgroundLeavesPlacementUntouched() {
-                        campaign.setBackground(new CampaignBackgroundPlacement(140, 50, 20));
+                        campaign.setBackground(placement("140", "50", "20"));
                         UpdateCampaignRequest request = new UpdateCampaignRequest();
                         request.setName("Renamed");
                         stubUpdate();
@@ -359,13 +371,13 @@ class CampaignServiceTest {
                         CampaignResponse result = campaignService.updateCampaign(campaign.getId(), request);
 
                         assertThat(result.getBackground())
-                                        .isEqualTo(new CampaignBackgroundPlacement(140, 50, 20));
+                                        .isEqualTo(placement("140", "50", "20"));
                 }
 
                 @Test
                 void rejectsPartialBackgroundPlacement() {
                         UpdateCampaignRequest request = new UpdateCampaignRequest();
-                        request.setBackground(new CampaignBackgroundPlacement(140, null, null));
+                        request.setBackground(new CampaignBackgroundPlacement(140.0, null, null));
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
 
@@ -376,7 +388,7 @@ class CampaignServiceTest {
                 @Test
                 void rejectsOutOfRangeBackgroundSize() {
                         UpdateCampaignRequest request = new UpdateCampaignRequest();
-                        request.setBackground(new CampaignBackgroundPlacement(0, 50, 20));
+                        request.setBackground(placement("0", "50", "20"));
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
 
@@ -387,7 +399,7 @@ class CampaignServiceTest {
                 @Test
                 void removingBackgroundImageClearsPlacement() {
                         campaign.setBackgroundUrl("https://cdn.example/bg.png");
-                        campaign.setBackground(new CampaignBackgroundPlacement(140, 50, 20));
+                        campaign.setBackground(placement("140", "50", "20"));
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
                         when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -404,6 +416,11 @@ class CampaignServiceTest {
                                         .thenReturn(Optional.of(campaign));
                         when(campaignRepository.save(any(Campaign.class))).thenAnswer(inv -> inv.getArgument(0));
                         when(campaignTagLinkRepository.findByCampaign_Id(any())).thenReturn(List.of());
+                }
+
+                private static CampaignBackgroundPlacement placement(String size, String x, String y) {
+                        return new CampaignBackgroundPlacement(Double.valueOf(size), Double.valueOf(x),
+                                        Double.valueOf(y));
                 }
         }
 
@@ -441,11 +458,11 @@ class CampaignServiceTest {
                                         .thenReturn(List.of());
                         when(campaignRewardTotalsRepository.findByCampaignIdIn(List.of(campaign.getId())))
                                         .thenReturn(List.of(new CampaignRewardTotals(campaign.getId(),
-                                                        new BigDecimal("4500"), 9)));
+                                                        4500, 9)));
 
                         CampaignResponse result = firstListedCampaign();
 
-                        assertThat(result.getTotalXp()).isEqualByComparingTo(new BigDecimal("4500"));
+                        assertThat(result.getTotalXp()).isEqualByComparingTo(4500.0);
                         assertThat(result.getTotalRewardCount()).isEqualTo(9);
                 }
 
@@ -627,10 +644,10 @@ class CampaignServiceTest {
                         return CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal(acc))
+                                        .requirementValue(Double.valueOf(acc))
                                         .terminal(terminal)
-                                        .positionX(BigDecimal.valueOf(x)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX((double) (x)).positionY((double) (0))
+                                        .xp(0.0).active(true).build();
                 }
 
                 private void stubPublish(List<CampaignDifficulty> difficulties) {
@@ -687,8 +704,8 @@ class CampaignServiceTest {
                 void rejectsWhenOnlyABarrierIsFlaggedTerminal() {
                         CampaignDifficulty gate = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).barrier(true).terminal(true)
-                                        .positionX(BigDecimal.valueOf(2)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX((double) (2)).positionY((double) (0))
+                                        .xp(0.0).active(true).build();
                         stubPublish(List.of(node(0, "0.90", false), gate));
 
                         assertThatThrownBy(() -> campaignService.publish(campaign.getId()))
@@ -700,10 +717,10 @@ class CampaignServiceTest {
                         CampaignDifficulty node = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.95"))
+                                        .requirementValue(0.95)
                                         .terminal(true)
-                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true)
+                                        .positionX((double) (0)).positionY((double) (0))
+                                        .xp(0.0).active(true)
                                         .requirementDirty(true).build();
 
                         stubPublish(List.of(node));
@@ -797,10 +814,10 @@ class CampaignServiceTest {
                         CampaignDifficulty single = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.90"))
+                                        .requirementValue(0.90)
                                         .terminal(true)
-                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX((double) (0)).positionY((double) (0))
+                                        .xp(0.0).active(true).build();
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
@@ -829,16 +846,16 @@ class CampaignServiceTest {
                         AddCampaignDifficultyRequest request = new AddCampaignDifficultyRequest();
                         request.setMapDifficultyId(mapDifficulty.getId());
                         request.setRequirementType(CampaignRequirementType.ACC);
-                        request.setRequirementValue(new BigDecimal("0.95"));
-                        request.setPositionX(BigDecimal.valueOf(0));
-                        request.setPositionY(BigDecimal.valueOf(0));
+                        request.setRequirementValue(0.95);
+                        request.setPositionX((double) (0));
+                        request.setPositionY((double) (0));
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
                         when(mapDifficultyRepository.findByIdAndActiveTrue(mapDifficulty.getId()))
                                         .thenReturn(Optional.of(mapDifficulty));
                         when(campaignDifficultyRepository.existsByCampaign_IdAndPositionXAndPositionYAndActiveTrue(
-                                        campaign.getId(), BigDecimal.ZERO, BigDecimal.ZERO)).thenReturn(true);
+                                        campaign.getId(), 0.0, 0.0)).thenReturn(true);
 
                         assertThatThrownBy(() -> campaignService.addDifficulty(campaign.getId(), request))
                                         .isInstanceOf(ValidationException.class);
@@ -849,17 +866,17 @@ class CampaignServiceTest {
                         AddCampaignDifficultyRequest request = new AddCampaignDifficultyRequest();
                         request.setMapDifficultyId(mapDifficulty.getId());
                         request.setRequirementType(CampaignRequirementType.ACC);
-                        request.setRequirementValue(new BigDecimal("0.95"));
-                        request.setPositionX(BigDecimal.valueOf(2));
-                        request.setPositionY(BigDecimal.valueOf(1));
-                        request.setXp(new BigDecimal("100"));
+                        request.setRequirementValue(0.95);
+                        request.setPositionX((double) (2));
+                        request.setPositionY((double) (1));
+                        request.setXp(100.0);
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
                         when(mapDifficultyRepository.findByIdAndActiveTrue(mapDifficulty.getId()))
                                         .thenReturn(Optional.of(mapDifficulty));
                         when(campaignDifficultyRepository.existsByCampaign_IdAndPositionXAndPositionYAndActiveTrue(
-                                        campaign.getId(), BigDecimal.valueOf(2), BigDecimal.ONE)).thenReturn(false);
+                                        campaign.getId(), (double) (2), 1.0)).thenReturn(false);
                         when(campaignDifficultyRepository.save(any(CampaignDifficulty.class))).thenAnswer(inv -> {
                                 CampaignDifficulty d = inv.getArgument(0);
                                 d.setId(UUID.randomUUID());
@@ -868,9 +885,9 @@ class CampaignServiceTest {
 
                         CampaignDifficultyResponse result = campaignService.addDifficulty(campaign.getId(), request);
 
-                        assertThat(result.getPositionX()).isEqualByComparingTo(BigDecimal.valueOf(2));
-                        assertThat(result.getPositionY()).isEqualByComparingTo(BigDecimal.valueOf(1));
-                        assertThat(result.getXp()).isEqualByComparingTo(new BigDecimal("100"));
+                        assertThat(result.getPositionX()).isEqualByComparingTo((double) (2));
+                        assertThat(result.getPositionY()).isEqualByComparingTo((double) (1));
+                        assertThat(result.getXp()).isEqualByComparingTo(100.0);
                 }
 
                 @Test
@@ -878,9 +895,9 @@ class CampaignServiceTest {
                         AddCampaignDifficultyRequest request = new AddCampaignDifficultyRequest();
                         request.setMapDifficultyId(mapDifficulty.getId());
                         request.setRequirementType(CampaignRequirementType.ACC);
-                        request.setRequirementValue(new BigDecimal("0.95"));
-                        request.setPositionX(BigDecimal.valueOf(2));
-                        request.setPositionY(BigDecimal.valueOf(1));
+                        request.setRequirementValue(0.95);
+                        request.setPositionX((double) (2));
+                        request.setPositionY((double) (1));
                         request.setNodeBorderUrl("https://cdn.example/border.png");
                         stubAddDifficulty();
 
@@ -895,9 +912,9 @@ class CampaignServiceTest {
                         AddCampaignDifficultyRequest request = new AddCampaignDifficultyRequest();
                         request.setMapDifficultyId(mapDifficulty.getId());
                         request.setRequirementType(CampaignRequirementType.ACC);
-                        request.setRequirementValue(new BigDecimal("0.95"));
-                        request.setPositionX(BigDecimal.valueOf(2));
-                        request.setPositionY(BigDecimal.valueOf(1));
+                        request.setRequirementValue(0.95);
+                        request.setPositionX((double) (2));
+                        request.setPositionY((double) (1));
                         request.setNodeBorderUrl("https://cdn.example/border.png");
                         request.setNodeBorderLayer(CampaignNodeBorderLayer.BELOW);
                         stubAddDifficulty();
@@ -912,16 +929,16 @@ class CampaignServiceTest {
                         AddCampaignDifficultyRequest request = new AddCampaignDifficultyRequest();
                         request.setMapDifficultyId(mapDifficulty.getId());
                         request.setRequirementType(CampaignRequirementType.ACC);
-                        request.setRequirementValue(new BigDecimal("0.95"));
-                        request.setPositionX(new BigDecimal("2.25"));
-                        request.setPositionY(new BigDecimal("-1.5"));
+                        request.setRequirementValue(0.95);
+                        request.setPositionX(2.25);
+                        request.setPositionY(-1.5);
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
                         when(mapDifficultyRepository.findByIdAndActiveTrue(mapDifficulty.getId()))
                                         .thenReturn(Optional.of(mapDifficulty));
                         when(campaignDifficultyRepository.existsByCampaign_IdAndPositionXAndPositionYAndActiveTrue(
-                                        campaign.getId(), new BigDecimal("2.25"), new BigDecimal("-1.5")))
+                                        campaign.getId(), 2.25, -1.5))
                                         .thenReturn(false);
                         when(campaignDifficultyRepository.save(any(CampaignDifficulty.class))).thenAnswer(inv -> {
                                 CampaignDifficulty d = inv.getArgument(0);
@@ -931,26 +948,26 @@ class CampaignServiceTest {
 
                         CampaignDifficultyResponse result = campaignService.addDifficulty(campaign.getId(), request);
 
-                        assertThat(result.getPositionX()).isEqualByComparingTo(new BigDecimal("2.25"));
-                        assertThat(result.getPositionY()).isEqualByComparingTo(new BigDecimal("-1.5"));
+                        assertThat(result.getPositionX()).isEqualByComparingTo(2.25);
+                        assertThat(result.getPositionY()).isEqualByComparingTo(-1.5);
                 }
 
                 @Test
                 void clearsTheUpperBoundOnRequest() {
-                        CampaignDifficulty node = boundedNode(new BigDecimal("0.90"), new BigDecimal("0.95"));
+                        CampaignDifficulty node = boundedNode(0.90, 0.95);
                         UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
                         request.setClear(Set.of(CampaignBound.VALUE_MAX));
                         stubNodeUpdate(node);
 
                         CampaignDifficultyResponse result = campaignService.updateDifficulty(node.getId(), request);
 
-                        assertThat(result.getRequirementValue()).isEqualByComparingTo(new BigDecimal("0.90"));
+                        assertThat(result.getRequirementValue()).isEqualByComparingTo(0.90);
                         assertThat(result.getRequirementValueMax()).isNull();
                 }
 
                 @Test
                 void clearsTheLowerBoundLeavingACapOnlyRequirement() {
-                        CampaignDifficulty node = boundedNode(BigDecimal.ONE, new BigDecimal("3"));
+                        CampaignDifficulty node = boundedNode(1.0, 3.0);
                         UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
                         request.setClear(Set.of(CampaignBound.VALUE));
                         stubNodeUpdate(node);
@@ -958,12 +975,12 @@ class CampaignServiceTest {
                         CampaignDifficultyResponse result = campaignService.updateDifficulty(node.getId(), request);
 
                         assertThat(result.getRequirementValue()).isNull();
-                        assertThat(result.getRequirementValueMax()).isEqualByComparingTo(new BigDecimal("3"));
+                        assertThat(result.getRequirementValueMax()).isEqualByComparingTo(3.0);
                 }
 
                 @Test
                 void rejectsClearingBothBounds() {
-                        CampaignDifficulty node = boundedNode(new BigDecimal("0.90"), new BigDecimal("0.95"));
+                        CampaignDifficulty node = boundedNode(0.90, 0.95);
                         UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
                         request.setClear(Set.of(CampaignBound.VALUE, CampaignBound.VALUE_MAX));
                         when(campaignDifficultyRepository.findByIdAndActiveTrue(node.getId()))
@@ -975,9 +992,9 @@ class CampaignServiceTest {
 
                 @Test
                 void rejectsSettingAndClearingTheSameBound() {
-                        CampaignDifficulty node = boundedNode(new BigDecimal("0.90"), new BigDecimal("0.95"));
+                        CampaignDifficulty node = boundedNode(0.90, 0.95);
                         UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
-                        request.setRequirementValueMax(new BigDecimal("0.99"));
+                        request.setRequirementValueMax(0.99);
                         request.setClear(Set.of(CampaignBound.VALUE_MAX));
                         when(campaignDifficultyRepository.findByIdAndActiveTrue(node.getId()))
                                         .thenReturn(Optional.of(node));
@@ -986,13 +1003,13 @@ class CampaignServiceTest {
                                         .isInstanceOf(ValidationException.class);
                 }
 
-                private CampaignDifficulty boundedNode(BigDecimal value, BigDecimal valueMax) {
+                private CampaignDifficulty boundedNode(Double value, Double valueMax) {
                         return CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
                                         .requirementValue(value).requirementValueMax(valueMax)
-                                        .positionX(BigDecimal.ZERO).positionY(BigDecimal.ZERO)
-                                        .xp(BigDecimal.ZERO).active(true).build();
+                                        .positionX(0.0).positionY(0.0)
+                                        .xp(0.0).active(true).build();
                 }
 
                 private void stubNodeUpdate(CampaignDifficulty node) {
@@ -1009,12 +1026,12 @@ class CampaignServiceTest {
                         CampaignDifficulty node = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(new BigDecimal("2")).positionY(BigDecimal.ONE)
-                                        .xp(BigDecimal.ZERO).active(true).build();
+                                        .requirementValue(0.95)
+                                        .positionX(2).positionY(1.0)
+                                        .xp(0.0).active(true).build();
                         UpdateCampaignDifficultyRequest request = new UpdateCampaignDifficultyRequest();
-                        request.setPositionX(new BigDecimal("2.00"));
-                        request.setPositionY(new BigDecimal("1.000"));
+                        request.setPositionX(2.00);
+                        request.setPositionY(1.000);
 
                         when(campaignDifficultyRepository.findByIdAndActiveTrue(node.getId()))
                                         .thenReturn(Optional.of(node));
@@ -1035,7 +1052,7 @@ class CampaignServiceTest {
                         when(mapDifficultyRepository.findByIdAndActiveTrue(mapDifficulty.getId()))
                                         .thenReturn(Optional.of(mapDifficulty));
                         when(campaignDifficultyRepository.existsByCampaign_IdAndPositionXAndPositionYAndActiveTrue(
-                                        campaign.getId(), BigDecimal.valueOf(2), BigDecimal.ONE)).thenReturn(false);
+                                        campaign.getId(), (double) (2), 1.0)).thenReturn(false);
                         when(campaignDifficultyRepository.save(any(CampaignDifficulty.class))).thenAnswer(inv -> {
                                 CampaignDifficulty d = inv.getArgument(0);
                                 d.setId(UUID.randomUUID());
@@ -1111,9 +1128,9 @@ class CampaignServiceTest {
                         CampaignDifficulty d = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
+                                        .requirementValue(0.90)
+                                        .positionX((double) (0)).positionY((double) (0))
+                                        .xp(0.0).active(true).build();
                         Score score = Score.builder()
                                         .id(UUID.randomUUID()).user(creator).mapDifficulty(mapDifficulty)
                                         .score(950000).scoreNoMods(950000)
@@ -1150,7 +1167,7 @@ class CampaignServiceTest {
                         assertThat(result.getCompletedDifficulties()).isEqualTo(1);
                         assertThat(result.getDifficulties().get(0).isCompleted()).isTrue();
                         assertThat(result.getDifficulties().get(0).getUserValue())
-                                        .isEqualByComparingTo(new BigDecimal("0.95"));
+                                        .isEqualByComparingTo(0.95);
                 }
 
                 @Test
@@ -1159,9 +1176,9 @@ class CampaignServiceTest {
                         CampaignDifficulty d = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
+                                        .requirementValue(0.90)
+                                        .positionX((double) (0)).positionY((double) (0))
+                                        .xp(0.0).active(true).build();
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
                         when(userCampaignRepository.findByUser_IdAndCampaign_IdInAndActiveTrue(eq(creator.getId()),
@@ -1191,15 +1208,15 @@ class CampaignServiceTest {
                         CampaignDifficulty a = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
+                                        .requirementValue(0.90)
+                                        .positionX((double) (0)).positionY((double) (0))
+                                        .xp(0.0).active(true).build();
                         CampaignDifficulty b = CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.95"))
-                                        .positionX(BigDecimal.valueOf(1)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
+                                        .requirementValue(0.95)
+                                        .positionX((double) (1)).positionY((double) (0))
+                                        .xp(0.0).active(true).build();
 
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));
@@ -1409,9 +1426,9 @@ class CampaignServiceTest {
                         return CampaignDifficulty.builder()
                                         .id(UUID.randomUUID()).campaign(campaign).mapDifficulty(mapDifficulty)
                                         .requirementType(CampaignRequirementType.ACC)
-                                        .requirementValue(new BigDecimal("0.90"))
-                                        .positionX(BigDecimal.valueOf(0)).positionY(BigDecimal.valueOf(0))
-                                        .xp(BigDecimal.ZERO).active(true).build();
+                                        .requirementValue(0.90)
+                                        .positionX((double) (0)).positionY((double) (0))
+                                        .xp(0.0).active(true).build();
                 }
 
                 @Test

@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.map;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 import jakarta.validation.constraints.DecimalMin;
@@ -15,7 +14,7 @@ public class ApproveReweightRequest {
 
     @NotNull
     @DecimalMin("0.0")
-    private BigDecimal complexity;
+    private Double complexity;
 
     private String reason;
 }

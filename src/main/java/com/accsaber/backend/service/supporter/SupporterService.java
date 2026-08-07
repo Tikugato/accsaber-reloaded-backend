@@ -1,7 +1,5 @@
 package com.accsaber.backend.service.supporter;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
@@ -30,6 +28,7 @@ import com.accsaber.backend.repository.supporter.SupporterAccountRepository;
 import com.accsaber.backend.repository.supporter.SupporterTierRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.item.ItemService;
+import com.accsaber.backend.util.Rounding;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -92,10 +91,12 @@ public class SupporterService {
     }
 
     private void tryAutoClaimByEmail(KofiEvent event) {
-        if (event.getEmail() == null || event.getEmail().isBlank()) return;
+        if (event.getEmail() == null || event.getEmail().isBlank())
+            return;
         List<Long> prior = kofiEventRepository.findClaimedUserIdsByEmail(
                 event.getEmail(), org.springframework.data.domain.PageRequest.of(0, 1));
-        if (prior.isEmpty()) return;
+        if (prior.isEmpty())
+            return;
         try {
             claimEventForUser(event.getId(), prior.get(0), KofiClaimSource.webhook_email_match);
         } catch (Exception e) {
@@ -126,7 +127,8 @@ public class SupporterService {
     public Optional<KofiEvent> claimByRoleSignal(Long userId, String tierName, Instant assignedAt) {
         SupporterTier signalTier = resolveTierByName(tierName).orElse(null);
         if (signalTier == null) {
-            log.warn("Role-signal claim for user {}: tier name '{}' does not resolve to any supporter tier", userId, tierName);
+            log.warn("Role-signal claim for user {}: tier name '{}' does not resolve to any supporter tier", userId,
+                    tierName);
             return Optional.empty();
         }
         Instant since = assignedAt.minus(ROLE_CORRELATION_WINDOW);
@@ -176,8 +178,10 @@ public class SupporterService {
         com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
         payload.put("manual", true);
         payload.put("grantedAt", now.toString());
-        if (note != null && !note.isBlank()) payload.put("note", note);
-        if (fromName != null && !fromName.isBlank()) payload.put("from_name", fromName);
+        if (note != null && !note.isBlank())
+            payload.put("note", note);
+        if (fromName != null && !fromName.isBlank())
+            payload.put("from_name", fromName);
 
         KofiEvent event = KofiEvent.builder()
                 .kofiTransactionId(txnId)
@@ -221,7 +225,8 @@ public class SupporterService {
 
     @Transactional(readOnly = true)
     public java.util.Map<Long, String> findCurrentTiersByUserIds(java.util.Collection<Long> userIds) {
-        if (userIds == null || userIds.isEmpty()) return java.util.Map.of();
+        if (userIds == null || userIds.isEmpty())
+            return java.util.Map.of();
         java.util.Map<Long, String> result = new java.util.HashMap<>();
         for (SupporterAccount a : supporterAccountRepository.findActiveByUserIds(userIds)) {
             result.put(a.getUserId(), a.getCurrentTier().getTierKey());
@@ -328,12 +333,11 @@ public class SupporterService {
             return 0;
         }
         Duration elapsed = Duration.between(account.getLastDebitAt(), Instant.now());
-        if (elapsed.compareTo(BILLING_CYCLE) >= 0) return 0;
-        BigDecimal cost = BigDecimal.valueOf(account.getCurrentTier().getMonthlyCostCents());
-        BigDecimal unused = BigDecimal.ONE.subtract(
-                BigDecimal.valueOf(elapsed.toMillis()).divide(
-                        BigDecimal.valueOf(BILLING_CYCLE.toMillis()), 6, RoundingMode.HALF_UP));
-        return cost.multiply(unused).setScale(0, RoundingMode.DOWN).intValue();
+        if (elapsed.compareTo(BILLING_CYCLE) >= 0)
+            return 0;
+        double cost = account.getCurrentTier().getMonthlyCostCents();
+        double unused = 1.0 - Rounding.round((double) elapsed.toMillis() / BILLING_CYCLE.toMillis(), 6);
+        return (int) (cost * unused);
     }
 
     private SupporterAccount loadOrCreateAccount(Long userId) {
@@ -348,10 +352,12 @@ public class SupporterService {
     }
 
     private Optional<SupporterTier> resolveTierByName(String name) {
-        if (name == null || name.isBlank()) return Optional.empty();
+        if (name == null || name.isBlank())
+            return Optional.empty();
         String trimmed = name.trim();
         Optional<SupporterTier> exact = supporterTierRepository.findByDisplayNameIgnoreCase(trimmed);
-        if (exact.isPresent()) return exact;
+        if (exact.isPresent())
+            return exact;
         String lower = trimmed.toLowerCase();
         return supporterTierRepository.findAllByOrderBySortOrderAsc().stream()
                 .filter(t -> lower.contains(t.getTierKey().toLowerCase())
@@ -404,7 +410,8 @@ public class SupporterService {
         };
     }
 
-    private record TierItemRef(String typeKey, String name) {}
+    private record TierItemRef(String typeKey, String name) {
+    }
 
     private static String textOrNull(JsonNode node, String field) {
         JsonNode v = node.get(field);
@@ -422,7 +429,8 @@ public class SupporterService {
     }
 
     private static int parseAmountCents(String raw) {
-        if (raw == null || raw.isBlank()) return 0;
-        return new BigDecimal(raw).movePointRight(2).setScale(0, RoundingMode.HALF_UP).intValue();
+        if (raw == null || raw.isBlank())
+            return 0;
+        return (int) Rounding.round(Double.parseDouble(raw) * 100, 0);
     }
 }

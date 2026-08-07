@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.score;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -31,13 +30,13 @@ public class ScoreRankingService {
         scoreRepository.syncRankWhenSetFromRank(difficultyId);
     }
 
-    public int rankNewScore(UUID difficultyId, BigDecimal ap, Instant timeSet) {
+    public int rankNewScore(UUID difficultyId, Double ap, Instant timeSet) {
         int rank = scoreRepository.countActiveScoresRankedAbove(difficultyId, ap, timeSet) + 1;
         scoreRepository.shiftScoreRanksDown(difficultyId, rank);
         return rank;
     }
 
-    public int rankImprovedScore(UUID difficultyId, int oldRank, BigDecimal newAp, Instant timeSet) {
+    public int rankImprovedScore(UUID difficultyId, int oldRank, Double newAp, Instant timeSet) {
         scoreRepository.shiftScoreRanksUp(difficultyId, oldRank);
         int rank = scoreRepository.countActiveScoresRankedAbove(difficultyId, newAp, timeSet) + 1;
         scoreRepository.shiftScoreRanksDown(difficultyId, rank);

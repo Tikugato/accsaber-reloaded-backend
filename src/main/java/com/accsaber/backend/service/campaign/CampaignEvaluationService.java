@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.campaign;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -509,14 +508,14 @@ public class CampaignEvaluationService {
         return targetsMet(difficulty, nodeTargets.targets(), type -> rowMetric(row, type, modifiers));
     }
 
-    private static BigDecimal rowMetric(Score row, CampaignRequirementType type, ScoreModifierIndex modifiers) {
+    private static Double rowMetric(Score row, CampaignRequirementType type, ScoreModifierIndex modifiers) {
         if (type != CampaignRequirementType.RANK) {
             return CampaignScoreMetrics.requirementValue(row, type, modifiers);
         }
         if (!row.isActive() || row.getRank() == null || row.getRankWhenSet() == null) {
             return null;
         }
-        return BigDecimal.valueOf(Math.min(row.getRank(), row.getRankWhenSet()));
+        return (double) (Math.min(row.getRank(), row.getRankWhenSet()));
     }
 
     private void recordQualifyingScore(UserCampaign uc, CampaignDifficulty difficulty, Score score,
@@ -668,7 +667,7 @@ public class CampaignEvaluationService {
         }
         if (barrier.getBarrierConditionType() == BarrierConditionType.COMPLETION_COUNT) {
             long completed = affected.stream().filter(completionTimes::containsKey).count();
-            return CampaignScoreMetrics.satisfiesBounds(BigDecimal.valueOf(completed),
+            return CampaignScoreMetrics.satisfiesBounds((double) (completed),
                     barrier.getBarrierConditionValue(), barrier.getBarrierConditionValueMax(), false);
         }
         if (mode == CampaignPrerequisiteMode.OR) {
@@ -741,15 +740,15 @@ public class CampaignEvaluationService {
         if (type == BarrierConditionType.PASS) {
             return bests.stream().allMatch(UserMapDifficultyBests::hasNoNfPass);
         }
-        List<BigDecimal> values = new ArrayList<>(bests.size());
+        List<Double> values = new ArrayList<>(bests.size());
         for (UserMapDifficultyBests b : bests) {
-            BigDecimal v = CampaignScoreMetrics.barrierMetric(b, type);
+            Double v = CampaignScoreMetrics.barrierMetric(b, type);
             if (v == null) {
                 return false;
             }
             values.add(v);
         }
-        BigDecimal aggregate = CampaignScoreMetrics.isMaxAggregate(type)
+        Double aggregate = CampaignScoreMetrics.isMaxAggregate(type)
                 ? CampaignScoreMetrics.max(values)
                 : CampaignScoreMetrics.average(values);
         return CampaignScoreMetrics.satisfiesBounds(
@@ -938,7 +937,7 @@ public class CampaignEvaluationService {
     }
 
     private void payDifficultyRewards(Long userId, CampaignDifficulty difficulty) {
-        if (difficulty.getXp() != null && difficulty.getXp().signum() > 0) {
+        if (difficulty.getXp() > 0) {
             levelUpAwardService.addCampaignXp(userId, difficulty.getXp());
             missionProgressService.creditXp(userId, difficulty.getXp());
         }
@@ -952,7 +951,7 @@ public class CampaignEvaluationService {
     }
 
     private void payCompletionRewards(Long userId, Campaign campaign) {
-        if (campaign.getCompletionXp() != null && campaign.getCompletionXp().signum() > 0) {
+        if (campaign.getCompletionXp() > 0) {
             levelUpAwardService.addCampaignXp(userId, campaign.getCompletionXp());
             missionProgressService.creditXp(userId, campaign.getCompletionXp());
         }
@@ -1018,7 +1017,7 @@ public class CampaignEvaluationService {
     }
 
     private static boolean targetsMet(CampaignDifficulty difficulty, List<CampaignDifficultyTarget> stored,
-            Function<CampaignRequirementType, BigDecimal> valueOf) {
+            Function<CampaignRequirementType, Double> valueOf) {
         List<CampaignDifficultyTarget> targets = stored.isEmpty() ? legacyTargets(difficulty) : stored;
         if (targets.isEmpty()) {
             return false;
@@ -1036,13 +1035,7 @@ public class CampaignEvaluationService {
         if (current == null) {
             return true;
         }
-        if (candidate.getAp() == null) {
-            return false;
-        }
-        if (current.getAp() == null) {
-            return true;
-        }
-        int cmp = candidate.getAp().compareTo(current.getAp());
+        int cmp = Double.compare(candidate.getAp(), current.getAp());
         if (cmp != 0) {
             return cmp > 0;
         }

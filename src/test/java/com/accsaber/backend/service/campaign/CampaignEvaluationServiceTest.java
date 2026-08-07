@@ -10,7 +10,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -208,11 +207,11 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 CampaignDifficulty bar = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).barrier(true)
                                 .barrierConditionType(BarrierConditionType.AVERAGE_ACC)
-                                .barrierConditionValue(new BigDecimal("0.90"))
+                                .barrierConditionValue(0.90)
                                 .prerequisiteMode(CampaignPrerequisiteMode.OR).build();
                 Score score = row(mdA, 950000, PLAYED);
                 UserCampaign uc = inProgressCampaign();
@@ -250,15 +249,15 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdC = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 CampaignDifficulty c = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).mapDifficulty(mdC)
                                 .requirementType(CampaignRequirementType.ACC)
-                                .requirementValue(new BigDecimal("0.80")).build();
+                                .requirementValue(0.80).build();
                 CampaignDifficulty bar = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).barrier(true)
                                 .barrierConditionType(BarrierConditionType.AVERAGE_ACC)
-                                .barrierConditionValue(new BigDecimal("0.90"))
+                                .barrierConditionValue(0.90)
                                 .prerequisiteMode(CampaignPrerequisiteMode.OR).build();
                 Score score = row(mdA, 950000, PLAYED);
                 UserCampaign uc = inProgressCampaign();
@@ -291,7 +290,7 @@ class CampaignEvaluationServiceTest {
 
         @Test
         void completionCountBarrierBreaksWhenEnoughAffectedNodesComplete() {
-                CampaignDifficulty bar = stubCompletionCountBarrier(new BigDecimal("2"));
+                CampaignDifficulty bar = stubCompletionCountBarrier(2.0);
 
                 ArgumentCaptor<UserCampaignScore> captor = ArgumentCaptor.forClass(UserCampaignScore.class);
                 verify(userCampaignScoreRepository, atLeastOnce()).save(captor.capture());
@@ -302,7 +301,7 @@ class CampaignEvaluationServiceTest {
 
         @Test
         void completionCountBarrierNotBrokenBelowTarget() {
-                CampaignDifficulty bar = stubCompletionCountBarrier(new BigDecimal("3"));
+                CampaignDifficulty bar = stubCompletionCountBarrier(3.0);
 
                 ArgumentCaptor<UserCampaignScore> captor = ArgumentCaptor.forClass(UserCampaignScore.class);
                 verify(userCampaignScoreRepository, atLeastOnce()).save(captor.capture());
@@ -310,22 +309,22 @@ class CampaignEvaluationServiceTest {
                                 .noneMatch(u -> u.getCampaignDifficulty().getId().equals(bar.getId()));
         }
 
-        private CampaignDifficulty stubCompletionCountBarrier(BigDecimal target) {
+        private CampaignDifficulty stubCompletionCountBarrier(Double target) {
                 campaign.setStatus(CampaignStatus.PUBLISHED);
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 CampaignDifficulty c = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true)
                                 .mapDifficulty(mapDifficulty(1_000_000))
                                 .requirementType(CampaignRequirementType.ACC)
-                                .requirementValue(new BigDecimal("0.80")).build();
+                                .requirementValue(0.80).build();
                 CampaignDifficulty d = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true)
                                 .mapDifficulty(mapDifficulty(1_000_000))
                                 .requirementType(CampaignRequirementType.ACC)
-                                .requirementValue(new BigDecimal("0.80")).build();
+                                .requirementValue(0.80).build();
                 CampaignDifficulty bar = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).barrier(true)
                                 .barrierConditionType(BarrierConditionType.COMPLETION_COUNT)
@@ -361,15 +360,15 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdC = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 CampaignDifficulty c = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).mapDifficulty(mdC)
                                 .requirementType(CampaignRequirementType.ACC)
-                                .requirementValue(new BigDecimal("0.80")).build();
+                                .requirementValue(0.80).build();
                 CampaignDifficulty bar = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).barrier(true)
                                 .barrierConditionType(BarrierConditionType.AVERAGE_ACC)
-                                .barrierConditionValue(new BigDecimal("0.90"))
+                                .barrierConditionValue(0.90)
                                 .prerequisiteMode(CampaignPrerequisiteMode.AND).build();
                 Score score = row(mdA, 950000, PLAYED);
                 UserCampaign uc = inProgressCampaign();
@@ -406,14 +405,14 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdB = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 b.setMapDifficulty(mdB);
                 b.setRequirementType(CampaignRequirementType.ACC);
-                b.setRequirementValue(new BigDecimal("0.80"));
+                b.setRequirementValue(0.80);
                 CampaignDifficulty bar = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).barrier(true)
                                 .barrierConditionType(BarrierConditionType.AVERAGE_ACC)
-                                .barrierConditionValue(new BigDecimal("0.85"))
+                                .barrierConditionValue(0.85)
                                 .prerequisiteMode(CampaignPrerequisiteMode.OR).build();
                 Score score = row(mdA, 950000, PLAYED);
                 UserCampaign uc = inProgressCampaign();
@@ -449,16 +448,16 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 CampaignDifficulty gate1 = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).barrier(true)
                                 .barrierConditionType(BarrierConditionType.AVERAGE_ACC)
-                                .barrierConditionValue(new BigDecimal("0.85"))
+                                .barrierConditionValue(0.85)
                                 .prerequisiteMode(CampaignPrerequisiteMode.OR).build();
                 CampaignDifficulty gate2 = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).barrier(true)
                                 .barrierConditionType(BarrierConditionType.AVERAGE_ACC)
-                                .barrierConditionValue(new BigDecimal("0.90"))
+                                .barrierConditionValue(0.90)
                                 .prerequisiteMode(CampaignPrerequisiteMode.OR).build();
                 Score score = row(mdA, 950000, PLAYED);
                 UserCampaign uc = inProgressCampaign();
@@ -495,8 +494,8 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
-                a.setXp(new BigDecimal("250"));
+                a.setRequirementValue(0.80);
+                a.setXp(250);
                 Score score = row(mdA, 950000, PLAYED);
                 UserCampaign uc = inProgressCampaign();
 
@@ -517,8 +516,8 @@ class CampaignEvaluationServiceTest {
 
                 service.evaluateAfterScore(user.getId(), score);
 
-                verify(levelUpAwardService).addCampaignXp(user.getId(), new BigDecimal("250"));
-                verify(missionProgressService).creditXp(user.getId(), new BigDecimal("250"));
+                verify(levelUpAwardService).addCampaignXp(user.getId(), 250.0);
+                verify(missionProgressService).creditXp(user.getId(), 250.0);
         }
 
         @Test
@@ -527,11 +526,11 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 CampaignDifficulty bar = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).barrier(true)
                                 .barrierConditionType(BarrierConditionType.AVERAGE_ACC)
-                                .barrierConditionValue(new BigDecimal("0.99"))
+                                .barrierConditionValue(0.99)
                                 .prerequisiteMode(CampaignPrerequisiteMode.OR).build();
                 Score score = row(mdA, 950000, PLAYED);
                 UserCampaign uc = inProgressCampaign();
@@ -567,7 +566,7 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.RANK);
-                a.setRequirementValue(new BigDecimal("100"));
+                a.setRequirementValue(100.0);
                 Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
                                 .score(900000).scoreNoMods(900000).rank(50).timeSet(PLAYED).build();
                 UserCampaign uc = inProgressCampaign();
@@ -599,7 +598,7 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.RANK);
-                a.setRequirementValue(new BigDecimal("100"));
+                a.setRequirementValue(100.0);
                 Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
                                 .score(900000).scoreNoMods(900000).rank(200).timeSet(PLAYED).build();
                 UserCampaign uc = inProgressCampaign();
@@ -667,7 +666,7 @@ class CampaignEvaluationServiceTest {
         @Test
         void accRangeRejectsScoreAboveTheUpperBound() {
                 MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.ACC,
-                                new BigDecimal("0.90"), new BigDecimal("0.95"));
+                                0.90, 0.95);
 
                 service.evaluateAfterScore(user.getId(), row(mdA, 970000, PLAYED));
 
@@ -677,7 +676,7 @@ class CampaignEvaluationServiceTest {
         @Test
         void accRangeAcceptsScoreInsideBothBounds() {
                 MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.ACC,
-                                new BigDecimal("0.90"), new BigDecimal("0.95"));
+                                0.90, 0.95);
                 stubNodeRecordable();
 
                 service.evaluateAfterScore(user.getId(), row(mdA, 930000, PLAYED));
@@ -687,7 +686,7 @@ class CampaignEvaluationServiceTest {
 
         @Test
         void maxBombHitsAcceptsCleanRunAndRejectsBombHeavyOne() {
-                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.BOMB_HITS, null, new BigDecimal("3"));
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.BOMB_HITS, null, 3.0);
                 stubNodeRecordable();
 
                 service.evaluateAfterScore(user.getId(), bombScore(mdA, 2));
@@ -697,7 +696,7 @@ class CampaignEvaluationServiceTest {
 
         @Test
         void maxBombHitsRejectsWhenOverTheLimit() {
-                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.BOMB_HITS, null, new BigDecimal("3"));
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.BOMB_HITS, null, 3.0);
 
                 service.evaluateAfterScore(user.getId(), bombScore(mdA, 7));
 
@@ -706,7 +705,7 @@ class CampaignEvaluationServiceTest {
 
         @Test
         void bombHitsRequirementRejectsScoreSaberScoreWithNoBombData() {
-                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.BOMB_HITS, null, new BigDecimal("3"));
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.BOMB_HITS, null, 3.0);
 
                 service.evaluateAfterScore(user.getId(), bombScore(mdA, null));
 
@@ -715,7 +714,7 @@ class CampaignEvaluationServiceTest {
 
         @Test
         void minComboAcceptsAtTheBoundary() {
-                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.COMBO, new BigDecimal("500"), null);
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.COMBO, 500.0, null);
                 stubNodeRecordable();
 
                 Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
@@ -727,7 +726,7 @@ class CampaignEvaluationServiceTest {
 
         @Test
         void minComboRejectsBelowTheBoundary() {
-                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.COMBO, new BigDecimal("500"), null);
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.COMBO, 500.0, null);
 
                 Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
                                 .score(900000).scoreNoMods(900000).maxCombo(499).timeSet(PLAYED).build();
@@ -738,7 +737,7 @@ class CampaignEvaluationServiceTest {
 
         @Test
         void maxMistakesCountsBadCutsAndMissesTogether() {
-                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.MISTAKES, null, new BigDecimal("3"));
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.MISTAKES, null, 3.0);
                 stubNodeRecordable();
 
                 service.evaluateAfterScore(user.getId(), mistakeScore(mdA, 2, 1));
@@ -748,7 +747,7 @@ class CampaignEvaluationServiceTest {
 
         @Test
         void maxMistakesRejectsWhenTheSumExceedsTheLimit() {
-                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.MISTAKES, null, new BigDecimal("3"));
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.MISTAKES, null, 3.0);
 
                 service.evaluateAfterScore(user.getId(), mistakeScore(mdA, 2, 2));
 
@@ -758,7 +757,7 @@ class CampaignEvaluationServiceTest {
         @Test
         void mistakesRangeRejectsBelowTheLowerBound() {
                 MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.MISTAKES,
-                                new BigDecimal("2"), new BigDecimal("5"));
+                                2.0, 5.0);
 
                 service.evaluateAfterScore(user.getId(), mistakeScore(mdA, 1, 0));
 
@@ -767,7 +766,7 @@ class CampaignEvaluationServiceTest {
 
         @Test
         void mistakesRequirementRejectsScoreWithNoMissData() {
-                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.MISTAKES, null, new BigDecimal("3"));
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.MISTAKES, null, 3.0);
 
                 service.evaluateAfterScore(user.getId(), mistakeScore(mdA, 0, null));
 
@@ -788,8 +787,8 @@ class CampaignEvaluationServiceTest {
         @Test
         void andModeRequiresEveryTarget() {
                 MapDifficulty mdA = stubMultiTargetNode(CampaignPrerequisiteMode.AND,
-                                target(CampaignRequirementType.ACC, new BigDecimal("0.90"), null),
-                                target(CampaignRequirementType.BOMB_HITS, null, BigDecimal.ZERO));
+                                target(CampaignRequirementType.ACC, 0.90, null),
+                                target(CampaignRequirementType.BOMB_HITS, null, 0.0));
 
                 service.evaluateAfterScore(user.getId(), bombScore(mdA, 4));
 
@@ -799,8 +798,8 @@ class CampaignEvaluationServiceTest {
         @Test
         void andModeCompletesWhenEveryTargetIsMet() {
                 MapDifficulty mdA = stubMultiTargetNode(CampaignPrerequisiteMode.AND,
-                                target(CampaignRequirementType.ACC, new BigDecimal("0.90"), null),
-                                target(CampaignRequirementType.BOMB_HITS, null, BigDecimal.ZERO));
+                                target(CampaignRequirementType.ACC, 0.90, null),
+                                target(CampaignRequirementType.BOMB_HITS, null, 0.0));
                 stubNodeRecordable();
 
                 Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
@@ -813,8 +812,8 @@ class CampaignEvaluationServiceTest {
         @Test
         void orModeCompletesOnASingleMetTarget() {
                 MapDifficulty mdA = stubMultiTargetNode(CampaignPrerequisiteMode.OR,
-                                target(CampaignRequirementType.ACC, new BigDecimal("0.99"), null),
-                                target(CampaignRequirementType.RANK, null, new BigDecimal("100")));
+                                target(CampaignRequirementType.ACC, 0.99, null),
+                                target(CampaignRequirementType.RANK, null, 100.0));
                 stubNodeRecordable();
 
                 Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
@@ -828,8 +827,8 @@ class CampaignEvaluationServiceTest {
         @Test
         void orModeRejectsWhenNoTargetIsMet() {
                 MapDifficulty mdA = stubMultiTargetNode(CampaignPrerequisiteMode.OR,
-                                target(CampaignRequirementType.ACC, new BigDecimal("0.99"), null),
-                                target(CampaignRequirementType.RANK, null, new BigDecimal("100")));
+                                target(CampaignRequirementType.ACC, 0.99, null),
+                                target(CampaignRequirementType.RANK, null, 100.0));
 
                 Score score = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
                                 .score(910000).scoreNoMods(910000).rank(400).rankWhenSet(400).active(true)
@@ -839,7 +838,7 @@ class CampaignEvaluationServiceTest {
                 verify(userCampaignScoreRepository, never()).save(any());
         }
 
-        private CampaignDifficultyTarget target(CampaignRequirementType type, BigDecimal value, BigDecimal valueMax) {
+        private CampaignDifficultyTarget target(CampaignRequirementType type, Double value, Double valueMax) {
                 return CampaignDifficultyTarget.builder()
                                 .id(UUID.randomUUID()).campaignDifficulty(a)
                                 .requirementType(type).requirementValue(value).requirementValueMax(valueMax)
@@ -848,14 +847,14 @@ class CampaignEvaluationServiceTest {
 
         private MapDifficulty stubMultiTargetNode(CampaignPrerequisiteMode mode,
                         CampaignDifficultyTarget... targets) {
-                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.ACC, new BigDecimal("0.90"), null);
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.ACC, 0.90, null);
                 a.setTargetMode(mode);
                 when(campaignDifficultyTargetRepository.findByCampaignDifficultyIds(List.of(a.getId())))
                                 .thenReturn(List.of(targets));
                 return mdA;
         }
 
-        private MapDifficulty stubBoundedNode(CampaignRequirementType type, BigDecimal min, BigDecimal max) {
+        private MapDifficulty stubBoundedNode(CampaignRequirementType type, Double min, Double max) {
                 campaign.setStatus(CampaignStatus.PUBLISHED);
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
@@ -893,7 +892,7 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
 
                 when(userCampaignRepository.findByUser_IdAndStatusAndActiveTrue(user.getId(),
                                 UserCampaignStatus.IN_PROGRESS)).thenReturn(List.of(inProgressCampaign()));
@@ -929,12 +928,12 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 Score oldScore = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
-                                .score(850000).scoreNoMods(850000).ap(new BigDecimal("5.0"))
+                                .score(850000).scoreNoMods(850000).ap(5.0)
                                 .timeSet(EARLIER_PLAY).build();
                 Score betterScore = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
-                                .score(960000).scoreNoMods(960000).ap(new BigDecimal("8.0"))
+                                .score(960000).scoreNoMods(960000).ap(8.0)
                                 .timeSet(PLAYED).build();
                 UserCampaign uc = inProgressCampaign();
                 UserCampaignScore existing = UserCampaignScore.builder().id(UUID.randomUUID())
@@ -967,12 +966,12 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 Score goodScore = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
-                                .score(980000).scoreNoMods(980000).ap(new BigDecimal("8.0"))
+                                .score(980000).scoreNoMods(980000).ap(8.0)
                                 .timeSet(EARLIER_PLAY).build();
                 Score worseScore = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
-                                .score(850000).scoreNoMods(850000).ap(new BigDecimal("5.0"))
+                                .score(850000).scoreNoMods(850000).ap(5.0)
                                 .timeSet(PLAYED).build();
                 UserCampaign uc = inProgressCampaign();
                 UserCampaignScore existing = UserCampaignScore.builder().id(UUID.randomUUID())
@@ -1005,17 +1004,17 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 CampaignDifficulty bar = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).barrier(true)
                                 .barrierConditionType(BarrierConditionType.AVERAGE_ACC)
-                                .barrierConditionValue(new BigDecimal("0.95"))
+                                .barrierConditionValue(0.95)
                                 .prerequisiteMode(CampaignPrerequisiteMode.OR).build();
                 Score mediocre = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
-                                .score(850000).scoreNoMods(850000).ap(new BigDecimal("5.0"))
+                                .score(850000).scoreNoMods(850000).ap(5.0)
                                 .timeSet(EARLIER_PLAY).build();
                 Score improved = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
-                                .score(960000).scoreNoMods(960000).ap(new BigDecimal("8.0"))
+                                .score(960000).scoreNoMods(960000).ap(8.0)
                                 .timeSet(PLAYED).build();
                 UserCampaign uc = inProgressCampaign();
                 UserCampaignScore existing = UserCampaignScore.builder().id(UUID.randomUUID())
@@ -1058,9 +1057,9 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdA = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 Score active = Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
-                                .score(950000).scoreNoMods(950000).ap(new BigDecimal("8.0"))
+                                .score(950000).scoreNoMods(950000).ap(8.0)
                                 .timeSet(PLAYED).build();
                 UserCampaign uc = inProgressCampaign();
 
@@ -1095,10 +1094,10 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdB = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 b.setMapDifficulty(mdB);
                 b.setRequirementType(CampaignRequirementType.ACC);
-                b.setRequirementValue(new BigDecimal("0.80"));
+                b.setRequirementValue(0.80);
                 Score playedBeforeUnlock = row(mdB, 990000, EARLIER_PLAY);
                 Score unlockingScore = row(mdA, 950000, PLAYED);
                 UserCampaign uc = inProgressCampaign();
@@ -1135,20 +1134,20 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdTerminal = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 CampaignDifficulty side = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).mapDifficulty(mdSide)
                                 .requirementType(CampaignRequirementType.ACC)
-                                .requirementValue(new BigDecimal("0.80")).build();
+                                .requirementValue(0.80).build();
                 CampaignDifficulty terminal = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).mapDifficulty(mdTerminal)
                                 .terminal(true)
                                 .requirementType(CampaignRequirementType.ACC)
-                                .requirementValue(new BigDecimal("0.80")).build();
+                                .requirementValue(0.80).build();
                 CampaignDifficulty bar = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).barrier(true)
                                 .barrierConditionType(BarrierConditionType.AVERAGE_ACC)
-                                .barrierConditionValue(new BigDecimal("0.99"))
+                                .barrierConditionValue(0.99)
                                 .prerequisiteMode(CampaignPrerequisiteMode.AND).build();
                 UserCampaign uc = inProgressCampaign();
 
@@ -1181,7 +1180,7 @@ class CampaignEvaluationServiceTest {
                 a.setMapDifficulty(mdA);
                 a.setTerminal(true);
                 a.setRequirementType(CampaignRequirementType.RANK);
-                a.setRequirementValue(new BigDecimal("100"));
+                a.setRequirementValue(100.0);
                 UserCampaign uc = UserCampaign.builder().id(UUID.randomUUID()).user(user).campaign(campaign)
                                 .status(initialStatus).completionRewardsPaid(false).startedAt(STARTED).build();
 
@@ -1255,7 +1254,7 @@ class CampaignEvaluationServiceTest {
                 a.setMapDifficulty(mdA);
                 a.setTerminal(true);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
 
                 when(userCampaignRepository.findByUser_IdAndCampaign_IdAndActiveTrue(user.getId(), campaign.getId()))
                                 .thenReturn(Optional.of(inProgressCampaign()));
@@ -1311,11 +1310,11 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdB = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 a.setTerminal(playedBranchIsTerminal);
                 b.setMapDifficulty(mdB);
                 b.setRequirementType(CampaignRequirementType.ACC);
-                b.setRequirementValue(new BigDecimal("0.80"));
+                b.setRequirementValue(0.80);
                 b.setTerminal(true);
                 UserCampaign uc = inProgressCampaign();
 
@@ -1361,10 +1360,10 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdB = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mdA);
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 b.setMapDifficulty(mdB);
                 b.setRequirementType(CampaignRequirementType.ACC);
-                b.setRequirementValue(new BigDecimal("0.80"));
+                b.setRequirementValue(0.80);
                 b.setTerminal(true);
                 UserCampaign uc = inProgressCampaign();
 
@@ -1395,20 +1394,20 @@ class CampaignEvaluationServiceTest {
                 MapDifficulty mdD = mapDifficulty(1_000_000);
                 a.setMapDifficulty(mapDifficulty(1_000_000));
                 a.setRequirementType(CampaignRequirementType.ACC);
-                a.setRequirementValue(new BigDecimal("0.80"));
+                a.setRequirementValue(0.80);
                 b.setMapDifficulty(mapDifficulty(1_000_000));
                 b.setRequirementType(CampaignRequirementType.ACC);
-                b.setRequirementValue(new BigDecimal("0.80"));
+                b.setRequirementValue(0.80);
                 b.setTerminal(true);
                 CampaignDifficulty c = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).mapDifficulty(mdC)
                                 .requirementType(CampaignRequirementType.ACC)
-                                .requirementValue(new BigDecimal("0.80")).build();
+                                .requirementValue(0.80).build();
                 CampaignDifficulty d = CampaignDifficulty.builder()
                                 .id(UUID.randomUUID()).campaign(campaign).active(true).mapDifficulty(mdD)
                                 .terminal(true)
                                 .requirementType(CampaignRequirementType.ACC)
-                                .requirementValue(new BigDecimal("0.80")).build();
+                                .requirementValue(0.80).build();
                 UserCampaign uc = inProgressCampaign();
 
                 when(userCampaignRepository.findByUser_IdAndStatusAndActiveTrue(user.getId(),

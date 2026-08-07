@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.statistics;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -23,7 +22,7 @@ public class MapAvgApResponse {
     private Difficulty difficulty;
     private UUID categoryId;
     private String categoryName;
-    private BigDecimal averageWeightedAp;
+    private Double averageWeightedAp;
     private long scoreCount;
     private UUID latestScoreId;
     private Instant latestScoreTimeSet;

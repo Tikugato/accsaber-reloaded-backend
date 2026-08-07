@@ -1,6 +1,5 @@
 package com.accsaber.backend.repository.mission;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -136,7 +135,7 @@ public interface UserMissionRepository extends JpaRepository<UserMission, UUID> 
                           AND status = 'completed'
                           AND completed_at >= NOW() - INTERVAL '24 hours'
                         """, nativeQuery = true)
-        BigDecimal sumMissionXpGainedLast24h(@Param("userId") Long userId);
+        double sumMissionXpGainedLast24h(@Param("userId") Long userId);
 
         long countByUser_IdAndTemplate_IdAndStatus(Long userId, UUID templateId, MissionStatus status);
 

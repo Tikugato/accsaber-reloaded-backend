@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.mission;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -294,7 +293,7 @@ public class EventMissionService {
         }
         int bonusXp = event.getBonusXp() != null ? event.getBonusXp() : 0;
         if (bonusXp > 0) {
-            levelUpAwardService.addMissionXp(userId, BigDecimal.valueOf(bonusXp));
+            levelUpAwardService.addMissionXp(userId, (double) (bonusXp));
         }
         for (Item item : event.getBonusItems()) {
             try {

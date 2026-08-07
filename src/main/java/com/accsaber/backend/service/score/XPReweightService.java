@@ -1,7 +1,5 @@
 package com.accsaber.backend.service.score;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,6 +21,7 @@ import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.map.MapDifficultyComplexityService;
+import com.accsaber.backend.util.Rounding;
 
 import lombok.RequiredArgsConstructor;
 
@@ -82,8 +81,8 @@ public class XPReweightService {
             return 0;
         }
 
-        BigDecimal complexity = mapComplexityService.findActiveComplexity(difficultyId)
-                .orElse(BigDecimal.ONE);
+        Double complexity = mapComplexityService.findActiveComplexity(difficultyId)
+                .orElse(1.0);
         int maxScore = sample.getMapDifficulty().getMaxScore();
 
         Map<Long, List<Score>> scoresByUser = new LinkedHashMap<>();
@@ -93,11 +92,10 @@ public class XPReweightService {
 
         int updated = 0;
         for (List<Score> userScores : scoresByUser.values()) {
-            BigDecimal currentBestAccuracy = null;
+            Double currentBestAccuracy = null;
             for (Score score : userScores) {
-                BigDecimal accuracy = BigDecimal.valueOf(score.getScore())
-                        .divide(BigDecimal.valueOf(maxScore), 10, RoundingMode.HALF_UP);
-                BigDecimal newXp;
+                Double accuracy = Rounding.round((double) (score.getScore()) / (double) (maxScore), 10);
+                Double newXp;
                 if (currentBestAccuracy == null) {
                     newXp = xpCalculationService.calculateXpForNewMap(accuracy, complexity);
                     currentBestAccuracy = accuracy;
@@ -107,7 +105,7 @@ public class XPReweightService {
                 } else {
                     newXp = xpCalculationService.calculateXpForWorseScore();
                 }
-                BigDecimal oldXp = score.getXpGained();
+                Double oldXp = score.getXpGained();
                 if (oldXp == null || oldXp.compareTo(newXp) != 0) {
                     score.setXpGained(newXp);
                     updated++;

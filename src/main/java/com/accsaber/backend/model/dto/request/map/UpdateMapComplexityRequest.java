@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.map;
 
-import java.math.BigDecimal;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -11,7 +10,7 @@ public class UpdateMapComplexityRequest {
 
     @NotNull
     @Positive
-    private BigDecimal complexity;
+    private Double complexity;
 
     private String reason;
 }

@@ -9,7 +9,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -123,7 +122,7 @@ class EventMissionServiceTest {
                                 .pool(MissionPool.event)
                                 .status(MissionStatus.completed)
                                 .progressCount(20)
-                                .progressAp(BigDecimal.ZERO)
+                                .progressAp(0.0)
                                 .xpReward(200)
                                 .expiresAt(event.getEndsAt())
                                 .build();
@@ -210,7 +209,7 @@ class EventMissionServiceTest {
                         assertThat(first).isEqualTo(5000);
                         assertThat(second).isZero();
                         verify(levelUpAwardService, times(1))
-                                        .addMissionXp(USER_ID, BigDecimal.valueOf(5000));
+                                        .addMissionXp(USER_ID, (double) (5000));
                         assertThat(profile.getBonusAwardedAt()).isNotNull();
                 }
 

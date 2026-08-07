@@ -48,7 +48,7 @@ public class ModifierResolver {
         attached.stream()
                 .sorted(Comparator.comparing(cm -> cm.getModifier().getKey()))
                 .forEach(cm -> {
-                    if (rng.nextDouble() < cm.getDropChance().doubleValue()) {
+                    if (rng.nextDouble() < cm.getDropChance()) {
                         winners.add(cm.getModifier());
                     }
                 });

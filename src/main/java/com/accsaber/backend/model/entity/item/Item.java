@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.item;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 

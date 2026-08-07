@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.milestone;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -20,17 +19,17 @@ public class MilestoneCompletionResponse {
     private String description;
     private String type;
     private String tier;
-    private BigDecimal xp;
-    private BigDecimal targetValue;
+    private Double xp;
+    private Double targetValue;
     private String comparison;
     private boolean blExclusive;
     private UUID setId;
     private UUID categoryId;
     private Long completions;
     private Long totalPlayers;
-    private BigDecimal completionPercentage;
-    private BigDecimal userProgress;
-    private BigDecimal userNormalizedProgress;
+    private Double completionPercentage;
+    private Double userProgress;
+    private Double userNormalizedProgress;
     private Boolean userCompleted;
     private Instant userCompletedAt;
     private UUID achievedWithScoreId;

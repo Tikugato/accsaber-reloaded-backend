@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.score;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -18,8 +17,8 @@ public class UserScoreSummaryResponse {
     String cdnCoverUrl;
     String ssLeaderboardId;
     String blLeaderboardId;
-    BigDecimal ap;
-    BigDecimal accuracy;
+    Double ap;
+    Double accuracy;
     Integer score;
     Integer maxScore;
     Integer rank;

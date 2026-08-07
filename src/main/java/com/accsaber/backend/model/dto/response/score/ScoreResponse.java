@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.score;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -34,14 +33,14 @@ public class ScoreResponse {
     private Difficulty difficulty;
     private String characteristic;
     private UUID categoryId;
-    private BigDecimal complexity;
+    private Double complexity;
     private Integer score;
     private Integer scoreNoMods;
-    private BigDecimal accuracy;
+    private Double accuracy;
     private Integer rank;
     private Integer rankWhenSet;
-    private BigDecimal ap;
-    private BigDecimal weightedAp;
+    private Double ap;
+    private Double weightedAp;
     private Long blScoreId;
     private Long ssScoreId;
     private Integer maxCombo;
@@ -56,9 +55,9 @@ public class ScoreResponse {
     private String hmd;
     private Instant timeSet;
     private boolean reweightDerivative;
-    private BigDecimal xpGained;
-    private BigDecimal baseXp;
-    private BigDecimal bonusXp;
+    private Double xpGained;
+    private Double baseXp;
+    private Double bonusXp;
     private boolean active;
     private boolean partial;
     private String supersedesReason;
@@ -72,11 +71,11 @@ public class ScoreResponse {
     private String supporterTier;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private BigDecimal skillLevel;
+    private Double skillLevel;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private MapDifficultyMetadata metadata;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private BigDecimal nps;
+    private Double nps;
 }

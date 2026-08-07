@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.campaign;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 
 import com.accsaber.backend.model.entity.campaign.UserCampaignStatus;
@@ -15,8 +14,8 @@ public class CampaignLeaderboardEntry {
     private Integer rank;
     private CampaignLeaderboardPlayer player;
     private Instant completedAt;
-    private BigDecimal averageAccuracy;
-    private BigDecimal averageAp;
+    private Double averageAccuracy;
+    private Double averageAp;
     private Integer nodesCounted;
     private UserCampaignStatus progressStatus;
     private Integer completedNodes;

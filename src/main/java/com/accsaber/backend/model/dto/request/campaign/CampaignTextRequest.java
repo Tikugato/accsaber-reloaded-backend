@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.campaign;
 
-import java.math.BigDecimal;
 
 import com.accsaber.backend.validation.CleanText;
 
@@ -17,16 +16,16 @@ public class CampaignTextRequest {
     private String content;
 
     @NotNull
-    private BigDecimal positionX;
+    private Double positionX;
 
     @NotNull
-    private BigDecimal positionY;
+    private Double positionY;
 
     @Size(max = 64)
     @Pattern(regexp = "^$|^[A-Za-z0-9 _-]{1,64}$", message = "invalid font")
     private String font;
 
-    private BigDecimal scale;
+    private Double scale;
 
     @Pattern(regexp = "^$|^#?[A-Za-z0-9]{1,32}$", message = "must be a hex or named color")
     private String color;

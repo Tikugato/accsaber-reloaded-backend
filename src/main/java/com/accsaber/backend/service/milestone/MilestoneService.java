@@ -1,12 +1,10 @@
 package com.accsaber.backend.service.milestone;
 
-import java.util.concurrent.CompletableFuture;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -61,6 +59,7 @@ import com.accsaber.backend.repository.milestone.MilestoneSetRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.player.DuplicateUserService;
+import com.accsaber.backend.util.Rounding;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -142,7 +141,7 @@ public class MilestoneService {
                     .normalizedProgress(normalizeProgress(link.getProgress(), m.getTargetValue(), m.getComparison()))
                     .completed(true)
                     .completedAt(link.getCompletedAt())
-                    .completionPercentage(stats != null ? stats.getCompletionPercentage() : BigDecimal.ZERO)
+                    .completionPercentage(stats != null ? stats.getCompletionPercentage() : 0.0)
                     .setId(m.getMilestoneSet().getId())
                     .categoryId(m.getCategory() != null ? m.getCategory().getId() : null)
                     .build();
@@ -162,7 +161,7 @@ public class MilestoneService {
         return uncompleted.stream().map(m -> {
             UserMilestoneLink link = linkMap.get(m.getId());
             MilestoneCompletionStats stats = statsMap.get(m.getId());
-            BigDecimal rawProgress = link != null ? link.getProgress() : null;
+            Double rawProgress = link != null ? link.getProgress() : null;
             return UserMilestoneProgressResponse.builder()
                     .milestoneId(m.getId())
                     .title(m.getTitle())
@@ -175,7 +174,7 @@ public class MilestoneService {
                     .normalizedProgress(normalizeProgress(rawProgress, m.getTargetValue(), m.getComparison()))
                     .completed(false)
                     .completedAt(null)
-                    .completionPercentage(stats != null ? stats.getCompletionPercentage() : BigDecimal.ZERO)
+                    .completionPercentage(stats != null ? stats.getCompletionPercentage() : 0.0)
                     .setId(m.getMilestoneSet().getId())
                     .categoryId(m.getCategory() != null ? m.getCategory().getId() : null)
                     .build();
@@ -233,7 +232,7 @@ public class MilestoneService {
     public Page<MilestoneSetResponse> findAllSets(Long userId, Pageable pageable) {
         Page<MilestoneSet> sets = milestoneSetRepository.findByActiveTrueWithActiveMilestones(pageable);
 
-        Map<UUID, BigDecimal> userPercentages = Map.of();
+        Map<UUID, Double> userPercentages = Map.of();
         if (userId != null) {
             Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
             Map<UUID, Long> totalPerSet = milestoneRepository.countActiveGroupedBySetId().stream()
@@ -242,22 +241,19 @@ public class MilestoneService {
                     .countCompletedByUserGroupedBySet(resolved).stream()
                     .collect(Collectors.toMap(r -> (UUID) r[0], r -> (Long) r[1]));
 
-            Map<UUID, BigDecimal> pcts = new java.util.HashMap<>();
+            Map<UUID, Double> pcts = new java.util.HashMap<>();
             for (var entry : totalPerSet.entrySet()) {
                 long total = entry.getValue();
                 long completed = completedPerSet.getOrDefault(entry.getKey(), 0L);
                 if (total > 0) {
-                    pcts.put(entry.getKey(),
-                            BigDecimal.valueOf(completed)
-                                    .divide(BigDecimal.valueOf(total), 4, java.math.RoundingMode.HALF_UP)
-                                    .multiply(BigDecimal.valueOf(100))
-                                    .setScale(2, java.math.RoundingMode.HALF_UP));
+                    pcts.put(entry.getKey(), Rounding
+                            .round((Rounding.round((double) (completed) / (double) (total), 4) * (double) (100)), 2));
                 }
             }
             userPercentages = pcts;
         }
 
-        Map<UUID, BigDecimal> finalPcts = userPercentages;
+        Map<UUID, Double> finalPcts = userPercentages;
         return sets.map(s -> toSetResponse(s, finalPcts.get(s.getId())));
     }
 
@@ -275,7 +271,7 @@ public class MilestoneService {
             UserMilestoneLink link = linkMap.get(m.getId());
             MilestoneCompletionStats stats = statsMap.get(m.getId());
 
-            BigDecimal rawProgress = link != null ? link.getProgress() : null;
+            Double rawProgress = link != null ? link.getProgress() : null;
             return UserMilestoneProgressResponse.builder()
                     .milestoneId(m.getId())
                     .title(m.getTitle())
@@ -288,16 +284,14 @@ public class MilestoneService {
                     .normalizedProgress(normalizeProgress(rawProgress, m.getTargetValue(), m.getComparison()))
                     .completed(link != null && link.isCompleted())
                     .completedAt(link != null ? link.getCompletedAt() : null)
-                    .completionPercentage(stats != null ? stats.getCompletionPercentage() : BigDecimal.ZERO)
+                    .completionPercentage(stats != null ? stats.getCompletionPercentage() : 0.0)
                     .setId(m.getMilestoneSet().getId())
                     .categoryId(m.getCategory() != null ? m.getCategory().getId() : null)
                     .build();
         });
     }
 
-    @org.springframework.cache.annotation.Cacheable(
-            value = "statistics",
-            key = "'milestoneholders:' + #milestoneId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort.toString()")
+    @org.springframework.cache.annotation.Cacheable(value = "statistics", key = "'milestoneholders:' + #milestoneId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort.toString()")
     public Page<MilestoneHolderResponse> findMilestoneHolders(UUID milestoneId, Pageable pageable) {
         milestoneRepository.findByIdAndActiveTrueAndStatusActive(milestoneId)
                 .orElseThrow(() -> new ResourceNotFoundException("Milestone", milestoneId));
@@ -309,7 +303,7 @@ public class MilestoneService {
         MilestoneSet set = MilestoneSet.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .setBonusXp(request.getSetBonusXp() != null ? request.getSetBonusXp() : BigDecimal.ZERO)
+                .setBonusXp(request.getSetBonusXp() != null ? request.getSetBonusXp() : 0.0)
                 .awardsItem(loadItem(request.getAwardsItemId()))
                 .build();
         return toSetResponse(milestoneSetRepository.save(set), null);
@@ -531,14 +525,14 @@ public class MilestoneService {
     }
 
     private void awardMilestoneXp(Long userId, MilestoneEvaluationService.EvaluationResult evaluation) {
-        BigDecimal xp = BigDecimal.ZERO;
+        double xp = 0.0;
         for (var m : evaluation.completedMilestones()) {
-            xp = xp.add(m.getXp() != null ? m.getXp() : BigDecimal.ZERO);
+            xp += m.getXp();
         }
         for (var s : evaluation.completedSets()) {
-            xp = xp.add(s.getSetBonusXp() != null ? s.getSetBonusXp() : BigDecimal.ZERO);
+            xp += s.getSetBonusXp();
         }
-        if (xp.compareTo(BigDecimal.ZERO) > 0) {
+        if (xp > 0) {
             levelUpAwardService.addXp(userId, xp);
         }
     }
@@ -741,20 +735,20 @@ public class MilestoneService {
         }
     }
 
-    private BigDecimal normalizeProgress(BigDecimal progress, BigDecimal targetValue, String comparison) {
+    private Double normalizeProgress(Double progress, Double targetValue, String comparison) {
         if (progress == null || targetValue == null) {
             return null;
         }
         if ("LTE".equals(comparison)) {
-            if (progress.compareTo(BigDecimal.ZERO) <= 0) {
+            if (progress.compareTo(0.0) <= 0) {
                 return null;
             }
-            return targetValue.divide(progress, 6, RoundingMode.HALF_UP).min(BigDecimal.ONE);
+            return Math.min(Rounding.round(targetValue / progress, 6), 1.0);
         }
-        if (targetValue.compareTo(BigDecimal.ZERO) == 0) {
-            return BigDecimal.ONE;
+        if (targetValue.compareTo(0.0) == 0) {
+            return 1.0;
         }
-        return progress.divide(targetValue, 6, RoundingMode.HALF_UP).min(BigDecimal.ONE);
+        return Math.min(Rounding.round(progress / targetValue, 6), 1.0);
     }
 
     private MilestoneResponse toResponse(Milestone m, MilestoneCompletionStats stats) {
@@ -772,7 +766,7 @@ public class MilestoneService {
                 .comparison(m.getComparison())
                 .blExclusive(m.isBlExclusive())
                 .status(m.getStatus().name())
-                .completionPercentage(stats != null ? stats.getCompletionPercentage() : BigDecimal.ZERO)
+                .completionPercentage(stats != null ? stats.getCompletionPercentage() : 0.0)
                 .completions(stats != null ? stats.getCompletions() : 0L)
                 .totalPlayers(stats != null ? stats.getTotalPlayers() : 0L)
                 .awardsItemId(m.getAwardsItem() != null ? m.getAwardsItem().getId() : null)
@@ -796,7 +790,7 @@ public class MilestoneService {
                 .categoryId(m.getCategory() != null ? m.getCategory().getId() : null)
                 .completions(stats != null ? stats.getCompletions() : 0L)
                 .totalPlayers(stats != null ? stats.getTotalPlayers() : 0L)
-                .completionPercentage(stats != null ? stats.getCompletionPercentage() : BigDecimal.ZERO);
+                .completionPercentage(stats != null ? stats.getCompletionPercentage() : 0.0);
 
         if (userLink != null) {
             builder.userProgress(userLink.getProgress())
@@ -827,7 +821,7 @@ public class MilestoneService {
         return builder.build();
     }
 
-    private MilestoneSetResponse toSetResponse(MilestoneSet s, BigDecimal userCompletionPercentage) {
+    private MilestoneSetResponse toSetResponse(MilestoneSet s, Double userCompletionPercentage) {
         return MilestoneSetResponse.builder()
                 .id(s.getId())
                 .title(s.getTitle())

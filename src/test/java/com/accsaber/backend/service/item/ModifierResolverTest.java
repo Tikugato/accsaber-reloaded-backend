@@ -2,7 +2,6 @@ package com.accsaber.backend.service.item;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -105,14 +104,14 @@ class ModifierResolverTest {
         return ItemModifier.builder()
                 .id(UUID.randomUUID())
                 .key(key)
-                .globalDropChance(globalDropChance == null ? null : new BigDecimal(globalDropChance))
+                .globalDropChance(globalDropChance == null ? null : Double.valueOf(globalDropChance))
                 .build();
     }
 
     private static CrateModifier attach(ItemModifier modifier, String dropChance) {
         return CrateModifier.builder()
                 .modifier(modifier)
-                .dropChance(new BigDecimal(dropChance))
+                .dropChance(Double.valueOf(dropChance))
                 .build();
     }
 

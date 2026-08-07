@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.projection;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 public record UserMapDifficultyBests(
@@ -8,7 +7,7 @@ public record UserMapDifficultyBests(
         Integer maxScore,
         Integer bestScore,
         Integer bestScoreNoMods,
-        BigDecimal bestAp,
+        Double bestAp,
         Integer bestStreak115,
         Integer bestRank,
         Integer fcFlag,

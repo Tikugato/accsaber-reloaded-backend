@@ -29,7 +29,7 @@ public interface PracticeScoreRepository extends JpaRepository<PracticeScore, UU
             @Param("name") String name,
             @Param("score") int score,
             @Param("level") int level,
-            @Param("accuracy") double accuracy,
+            @Param("accuracy") Double accuracy,
             @Param("badCuts") int badCuts,
             @Param("bombHits") int bombHits,
             @Param("playedAt") Instant playedAt);

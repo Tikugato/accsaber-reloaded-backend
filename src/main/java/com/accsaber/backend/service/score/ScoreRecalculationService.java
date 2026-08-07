@@ -1,7 +1,5 @@
 package com.accsaber.backend.service.score;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -37,6 +35,7 @@ import com.accsaber.backend.service.songsuggest.SongSuggestService;
 import com.accsaber.backend.service.stats.OverallStatisticsService;
 import com.accsaber.backend.service.stats.RankingService;
 import com.accsaber.backend.service.stats.StatisticsService;
+import com.accsaber.backend.util.Rounding;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -210,7 +209,7 @@ public class ScoreRecalculationService {
         if (difficulty.getMaxScore() == null || difficulty.getMaxScore() == 0)
             return Set.of();
 
-        BigDecimal complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
+        Double complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
         if (complexity == null) {
             log.warn("No active complexity for difficulty {} - skipping", difficulty.getId());
             return Set.of();
@@ -221,10 +220,9 @@ public class ScoreRecalculationService {
         Set<Long> affectedUsers = new HashSet<>();
 
         for (Score score : scores) {
-            BigDecimal accuracy = BigDecimal.valueOf(score.getScore())
-                    .divide(BigDecimal.valueOf(maxScore), 10, RoundingMode.HALF_UP);
+            Double accuracy = Rounding.round((double) (score.getScore()) / (double) (maxScore), 10);
             APResult apResult = apCalculationService.calculateRawAP(accuracy, complexity, scoreCurve);
-            if (apResult.rawAP().compareTo(score.getAp()) != 0) {
+            if ((apResult.rawAP() != score.getAp())) {
                 score.setAp(apResult.rawAP());
                 affectedUsers.add(score.getUser().getId());
             }
@@ -276,24 +274,24 @@ public class ScoreRecalculationService {
     }
 
     private Set<Long> recalculateScoreApsParallel(MapDifficulty difficulty) {
-        BigDecimal complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
+        Double complexity = mapComplexityService.findActiveComplexity(difficulty.getId()).orElse(null);
         if (complexity == null) {
             log.warn("No active complexity for difficulty {} - skipping", difficulty.getId());
             return ConcurrentHashMap.newKeySet();
         }
 
-        List<Score> scores = scoreRepository.findByMapDifficultyIdAndActiveTrueWithUserAndCategory(difficulty.getId());
+        List<UUID> scoreIds = scoreRepository.findActiveIdsByMapDifficultyId(difficulty.getId());
         Set<Long> affected = ConcurrentHashMap.newKeySet();
 
-        List<CompletableFuture<Void>> futures = scores.stream()
-                .map(score -> CompletableFuture.runAsync(() -> {
+        List<CompletableFuture<Void>> futures = scoreIds.stream()
+                .map(scoreId -> CompletableFuture.runAsync(() -> {
                     try {
-                        ScoreService.RecalcResult result = scoreService.recalculateScoreForBatch(score.getId(),
+                        ScoreService.RecalcResult result = scoreService.recalculateScoreForBatch(scoreId,
                                 difficulty, complexity);
                         if (result != null)
                             affected.add(result.userId());
                     } catch (Exception e) {
-                        log.error("AP recalc failed for score {}: {}", score.getId(), e.getMessage());
+                        log.error("AP recalc failed for score {}: {}", scoreId, e.getMessage());
                     }
                 }, backfillExecutor))
                 .toList();
@@ -388,17 +386,17 @@ public class ScoreRecalculationService {
         if (evaluation.completedMilestones().isEmpty() && evaluation.completedSets().isEmpty())
             return;
 
-        BigDecimal milestoneXp = evaluation.completedMilestones().stream()
+        Double milestoneXp = evaluation.completedMilestones().stream()
                 .map(Milestone::getXp)
                 .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal setXp = evaluation.completedSets().stream()
+                .reduce(0.0, Double::sum);
+        Double setXp = evaluation.completedSets().stream()
                 .map(MilestoneSet::getSetBonusXp)
                 .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(0.0, Double::sum);
 
-        BigDecimal total = milestoneXp.add(setXp);
-        if (total.compareTo(BigDecimal.ZERO) > 0) {
+        Double total = (milestoneXp + setXp);
+        if (total.compareTo(0.0) > 0) {
             levelUpAwardService.addXp(userId, total);
         }
     }

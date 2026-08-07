@@ -3,6 +3,7 @@ package com.accsaber.backend.service.score;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -10,7 +11,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -125,8 +125,8 @@ class ScoreServiceTest {
                                 .id(UUID.randomUUID())
                                 .name("Test Score Curve")
                                 .type(CurveType.POINT_LOOKUP)
-                                .scale(new BigDecimal("61"))
-                                .shift(new BigDecimal("-18"))
+                                .scale(61.0)
+                                .shift(-18.0)
                                 .build();
 
                 Category category = Category.builder()
@@ -167,7 +167,7 @@ class ScoreServiceTest {
                 return req;
         }
 
-        private Score buildExistingScore(BigDecimal ap) {
+        private Score buildExistingScore(Double ap) {
                 return Score.builder()
                                 .id(UUID.randomUUID())
                                 .user(activeUser)
@@ -182,21 +182,21 @@ class ScoreServiceTest {
                                 .build();
         }
 
-        private void stubCommonMocks(BigDecimal rawAp) {
+        private void stubCommonMocks(Double rawAp) {
                 when(mapDifficultyRepository.findByIdAndActiveTrue(rankedDifficulty.getId()))
                                 .thenReturn(Optional.of(rankedDifficulty));
                 when(userRepository.findById(activeUser.getId()))
                                 .thenReturn(Optional.of(activeUser));
                 when(mapComplexityService.findActiveComplexity(rankedDifficulty.getId()))
-                                .thenReturn(Optional.of(new BigDecimal("10.0")));
-                when(apCalculationService.calculateRawAP(any(), any(), any()))
-                                .thenReturn(new APResult(rawAp, new BigDecimal("0.5")));
-                lenient().when(xpCalculationService.calculateXpForNewMap(any(), any()))
-                                .thenReturn(BigDecimal.TEN);
-                lenient().when(xpCalculationService.calculateXpForImprovement(any(), any(), any()))
-                                .thenReturn(BigDecimal.TEN);
+                                .thenReturn(Optional.of(10.0));
+                when(apCalculationService.calculateRawAP(anyDouble(), anyDouble(), any()))
+                                .thenReturn(new APResult(rawAp, 0.5));
+                lenient().when(xpCalculationService.calculateXpForNewMap(anyDouble(), anyDouble()))
+                                .thenReturn(10.0);
+                lenient().when(xpCalculationService.calculateXpForImprovement(anyDouble(), any(), anyDouble()))
+                                .thenReturn(10.0);
                 lenient().when(xpCalculationService.calculateXpForWorseScore())
-                                .thenReturn(BigDecimal.TEN);
+                                .thenReturn(10.0);
                 when(modifierLinkRepository.findByScore_Id(any()))
                                 .thenReturn(Collections.emptyList());
                 lenient().when(milestoneEvaluationService.evaluateAfterScore(any(), any()))
@@ -222,7 +222,7 @@ class ScoreServiceTest {
 
                 @Test
                 void newScore_noExisting_calculatesAPAndSaves() {
-                        BigDecimal rawAp = new BigDecimal("500.000000");
+                        Double rawAp = 500.000000;
                         stubCommonMocks(rawAp);
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
                                         activeUser.getId(), rankedDifficulty.getId()))
@@ -239,7 +239,7 @@ class ScoreServiceTest {
 
                 @Test
                 void newScore_publishesScoreSubmittedEvent() {
-                        BigDecimal rawAp = new BigDecimal("500.000000");
+                        Double rawAp = 500.000000;
                         stubCommonMocks(rawAp);
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
                                         activeUser.getId(), rankedDifficulty.getId()))
@@ -254,8 +254,8 @@ class ScoreServiceTest {
 
                 @Test
                 void betterScore_supersedesExisting() {
-                        BigDecimal oldAp = new BigDecimal("400.000000");
-                        BigDecimal newAp = new BigDecimal("500.000000");
+                        Double oldAp = 400.000000;
+                        Double newAp = 500.000000;
                         stubCommonMocks(newAp);
                         Score existing = buildExistingScore(oldAp);
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
@@ -276,8 +276,8 @@ class ScoreServiceTest {
 
                 @Test
                 void worseScore_keepsExisting_savesInactiveHistory() {
-                        BigDecimal oldAp = new BigDecimal("600.000000");
-                        BigDecimal newAp = new BigDecimal("500.000000");
+                        Double oldAp = 600.000000;
+                        Double newAp = 500.000000;
                         stubCommonMocks(newAp);
                         Score existing = buildExistingScore(oldAp);
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
@@ -293,8 +293,8 @@ class ScoreServiceTest {
 
                 @Test
                 void worseScore_stillPublishesScoreSubmittedEvent() {
-                        BigDecimal oldAp = new BigDecimal("600.000000");
-                        BigDecimal newAp = new BigDecimal("500.000000");
+                        Double oldAp = 600.000000;
+                        Double newAp = 500.000000;
                         stubCommonMocks(newAp);
                         Score existing = buildExistingScore(oldAp);
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
@@ -308,7 +308,7 @@ class ScoreServiceTest {
 
                 @Test
                 void duplicateScore_backfillsExistingRow_reEvaluatesMilestones() {
-                        Score existing = buildExistingScore(new BigDecimal("600.000000"));
+                        Score existing = buildExistingScore(600.000000);
                         when(mapDifficultyRepository.findByIdAndActiveTrue(rankedDifficulty.getId()))
                                         .thenReturn(Optional.of(rankedDifficulty));
                         when(userRepository.findById(activeUser.getId()))
@@ -336,7 +336,7 @@ class ScoreServiceTest {
 
                 @Test
                 void duplicateScore_noFieldChanges_skipsSaveAndMilestoneEval() {
-                        Score existing = buildExistingScore(new BigDecimal("600.000000"));
+                        Score existing = buildExistingScore(600.000000);
                         existing.setBlScoreId(123_456L);
                         existing.setStreak115(42);
                         when(mapDifficultyRepository.findByIdAndActiveTrue(rankedDifficulty.getId()))
@@ -359,7 +359,7 @@ class ScoreServiceTest {
 
                 @Test
                 void firstEverPlayOnAMap_countsTowardsStrangeItems() {
-                        BigDecimal rawAp = new BigDecimal("500.000000");
+                        Double rawAp = 500.000000;
                         stubCommonMocks(rawAp);
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
                                         activeUser.getId(), rankedDifficulty.getId()))
@@ -373,8 +373,8 @@ class ScoreServiceTest {
 
                 @Test
                 void improvedScore_countsTowardsStrangeItems() {
-                        BigDecimal oldAp = new BigDecimal("400.000000");
-                        BigDecimal newAp = new BigDecimal("500.000000");
+                        Double oldAp = 400.000000;
+                        Double newAp = 500.000000;
                         stubCommonMocks(newAp);
                         Score existing = buildExistingScore(oldAp);
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
@@ -390,8 +390,8 @@ class ScoreServiceTest {
 
                 @Test
                 void worseScore_doesNotCountTowardsStrangeItems() {
-                        BigDecimal oldAp = new BigDecimal("600.000000");
-                        BigDecimal newAp = new BigDecimal("500.000000");
+                        Double oldAp = 600.000000;
+                        Double newAp = 500.000000;
                         stubCommonMocks(newAp);
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
                                         activeUser.getId(), rankedDifficulty.getId()))
@@ -404,7 +404,7 @@ class ScoreServiceTest {
 
                 @Test
                 void partialAttempt_doesNotCountTowardsStrangeItems() {
-                        stubCommonMocks(new BigDecimal("100.000000"));
+                        stubCommonMocks(100.000000);
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
                                         activeUser.getId(), rankedDifficulty.getId()))
                                         .thenReturn(Optional.empty());
@@ -420,7 +420,7 @@ class ScoreServiceTest {
 
                 @Test
                 void partialSubmit_noExisting_insertsInactivePartial_awardsXp_evaluatesMilestones() {
-                        BigDecimal rawAp = new BigDecimal("100.000000");
+                        Double rawAp = 100.000000;
                         stubCommonMocks(rawAp);
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
                                         activeUser.getId(), rankedDifficulty.getId()))
@@ -445,7 +445,7 @@ class ScoreServiceTest {
 
                 @Test
                 void playMatch_looksUpATenSecondWindowAroundTimeSet() {
-                        Score existing = buildExistingScore(new BigDecimal("600.000000"));
+                        Score existing = buildExistingScore(600.000000);
                         Instant playedAt = Instant.parse("2026-08-03T12:00:00Z");
                         when(mapDifficultyRepository.findByIdAndActiveTrue(rankedDifficulty.getId()))
                                         .thenReturn(Optional.of(rankedDifficulty));
@@ -472,7 +472,7 @@ class ScoreServiceTest {
 
                 @Test
                 void playMatch_windowCannotMatchAnything_forPartialAttempts() {
-                        BigDecimal rawAp = new BigDecimal("100.000000");
+                        Double rawAp = 100.000000;
                         stubCommonMocks(rawAp);
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
                                         activeUser.getId(), rankedDifficulty.getId()))
@@ -493,7 +493,7 @@ class ScoreServiceTest {
 
                 @Test
                 void playMatch_windowCannotMatchAnything_whenTimeSetIsMissing() {
-                        Score existing = buildExistingScore(new BigDecimal("600.000000"));
+                        Score existing = buildExistingScore(600.000000);
                         when(mapDifficultyRepository.findByIdAndActiveTrue(rankedDifficulty.getId()))
                                         .thenReturn(Optional.of(rankedDifficulty));
                         when(userRepository.findById(activeUser.getId()))
@@ -512,7 +512,7 @@ class ScoreServiceTest {
 
                 @Test
                 void partialSubmit_doesNotMergeIntoNonPartialRow() {
-                        BigDecimal rawAp = new BigDecimal("100.000000");
+                        Double rawAp = 100.000000;
                         stubCommonMocks(rawAp);
                         when(scoreRepository.findByUser_IdAndMapDifficulty_IdAndActiveTrue(
                                         activeUser.getId(), rankedDifficulty.getId()))
@@ -644,8 +644,8 @@ class ScoreServiceTest {
                                         .mapDifficulty(rankedDifficulty)
                                         .score(950_000).scoreNoMods(950_000)
                                         .rank(1).rankWhenSet(1)
-                                        .ap(new BigDecimal("500.000000"))
-                                        .weightedAp(new BigDecimal("500.000000"))
+                                        .ap(500.000000)
+                                        .weightedAp(500.000000)
                                         .active(false)
                                         .createdAt(Instant.now().minusSeconds(3600))
                                         .build();
@@ -655,8 +655,8 @@ class ScoreServiceTest {
                                         .mapDifficulty(rankedDifficulty)
                                         .score(970_000).scoreNoMods(970_000)
                                         .rank(1).rankWhenSet(1)
-                                        .ap(new BigDecimal("600.000000"))
-                                        .weightedAp(new BigDecimal("600.000000"))
+                                        .ap(600.000000)
+                                        .weightedAp(600.000000)
                                         .active(true)
                                         .createdAt(Instant.now())
                                         .build();
@@ -673,8 +673,8 @@ class ScoreServiceTest {
                                         activeUser.getId(), rankedDifficulty.getId(), 7, "d");
 
                         assertThat(result).hasSize(2);
-                        assertThat(result.get(0).getAp()).isEqualByComparingTo(new BigDecimal("500.000000"));
-                        assertThat(result.get(1).getAp()).isEqualByComparingTo(new BigDecimal("600.000000"));
+                        assertThat(result.get(0).getAp()).isEqualByComparingTo(500.000000);
+                        assertThat(result.get(1).getAp()).isEqualByComparingTo(600.000000);
                 }
 
                 @Test
@@ -695,8 +695,8 @@ class ScoreServiceTest {
                                         .mapDifficulty(rankedDifficulty)
                                         .score(950_000).scoreNoMods(950_000)
                                         .rank(1).rankWhenSet(1)
-                                        .ap(new BigDecimal("500.000000"))
-                                        .weightedAp(new BigDecimal("500.000000"))
+                                        .ap(500.000000)
+                                        .weightedAp(500.000000)
                                         .streak115(streak)
                                         .active(true)
                                         .build();
@@ -788,12 +788,12 @@ class ScoreServiceTest {
                         Score saved = captor.getValue();
                         assertThat(saved.isActive()).isFalse();
                         assertThat(saved.getSupersedesReason()).isEqualTo("Campaign attempt");
-                        assertThat(saved.getAp()).isEqualByComparingTo(BigDecimal.ZERO);
-                        assertThat(saved.getWeightedAp()).isEqualByComparingTo(BigDecimal.ZERO);
-                        assertThat(saved.getXpGained()).isEqualByComparingTo(BigDecimal.ZERO);
+                        assertThat(saved.getAp()).isEqualByComparingTo(0.0);
+                        assertThat(saved.getWeightedAp()).isEqualByComparingTo(0.0);
+                        assertThat(saved.getXpGained()).isEqualByComparingTo(0.0);
                         assertThat(saved.getRank()).isZero();
                         assertThat(saved.getRankWhenSet()).isZero();
-                        verify(apCalculationService, never()).calculateRawAP(any(), any(), any());
+                        verify(apCalculationService, never()).calculateRawAP(anyDouble(), anyDouble(), any());
                         verify(statisticsService, never()).recalculate(any(), any());
                         verify(eventPublisher, never()).publishEvent(any(ScoreSubmittedEvent.class));
                 }
@@ -828,7 +828,7 @@ class ScoreServiceTest {
                                         .id(SLOWER_SONG_ID)
                                         .name("Slower Song")
                                         .code("SS")
-                                        .multiplier(BigDecimal.ONE)
+                                        .multiplier(1.0)
                                         .active(true)
                                         .build();
                 }

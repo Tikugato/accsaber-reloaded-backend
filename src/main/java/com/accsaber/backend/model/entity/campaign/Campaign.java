@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.campaign;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,9 +78,9 @@ public class Campaign {
     @Builder.Default
     private boolean legacy = false;
 
-    @Column(name = "completion_xp", nullable = false, precision = 20, scale = 6)
+    @Column(name = "completion_xp", nullable = false)
     @Builder.Default
-    private BigDecimal completionXp = BigDecimal.ZERO;
+    private double completionXp = 0.0;
 
     @Column(name = "curator_notes")
     private String curatorNotes;

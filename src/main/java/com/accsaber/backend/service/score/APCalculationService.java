@@ -1,11 +1,8 @@
 package com.accsaber.backend.service.score;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -19,6 +16,7 @@ import com.accsaber.backend.model.entity.Curve;
 import com.accsaber.backend.model.entity.CurvePoint;
 import com.accsaber.backend.model.entity.CurveType;
 import com.accsaber.backend.repository.CurvePointRepository;
+import com.accsaber.backend.util.Rounding;
 
 import lombok.RequiredArgsConstructor;
 
@@ -28,42 +26,81 @@ import lombok.RequiredArgsConstructor;
 public class APCalculationService {
 
     private static final Logger log = LoggerFactory.getLogger(APCalculationService.class);
-    private static final MathContext MATH_CONTEXT = new MathContext(16, RoundingMode.HALF_UP);
     private static final int AP_SCALE = 6;
 
     private final CurvePointRepository curvePointRepository;
-    private final Map<UUID, TreeMap<BigDecimal, BigDecimal>> curveCache = new ConcurrentHashMap<>();
+    private final Map<UUID, CurveTable> curveCache = new ConcurrentHashMap<>();
+    private final Map<UUID, WeightParams> weightCache = new ConcurrentHashMap<>();
 
-    public APResult calculateRawAP(BigDecimal accuracy, BigDecimal complexity, Curve scoreCurve) {
-        BigDecimal normalizedAP = interpolate(scoreCurve, accuracy);
-        BigDecimal rawAP = normalizedAP
-                .multiply(complexity.subtract(scoreCurve.getShift()), MATH_CONTEXT)
-                .multiply(scoreCurve.getScale(), MATH_CONTEXT)
-                .setScale(AP_SCALE, RoundingMode.HALF_UP);
+    private record CurveTable(double[] xs, double[] ys) {
+
+        double interpolate(double x) {
+            int idx = Arrays.binarySearch(xs, x);
+            if (idx >= 0) {
+                return ys[idx];
+            }
+            int ip = -idx - 1;
+            if (ip == 0) {
+                return ys[0];
+            }
+            if (ip == xs.length) {
+                return ys[xs.length - 1];
+            }
+            double x0 = xs[ip - 1];
+            double x1 = xs[ip];
+            double y0 = ys[ip - 1];
+            double y1 = ys[ip];
+            return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+        }
+
+        double inverseInterpolate(double y) {
+            for (int i = 0; i < ys.length; i++) {
+                if (y <= ys[i]) {
+                    if (i == 0) {
+                        return xs[0];
+                    }
+                    double dy = ys[i] - ys[i - 1];
+                    if (dy == 0.0) {
+                        return xs[i];
+                    }
+                    return xs[i - 1] + (xs[i] - xs[i - 1]) * ((y - ys[i - 1]) / dy);
+                }
+            }
+            return xs.length == 0 ? 0.0 : xs[xs.length - 1];
+        }
+    }
+
+    private record WeightParams(double k, double numerator, double x0) {
+
+        double weightAt(int position) {
+            return numerator / (1 + Math.exp(k * (position - x0)));
+        }
+    }
+
+    public APResult calculateRawAP(double accuracy, double complexity, Curve scoreCurve) {
+        double normalizedAP = interpolate(scoreCurve, accuracy);
+        double rawAP = Rounding.round(
+                normalizedAP * (complexity - scoreCurve.getShift()) * scoreCurve.getScale(), AP_SCALE);
         return new APResult(rawAP, normalizedAP);
     }
 
-    public BigDecimal calculateWeightedAP(BigDecimal rawAP, int position, Curve weightCurve) {
-        double weight = positionWeight(position, weightCurve);
-        BigDecimal weightBD = new BigDecimal(weight, MATH_CONTEXT);
-        return rawAP.multiply(weightBD, MATH_CONTEXT)
-                .setScale(AP_SCALE, RoundingMode.HALF_UP);
+    public double calculateWeightedAP(double rawAP, int position, Curve weightCurve) {
+        return Rounding.round(rawAP * positionWeight(position, weightCurve), AP_SCALE);
     }
 
-    public BigDecimal calculateRawApForOneWeightedGain(List<BigDecimal> sortedRawApsDesc, Curve weightCurve) {
-        List<BigDecimal> sorted = sortedRawApsDesc == null ? List.of() : sortedRawApsDesc;
-        double currentTotal = totalWeightedAP(sorted, weightCurve);
-        double target = currentTotal + 1.0;
+    public double calculateRawApForOneWeightedGain(List<Double> sortedRawApsDesc, Curve weightCurve) {
+        List<Double> sorted = sortedRawApsDesc == null ? List.of() : sortedRawApsDesc;
+        WeightParams params = getOrLoadWeightParams(weightCurve);
+        double target = totalWeightedAP(sorted, params) + 1.0;
 
         double lo = 0.0;
         double hi = sorted.isEmpty()
                 ? 100.0
-                : Math.max(100.0, sorted.get(0).doubleValue() * 3.0);
+                : Math.max(100.0, sorted.get(0) * 3.0);
 
         for (int i = 0; i < 60; i++) {
             double mid = (lo + hi) / 2.0;
-            double trial = totalWeightedAPWithInsert(sorted, mid, weightCurve);
-            if (trial < target) {
+            if (totalWeightedAPWithInsert(sorted, mid, params) < target) {
                 lo = mid;
             } else {
                 hi = mid;
@@ -72,21 +109,21 @@ public class APCalculationService {
                 break;
             }
         }
-        return BigDecimal.valueOf((lo + hi) / 2.0).setScale(AP_SCALE, RoundingMode.HALF_UP);
+        return Rounding.round((lo + hi) / 2.0, AP_SCALE);
     }
 
-    private double totalWeightedAP(List<BigDecimal> sortedRawApsDesc, Curve weightCurve) {
+    private double totalWeightedAP(List<Double> sortedRawApsDesc, WeightParams params) {
         double total = 0.0;
         for (int i = 0; i < sortedRawApsDesc.size(); i++) {
-            total += sortedRawApsDesc.get(i).doubleValue() * positionWeight(i, weightCurve);
+            total += sortedRawApsDesc.get(i) * params.weightAt(i);
         }
         return total;
     }
 
-    private double totalWeightedAPWithInsert(List<BigDecimal> sortedRawApsDesc, double newRaw, Curve weightCurve) {
+    private double totalWeightedAPWithInsert(List<Double> sortedRawApsDesc, double newRaw, WeightParams params) {
         int insertAt = sortedRawApsDesc.size();
         for (int i = 0; i < sortedRawApsDesc.size(); i++) {
-            if (newRaw > sortedRawApsDesc.get(i).doubleValue()) {
+            if (newRaw > sortedRawApsDesc.get(i)) {
                 insertAt = i;
                 break;
             }
@@ -94,119 +131,79 @@ public class APCalculationService {
         double total = 0.0;
         int pos = 0;
         for (int i = 0; i < insertAt; i++) {
-            total += sortedRawApsDesc.get(i).doubleValue() * positionWeight(pos++, weightCurve);
+            total += sortedRawApsDesc.get(i) * params.weightAt(pos++);
         }
-        total += newRaw * positionWeight(pos++, weightCurve);
+        total += newRaw * params.weightAt(pos++);
         for (int i = insertAt; i < sortedRawApsDesc.size(); i++) {
-            total += sortedRawApsDesc.get(i).doubleValue() * positionWeight(pos++, weightCurve);
+            total += sortedRawApsDesc.get(i) * params.weightAt(pos++);
         }
         return total;
     }
 
     private double positionWeight(int position, Curve weightCurve) {
-        double k = weightCurve.getXParameterValue().doubleValue();
-        double y1 = weightCurve.getYParameterValue().doubleValue();
-        double x1 = weightCurve.getZParameterValue().doubleValue();
-        double x0 = -Math.log((1 - y1) / (y1 * Math.exp(k * x1) - 1)) / k;
-        return (1 + Math.exp(-k * x0)) / (1 + Math.exp(k * (position - x0)));
+        return getOrLoadWeightParams(weightCurve).weightAt(position);
     }
 
-    public BigDecimal inverseInterpolate(Curve curve, BigDecimal normalizedAP) {
+    private WeightParams getOrLoadWeightParams(Curve weightCurve) {
+        return weightCache.computeIfAbsent(weightCurve.getId(), id -> {
+            double k = weightCurve.getXParameterValue();
+            double y1 = weightCurve.getYParameterValue();
+            double x1 = weightCurve.getZParameterValue();
+            double x0 = -Math.log((1 - y1) / (y1 * Math.exp(k * x1) - 1)) / k;
+            return new WeightParams(k, 1 + Math.exp(-k * x0), x0);
+        });
+    }
+
+    public double inverseInterpolate(Curve curve, double normalizedAP) {
         if (curve.getType() != CurveType.POINT_LOOKUP) {
             throw new IllegalArgumentException(
                     "Cannot inverse-interpolate a FORMULA type curve");
         }
-
-        TreeMap<BigDecimal, BigDecimal> points = getOrLoadPoints(curve.getId());
-        if (points.isEmpty()) {
+        CurveTable table = getOrLoadPoints(curve.getId());
+        if (table.xs().length == 0) {
             throw new IllegalStateException(
                     "No curve points loaded for curve: " + curve.getId());
         }
-
-        BigDecimal prevX = null;
-        BigDecimal prevY = null;
-        for (Map.Entry<BigDecimal, BigDecimal> e : points.entrySet()) {
-            BigDecimal x = e.getKey();
-            BigDecimal y = e.getValue();
-            if (normalizedAP.compareTo(y) <= 0) {
-                if (prevX == null) {
-                    return x;
-                }
-                BigDecimal dy = y.subtract(prevY);
-                if (dy.signum() == 0) {
-                    return x;
-                }
-                BigDecimal frac = normalizedAP.subtract(prevY).divide(dy, MATH_CONTEXT);
-                return prevX.add(x.subtract(prevX).multiply(frac, MATH_CONTEXT));
-            }
-            prevX = x;
-            prevY = y;
-        }
-        return prevX != null ? prevX : BigDecimal.ZERO;
+        return table.inverseInterpolate(normalizedAP);
     }
 
-    public BigDecimal interpolate(Curve curve, BigDecimal accuracy) {
+    public double interpolate(Curve curve, double accuracy) {
         if (curve.getType() != CurveType.POINT_LOOKUP) {
             throw new IllegalArgumentException(
                     "Cannot interpolate a FORMULA type curve; use calculateWeightedAP instead");
         }
-
-        TreeMap<BigDecimal, BigDecimal> points = getOrLoadPoints(curve.getId());
-
-        if (points.isEmpty()) {
+        CurveTable table = getOrLoadPoints(curve.getId());
+        if (table.xs().length == 0) {
             throw new IllegalStateException(
                     "No curve points loaded for curve: " + curve.getId());
         }
-
-        Map.Entry<BigDecimal, BigDecimal> floor = points.floorEntry(accuracy);
-        Map.Entry<BigDecimal, BigDecimal> ceiling = points.ceilingEntry(accuracy);
-
-        if (floor == null && ceiling == null) {
-            return BigDecimal.ZERO;
-        }
-        if (floor == null) {
-            return ceiling.getValue();
-        }
-        if (ceiling == null) {
-            return floor.getValue();
-        }
-        if (floor.getKey().compareTo(ceiling.getKey()) == 0) {
-            return floor.getValue();
-        }
-
-        // y = y0 + (x - x0) * (y1 - y0) / (x1 - x0)
-        BigDecimal x0 = floor.getKey();
-        BigDecimal y0 = floor.getValue();
-        BigDecimal x1 = ceiling.getKey();
-        BigDecimal y1 = ceiling.getValue();
-
-        BigDecimal dx = accuracy.subtract(x0);
-        BigDecimal range = x1.subtract(x0);
-        BigDecimal dy = y1.subtract(y0);
-
-        return y0.add(dx.multiply(dy, MATH_CONTEXT).divide(range, MATH_CONTEXT));
+        return table.interpolate(accuracy);
     }
 
-    private TreeMap<BigDecimal, BigDecimal> getOrLoadPoints(UUID curveId) {
+    private CurveTable getOrLoadPoints(UUID curveId) {
         return curveCache.computeIfAbsent(curveId, id -> {
             log.info("Loading curve points for curve: {}", id);
             List<CurvePoint> points = curvePointRepository.findByCurveIdOrderByXAsc(id);
-            TreeMap<BigDecimal, BigDecimal> map = new TreeMap<>();
-            for (CurvePoint point : points) {
-                map.put(point.getX(), point.getY());
+            double[] xs = new double[points.size()];
+            double[] ys = new double[points.size()];
+            for (int i = 0; i < points.size(); i++) {
+                xs[i] = points.get(i).getX();
+                ys[i] = points.get(i).getY();
             }
-            log.info("Loaded {} curve points for curve: {}", map.size(), id);
-            return map;
+            log.info("Loaded {} curve points for curve: {}", xs.length, id);
+            return new CurveTable(xs, ys);
         });
     }
 
     public void evictCurveCache(UUID curveId) {
         curveCache.remove(curveId);
+        weightCache.remove(curveId);
         log.info("Evicted curve cache for curve: {}", curveId);
     }
 
     public void evictAllCurveCaches() {
         curveCache.clear();
+        weightCache.clear();
         log.info("Evicted all curve caches");
     }
 }

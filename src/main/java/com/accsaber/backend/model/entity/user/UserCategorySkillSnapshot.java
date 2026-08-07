@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.user;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -44,20 +43,20 @@ public class UserCategorySkillSnapshot {
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
-    @Column(name = "skill_level", nullable = false, precision = 5, scale = 2)
-    private BigDecimal skillLevel;
+    @Column(name = "skill_level", nullable = false)
+    private double skillLevel;
 
-    @Column(name = "rank_score", nullable = false, precision = 5, scale = 2)
-    private BigDecimal rankScore;
+    @Column(name = "rank_score", nullable = false)
+    private double rankScore;
 
-    @Column(name = "sustained_score", nullable = false, precision = 5, scale = 2)
-    private BigDecimal sustainedScore;
+    @Column(name = "sustained_score", nullable = false)
+    private double sustainedScore;
 
-    @Column(name = "peak_score", nullable = false, precision = 5, scale = 2)
-    private BigDecimal peakScore;
+    @Column(name = "peak_score", nullable = false)
+    private double peakScore;
 
-    @Column(name = "combined_score", nullable = false, precision = 5, scale = 2)
-    private BigDecimal combinedScore;
+    @Column(name = "combined_score", nullable = false)
+    private double combinedScore;
 
     @CreationTimestamp
     @Column(name = "captured_at", nullable = false, updatable = false)

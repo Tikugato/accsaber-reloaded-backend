@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.campaign;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,7 +28,7 @@ public class UpdateCampaignRequest {
     private Boolean progressionAgnostic;
     private CampaignCompletionMode completionMode;
     private Boolean playlistExportEnabled;
-    private BigDecimal completionXp;
+    private Double completionXp;
     @Size(max = 64)
     @CleanText
     private String creatorAlias;

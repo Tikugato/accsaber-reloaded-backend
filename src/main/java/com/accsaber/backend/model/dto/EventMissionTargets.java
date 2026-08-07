@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -11,12 +10,12 @@ public record EventMissionTargets(
         UUID categoryId,
         UUID mapDifficultyId,
         String playerId,
-        BigDecimal acc,
-        BigDecimal ap,
+        Double acc,
+        Double ap,
         Integer score,
         Integer count,
         Integer xp,
-        BigDecimal thresholdAp,
+        Double thresholdAp,
         Integer streak,
         Instant rankedBefore,
         Boolean curatedOnly) {

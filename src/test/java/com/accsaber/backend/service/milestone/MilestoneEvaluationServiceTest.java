@@ -7,7 +7,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -113,18 +112,18 @@ class MilestoneEvaluationServiceTest {
                                 .build();
         }
 
-        private Milestone buildMilestone(BigDecimal target, String comparison) {
+        private Milestone buildMilestone(Double target, String comparison) {
                 return buildMilestone(target, comparison, null);
         }
 
-        private Milestone buildMilestone(BigDecimal target, String comparison, Category category) {
+        private Milestone buildMilestone(Double target, String comparison, Category category) {
                 return Milestone.builder()
                                 .id(UUID.randomUUID())
                                 .milestoneSet(milestoneSet)
                                 .title("Test Milestone")
                                 .type("milestone")
                                 .tier(MilestoneTier.gold)
-                                .xp(BigDecimal.valueOf(300))
+                                .xp((double) (300))
                                 .querySpec(querySpec)
                                 .targetValue(target)
                                 .comparison(comparison)
@@ -139,8 +138,8 @@ class MilestoneEvaluationServiceTest {
                                 .thenReturn(milestones);
         }
 
-        private void mockBatchEval(List<Milestone> milestones, BigDecimal value) {
-                Map<UUID, BigDecimal> results = new java.util.HashMap<>();
+        private void mockBatchEval(List<Milestone> milestones, Double value) {
+                Map<UUID, Double> results = new java.util.HashMap<>();
                 for (Milestone m : milestones) {
                         results.put(m.getId(), value);
                 }
@@ -169,12 +168,12 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void currentValueMeetsGteTarget_marksCompleted() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(900), "GTE");
+                        Milestone milestone = buildMilestone((double) (900), "GTE");
                         Score newScore = buildScoreWithMapDifficulty();
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(950));
+                        mockBatchEval(List.of(milestone), (double) (950));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -193,17 +192,17 @@ class MilestoneEvaluationServiceTest {
                         assertThat(saved.get(0).isCompleted()).isTrue();
                         assertThat(saved.get(0).getCompletedAt()).isNotNull();
                         assertThat(saved.get(0).getAchievedWithScore()).isEqualTo(newScore);
-                        assertThat(saved.get(0).getProgress()).isEqualByComparingTo(BigDecimal.valueOf(950));
+                        assertThat(saved.get(0).getProgress()).isEqualByComparingTo((double) (950));
                 }
 
                 @Test
                 void currentValueBelowGteTarget_notCompleted() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(900), "GTE");
+                        Milestone milestone = buildMilestone((double) (900), "GTE");
                         Score newScore = buildScoreWithMapDifficulty();
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(750));
+                        mockBatchEval(List.of(milestone), (double) (750));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -218,12 +217,12 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void lteComparison_completedWhenValueBelowTarget() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(10), "LTE");
+                        Milestone milestone = buildMilestone((double) (10), "LTE");
                         Score newScore = buildScoreWithMapDifficulty();
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(5));
+                        mockBatchEval(List.of(milestone), (double) (5));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -240,12 +239,12 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void lteComparison_notCompletedWhenValueAboveTarget() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(10), "LTE");
+                        Milestone milestone = buildMilestone((double) (10), "LTE");
                         Score newScore = buildScoreWithMapDifficulty();
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(15));
+                        mockBatchEval(List.of(milestone), (double) (15));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -260,12 +259,12 @@ class MilestoneEvaluationServiceTest {
                         UUID milestoneCategoryId = UUID.randomUUID();
                         Category milestoneCategory = Category.builder().id(milestoneCategoryId).name("True Acc")
                                         .build();
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(500), "GTE", milestoneCategory);
+                        Milestone milestone = buildMilestone((double) (500), "GTE", milestoneCategory);
                         Score newScore = buildScoreWithMapDifficulty();
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(300));
+                        mockBatchEval(List.of(milestone), (double) (300));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -283,9 +282,9 @@ class MilestoneEvaluationServiceTest {
                                         .title("BL Only")
                                         .type("achievement")
                                         .tier(MilestoneTier.gold)
-                                        .xp(BigDecimal.valueOf(200))
+                                        .xp((double) (200))
                                         .querySpec(querySpec)
-                                        .targetValue(BigDecimal.valueOf(10))
+                                        .targetValue((double) (10))
                                         .comparison("GTE")
                                         .blExclusive(true)
                                         .active(true)
@@ -308,9 +307,9 @@ class MilestoneEvaluationServiceTest {
                                         .title("BL Only")
                                         .type("achievement")
                                         .tier(MilestoneTier.gold)
-                                        .xp(BigDecimal.valueOf(200))
+                                        .xp((double) (200))
                                         .querySpec(querySpec)
-                                        .targetValue(BigDecimal.valueOf(10))
+                                        .targetValue((double) (10))
                                         .comparison("GTE")
                                         .blExclusive(true)
                                         .active(true)
@@ -319,7 +318,7 @@ class MilestoneEvaluationServiceTest {
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(5));
+                        mockBatchEval(List.of(milestone), (double) (5));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -344,16 +343,16 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void existingLink_progressUpdated_notDoubleCompleted() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(900), "GTE");
+                        Milestone milestone = buildMilestone((double) (900), "GTE");
                         Score newScore = buildScoreWithMapDifficulty();
                         UserMilestoneLink existingLink = UserMilestoneLink.builder()
                                         .milestone(milestone)
-                                        .progress(BigDecimal.valueOf(850))
+                                        .progress((double) (850))
                                         .completed(false)
                                         .build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(950));
+                        mockBatchEval(List.of(milestone), (double) (950));
                         mockExistingLinks(existingLink);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
                         when(userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(USER_ID,
@@ -365,17 +364,17 @@ class MilestoneEvaluationServiceTest {
                         service.evaluateAfterScore(USER_ID, newScore);
 
                         assertThat(existingLink.isCompleted()).isTrue();
-                        assertThat(existingLink.getProgress()).isEqualByComparingTo(BigDecimal.valueOf(950));
+                        assertThat(existingLink.getProgress()).isEqualByComparingTo((double) (950));
                 }
 
                 @Test
                 void scopedQuery_usesMapDifficultyAndCategoryFromScore() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(100), "GTE");
+                        Milestone milestone = buildMilestone((double) (100), "GTE");
                         Score newScore = buildScoreWithMapDifficulty();
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(50));
+                        mockBatchEval(List.of(milestone), (double) (50));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -389,7 +388,7 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void completedAt_usesScoreTimeSet() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(100), "GTE");
+                        Milestone milestone = buildMilestone((double) (100), "GTE");
                         Instant scoreTime = Instant.parse("2025-06-15T12:00:00Z");
                         Score newScore = Score.builder()
                                         .id(UUID.randomUUID())
@@ -399,7 +398,7 @@ class MilestoneEvaluationServiceTest {
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(200));
+                        mockBatchEval(List.of(milestone), (double) (200));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -421,11 +420,11 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void evaluatesExactlyOneMilestone() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(100), "GTE");
-                        User user = User.builder().id(USER_ID).totalXp(BigDecimal.ZERO).build();
+                        Milestone milestone = buildMilestone((double) (100), "GTE");
+                        User user = User.builder().id(USER_ID).totalXp(0.0).build();
 
                         when(queryBuilderService.evaluate(querySpec, USER_ID, null))
-                                        .thenReturn(BigDecimal.valueOf(120));
+                                        .thenReturn((double) (120));
                         when(userMilestoneLinkRepository.findByUser_IdAndMilestone_Id(USER_ID, milestone.getId()))
                                         .thenReturn(Optional.empty());
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
@@ -445,11 +444,11 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void completedWhenTargetMet() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(5), "GTE");
-                        User user = User.builder().id(USER_ID).totalXp(BigDecimal.ZERO).build();
+                        Milestone milestone = buildMilestone((double) (5), "GTE");
+                        User user = User.builder().id(USER_ID).totalXp(0.0).build();
 
                         when(queryBuilderService.evaluate(querySpec, USER_ID, null))
-                                        .thenReturn(BigDecimal.valueOf(10));
+                                        .thenReturn((double) (10));
                         when(userMilestoneLinkRepository.findByUser_IdAndMilestone_Id(USER_ID, milestone.getId()))
                                         .thenReturn(Optional.empty());
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
@@ -470,11 +469,11 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void notCompletedWhenTargetNotMet() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(500), "GTE");
+                        Milestone milestone = buildMilestone((double) (500), "GTE");
                         User user = User.builder().id(USER_ID).build();
 
                         when(queryBuilderService.evaluate(querySpec, USER_ID, null))
-                                        .thenReturn(BigDecimal.valueOf(200));
+                                        .thenReturn((double) (200));
                         when(userMilestoneLinkRepository.findByUser_IdAndMilestone_Id(USER_ID, milestone.getId()))
                                         .thenReturn(Optional.empty());
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
@@ -491,11 +490,11 @@ class MilestoneEvaluationServiceTest {
                 void categoryIdPassedCorrectly() {
                         UUID catId = UUID.randomUUID();
                         Category category = Category.builder().id(catId).build();
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(100), "GTE", category);
+                        Milestone milestone = buildMilestone((double) (100), "GTE", category);
                         User user = User.builder().id(USER_ID).build();
 
                         when(queryBuilderService.evaluate(querySpec, USER_ID, catId))
-                                        .thenReturn(BigDecimal.valueOf(50));
+                                        .thenReturn((double) (50));
                         when(userMilestoneLinkRepository.findByUser_IdAndMilestone_Id(USER_ID, milestone.getId()))
                                         .thenReturn(Optional.empty());
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
@@ -508,7 +507,7 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void alreadyCompletedLink_skippedEntirely() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(100), "GTE");
+                        Milestone milestone = buildMilestone((double) (100), "GTE");
                         UserMilestoneLink existingLink = UserMilestoneLink.builder()
                                         .milestone(milestone)
                                         .completed(true)
@@ -526,13 +525,13 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void xpAwardedWhenCompleted() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(100), "GTE");
-                        User user = User.builder().id(USER_ID).totalXp(BigDecimal.valueOf(500)).build();
+                        Milestone milestone = buildMilestone((double) (100), "GTE");
+                        User user = User.builder().id(USER_ID).totalXp((double) (500)).build();
 
                         when(userMilestoneLinkRepository.findByUser_IdAndMilestone_Id(USER_ID, milestone.getId()))
                                         .thenReturn(Optional.empty());
                         when(queryBuilderService.evaluate(querySpec, USER_ID, null))
-                                        .thenReturn(BigDecimal.valueOf(150));
+                                        .thenReturn((double) (150));
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.save(any())).thenAnswer(i -> i.getArgument(0));
                         when(userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(USER_ID,
@@ -544,19 +543,19 @@ class MilestoneEvaluationServiceTest {
 
                         service.evaluateSingleMilestoneForUser(USER_ID, milestone);
 
-                        assertThat(user.getTotalXp()).isEqualByComparingTo(BigDecimal.valueOf(800));
+                        assertThat(user.getTotalXp()).isEqualByComparingTo((double) (800));
                         verify(userRepository).save(user);
                 }
 
                 @Test
                 void xpNotAwardedWhenNotCompleted() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(500), "GTE");
+                        Milestone milestone = buildMilestone((double) (500), "GTE");
                         User user = User.builder().id(USER_ID).build();
 
                         when(userMilestoneLinkRepository.findByUser_IdAndMilestone_Id(USER_ID, milestone.getId()))
                                         .thenReturn(Optional.empty());
                         when(queryBuilderService.evaluate(querySpec, USER_ID, null))
-                                        .thenReturn(BigDecimal.valueOf(100));
+                                        .thenReturn((double) (100));
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -570,23 +569,23 @@ class MilestoneEvaluationServiceTest {
                         MilestoneSet bonusSet = MilestoneSet.builder()
                                         .id(UUID.randomUUID())
                                         .title("Bonus Set")
-                                        .setBonusXp(BigDecimal.valueOf(200))
+                                        .setBonusXp((double) (200))
                                         .build();
                         Milestone milestone = Milestone.builder()
                                         .id(UUID.randomUUID())
                                         .milestoneSet(bonusSet)
-                                        .xp(BigDecimal.valueOf(100))
+                                        .xp((double) (100))
                                         .querySpec(querySpec)
-                                        .targetValue(BigDecimal.valueOf(50))
+                                        .targetValue((double) (50))
                                         .comparison("GTE")
                                         .active(true)
                                         .build();
-                        User user = User.builder().id(USER_ID).totalXp(BigDecimal.ZERO).build();
+                        User user = User.builder().id(USER_ID).totalXp(0.0).build();
 
                         when(userMilestoneLinkRepository.findByUser_IdAndMilestone_Id(USER_ID, milestone.getId()))
                                         .thenReturn(Optional.empty());
                         when(queryBuilderService.evaluate(querySpec, USER_ID, null))
-                                        .thenReturn(BigDecimal.valueOf(100));
+                                        .thenReturn((double) (100));
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.save(any())).thenAnswer(i -> i.getArgument(0));
                         when(userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(USER_ID,
@@ -598,24 +597,24 @@ class MilestoneEvaluationServiceTest {
 
                         service.evaluateSingleMilestoneForUser(USER_ID, milestone);
 
-                        assertThat(user.getTotalXp()).isEqualByComparingTo(BigDecimal.valueOf(300));
+                        assertThat(user.getTotalXp()).isEqualByComparingTo((double) (300));
                 }
 
                 @Test
                 void backfill_usesQualifyingScoreTimeSet() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(100), "GTE");
+                        Milestone milestone = buildMilestone((double) (100), "GTE");
                         Instant scoreTime = Instant.parse("2025-03-10T08:30:00Z");
                         Score qualifying = Score.builder()
                                         .id(UUID.randomUUID())
                                         .mapDifficulty(scoreMapDifficulty)
                                         .timeSet(scoreTime)
                                         .build();
-                        User user = User.builder().id(USER_ID).totalXp(BigDecimal.ZERO).build();
+                        User user = User.builder().id(USER_ID).totalXp(0.0).build();
 
                         when(queryBuilderService.evaluate(querySpec, USER_ID, null))
-                                        .thenReturn(BigDecimal.valueOf(200));
+                                        .thenReturn((double) (200));
                         when(queryBuilderService.findQualifyingScore(querySpec, USER_ID, null,
-                                        BigDecimal.valueOf(100), "GTE")).thenReturn(qualifying);
+                                        (double) (100), "GTE")).thenReturn(qualifying);
                         when(userMilestoneLinkRepository.findByUser_IdAndMilestone_Id(USER_ID, milestone.getId()))
                                         .thenReturn(Optional.empty());
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
@@ -640,14 +639,14 @@ class MilestoneEvaluationServiceTest {
                         MilestoneQuerySpec statsSpec = new MilestoneQuerySpec(
                                         new MilestoneQuerySpec.SelectSpec("MIN", "ranking"),
                                         "user_category_statistics", List.of());
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(10), "LTE");
+                        Milestone milestone = buildMilestone((double) (10), "LTE");
                         milestone.setQuerySpec(statsSpec);
-                        User user = User.builder().id(USER_ID).totalXp(BigDecimal.ZERO).build();
+                        User user = User.builder().id(USER_ID).totalXp(0.0).build();
 
                         when(queryBuilderService.evaluate(statsSpec, USER_ID, null))
-                                        .thenReturn(BigDecimal.ONE);
+                                        .thenReturn(1.0);
                         when(queryBuilderService.findQualifyingScore(statsSpec, USER_ID, null,
-                                        BigDecimal.valueOf(10), "LTE")).thenReturn(null);
+                                        (double) (10), "LTE")).thenReturn(null);
                         when(userMilestoneLinkRepository.findByUser_IdAndMilestone_Id(USER_ID, milestone.getId()))
                                         .thenReturn(Optional.empty());
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
@@ -674,12 +673,12 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void setBonusAwarded_whenAllMilestonesInSetCompleted() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(100), "GTE");
+                        Milestone milestone = buildMilestone((double) (100), "GTE");
                         Score newScore = buildScoreWithMapDifficulty();
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(150));
+                        mockBatchEval(List.of(milestone), (double) (150));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -697,12 +696,12 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void setBonusNotAwarded_whenAlreadyClaimed() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(100), "GTE");
+                        Milestone milestone = buildMilestone((double) (100), "GTE");
                         Score newScore = buildScoreWithMapDifficulty();
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(150));
+                        mockBatchEval(List.of(milestone), (double) (150));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -717,12 +716,12 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void setBonusNotAwarded_whenSetIncomplete() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(100), "GTE");
+                        Milestone milestone = buildMilestone((double) (100), "GTE");
                         Score newScore = buildScoreWithMapDifficulty();
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(150));
+                        mockBatchEval(List.of(milestone), (double) (150));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -740,13 +739,13 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void sameSetCompletedByMultipleMilestones_bonusClaimedOnce() {
-                        Milestone m1 = buildMilestone(BigDecimal.valueOf(100), "GTE");
-                        Milestone m2 = buildMilestone(BigDecimal.valueOf(200), "GTE");
+                        Milestone m1 = buildMilestone((double) (100), "GTE");
+                        Milestone m2 = buildMilestone((double) (200), "GTE");
                         Score newScore = buildScoreWithMapDifficulty();
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(m1, m2));
-                        mockBatchEval(List.of(m1, m2), BigDecimal.valueOf(300));
+                        mockBatchEval(List.of(m1, m2), (double) (300));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -781,9 +780,9 @@ class MilestoneEvaluationServiceTest {
                                         .title("Test")
                                         .type("milestone")
                                         .tier(MilestoneTier.gold)
-                                        .xp(BigDecimal.valueOf(100))
+                                        .xp((double) (100))
                                         .querySpec(querySpec)
-                                        .targetValue(BigDecimal.valueOf(50))
+                                        .targetValue((double) (50))
                                         .comparison("GTE")
                                         .active(true)
                                         .build();
@@ -791,7 +790,7 @@ class MilestoneEvaluationServiceTest {
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(100));
+                        mockBatchEval(List.of(milestone), (double) (100));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -809,12 +808,12 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void itemNotAwarded_whenSetCompletedButNoItem() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(50), "GTE");
+                        Milestone milestone = buildMilestone((double) (50), "GTE");
                         Score newScore = buildScoreWithMapDifficulty();
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(100));
+                        mockBatchEval(List.of(milestone), (double) (100));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -847,9 +846,9 @@ class MilestoneEvaluationServiceTest {
                                         .title("Hard")
                                         .type("milestone")
                                         .tier(MilestoneTier.gold)
-                                        .xp(BigDecimal.valueOf(100))
+                                        .xp((double) (100))
                                         .querySpec(querySpec)
-                                        .targetValue(BigDecimal.valueOf(50))
+                                        .targetValue((double) (50))
                                         .comparison("GTE")
                                         .active(true)
                                         .build();
@@ -857,7 +856,7 @@ class MilestoneEvaluationServiceTest {
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(100));
+                        mockBatchEval(List.of(milestone), (double) (100));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -879,13 +878,13 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void evaluatesAllUncompletedMilestones() {
-                        Milestone m1 = buildMilestone(BigDecimal.valueOf(900), "GTE");
-                        Milestone m2 = buildMilestone(BigDecimal.valueOf(100), "GTE");
+                        Milestone m1 = buildMilestone((double) (900), "GTE");
+                        Milestone m2 = buildMilestone((double) (100), "GTE");
                         User user = User.builder().id(USER_ID).build();
 
                         when(milestoneRepository.findActiveUncompletedForUser(USER_ID))
                                         .thenReturn(List.of(m1, m2));
-                        mockBatchEval(List.of(m1, m2), BigDecimal.valueOf(50));
+                        mockBatchEval(List.of(m1, m2), (double) (50));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
@@ -897,12 +896,12 @@ class MilestoneEvaluationServiceTest {
 
                 @Test
                 void completedMilestone_isUpdated() {
-                        Milestone milestone = buildMilestone(BigDecimal.valueOf(50), "GTE");
+                        Milestone milestone = buildMilestone((double) (50), "GTE");
                         User user = User.builder().id(USER_ID).build();
 
                         when(milestoneRepository.findActiveUncompletedForUser(USER_ID))
                                         .thenReturn(List.of(milestone));
-                        mockBatchEval(List.of(milestone), BigDecimal.valueOf(75));
+                        mockBatchEval(List.of(milestone), (double) (75));
                         mockNoExistingLinks();
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));

@@ -7,7 +7,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -336,7 +335,7 @@ class MapServiceTest {
                                         .thenReturn(Optional.of(diff));
                         when(mapDifficultyRepository.save(any())).thenReturn(diff);
                         when(complexityService.findActiveComplexity(diff.getId()))
-                                        .thenReturn(Optional.of(java.math.BigDecimal.valueOf(8.0)));
+                                        .thenReturn(Optional.of((double) (8.0)));
                         when(statisticsService.findActive(diff.getId())).thenReturn(Optional.empty());
 
                         UpdateMapStatusRequest request = new UpdateMapStatusRequest();
@@ -386,17 +385,17 @@ class MapServiceTest {
                         MapDifficulty diff = buildStandaloneDifficulty(MapDifficultyStatus.RANKED);
                         when(mapDifficultyRepository.findByIdAndActiveTrue(diff.getId()))
                                         .thenReturn(Optional.of(diff));
-                        when(complexityService.setComplexity(diff, new BigDecimal("8.5"), "Reweight", 1L))
-                                        .thenReturn(new BigDecimal("8.5"));
+                        when(complexityService.setComplexity(diff, 8.5, "Reweight", 1L))
+                                        .thenReturn(8.5);
                         when(statisticsService.findActive(diff.getId())).thenReturn(Optional.empty());
 
                         UpdateMapComplexityRequest request = new UpdateMapComplexityRequest();
-                        request.setComplexity(new BigDecimal("8.5"));
+                        request.setComplexity(8.5);
                         request.setReason("Reweight");
                         MapDifficultyResponse response = mapService.updateComplexity(diff.getId(), request, 1L);
 
-                        assertThat(response.getComplexity()).isEqualByComparingTo(new BigDecimal("8.5"));
-                        verify(complexityService).setComplexity(diff, new BigDecimal("8.5"), "Reweight", 1L);
+                        assertThat(response.getComplexity()).isEqualByComparingTo(8.5);
+                        verify(complexityService).setComplexity(diff, 8.5, "Reweight", 1L);
                 }
 
                 @Test
@@ -405,7 +404,7 @@ class MapServiceTest {
                         when(mapDifficultyRepository.findByIdAndActiveTrue(id)).thenReturn(Optional.empty());
 
                         UpdateMapComplexityRequest request = new UpdateMapComplexityRequest();
-                        request.setComplexity(new BigDecimal("8.5"));
+                        request.setComplexity(8.5);
                         request.setReason("Reweight");
 
                         assertThatThrownBy(() -> mapService.updateComplexity(id, request, 1L))

@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.mission;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
@@ -23,15 +22,15 @@ import lombok.RequiredArgsConstructor;
 public class MissionSkillService {
 
     private static final String OVERALL_CODE = "overall";
-    private static final BigDecimal SKILL_GAP_FLOOR = new BigDecimal("10");
-    private static final BigDecimal SKILL_GAP_HIGH = new BigDecimal("25");
-    private static final BigDecimal SKILL_GAP_MAX = new BigDecimal("40");
-    private static final BigDecimal LIFT_SHALLOW = new BigDecimal("0.40");
-    private static final BigDecimal LIFT_MID = new BigDecimal("0.65");
-    private static final BigDecimal LIFT_DEEP = new BigDecimal("0.85");
-    private static final BigDecimal SKILL_LIFT_SHALLOW = new BigDecimal("0.18");
-    private static final BigDecimal SKILL_LIFT_MID = new BigDecimal("0.30");
-    private static final BigDecimal SKILL_LIFT_DEEP = new BigDecimal("0.45");
+    private static final double SKILL_GAP_FLOOR = 10;
+    private static final double SKILL_GAP_HIGH = 25;
+    private static final double SKILL_GAP_MAX = 40;
+    private static final double LIFT_SHALLOW = 0.40;
+    private static final double LIFT_MID = 0.65;
+    private static final double LIFT_DEEP = 0.85;
+    private static final double SKILL_LIFT_SHALLOW = 0.18;
+    private static final double SKILL_LIFT_MID = 0.30;
+    private static final double SKILL_LIFT_DEEP = 0.45;
     private static final double PLAY_DAMPEN_FLOOR = 0.30;
     private static final double PLAY_DAMPEN_RATE = 0.70;
     private static final int STREAK_SAMPLE_SIZE = 30;
@@ -41,56 +40,55 @@ public class MissionSkillService {
 
     private final ScoreRepository scoreRepository;
 
-    public BigDecimal skillLevelFor(MissionAssignmentContext ctx, Category category) {
+    public Double skillLevelFor(MissionAssignmentContext ctx, Category category) {
         if (category != null) {
             UserCategorySkill s = ctx.skillByCategoryId().get(category.getId());
-            if (s != null && s.getSkillLevel() != null)
+            if (s != null)
                 return s.getSkillLevel();
         }
         return ctx.skillByCategoryId().values().stream()
                 .filter(s -> s.getCategory() != null && OVERALL_CODE.equals(s.getCategory().getCode()))
-                .filter(s -> s.getSkillLevel() != null)
                 .findFirst()
                 .map(UserCategorySkill::getSkillLevel)
-                .orElse(BigDecimal.ZERO);
+                .orElse(0.0);
     }
 
-    public BigDecimal liftedThreshold(MissionAssignmentContext ctx, Category targetCategory,
-            BigDecimal categoryThreshold) {
+    public Double liftedThreshold(MissionAssignmentContext ctx, Category targetCategory,
+            Double categoryThreshold) {
         if (categoryThreshold == null || targetCategory == null)
             return categoryThreshold;
         UserCategorySkill targetSkill = ctx.skillByCategoryId().get(targetCategory.getId());
-        BigDecimal targetSkillLevel = targetSkill != null && targetSkill.getSkillLevel() != null
+        double targetSkillLevel = targetSkill != null
                 ? targetSkill.getSkillLevel()
-                : BigDecimal.ZERO;
+                : 0.0;
         UserCategorySkill bestOther = bestOtherSkill(ctx, targetCategory, true);
         if (bestOther == null)
             return categoryThreshold;
-        BigDecimal skillGap = bestOther.getSkillLevel().subtract(targetSkillLevel);
-        if (skillGap.compareTo(SKILL_GAP_FLOOR) < 0)
+        double skillGap = bestOther.getSkillLevel() - targetSkillLevel;
+        if (skillGap < SKILL_GAP_FLOOR)
             return categoryThreshold;
-        BigDecimal bestThreshold = bestOther.getRawApForOneGain();
-        if (bestThreshold.compareTo(categoryThreshold) <= 0)
+        double bestThreshold = bestOther.getRawApForOneGain();
+        if (bestThreshold <= categoryThreshold)
             return categoryThreshold;
-        BigDecimal liftFraction = pickLiftFraction(skillGap, LIFT_DEEP, LIFT_MID, LIFT_SHALLOW);
+        double liftFraction = pickLiftFraction(skillGap, LIFT_DEEP, LIFT_MID, LIFT_SHALLOW);
         liftFraction = applyPlayDampener(ctx, targetCategory, bestOther.getCategory(), liftFraction);
-        BigDecimal gap = bestThreshold.subtract(categoryThreshold);
-        return categoryThreshold.add(gap.multiply(liftFraction));
+        double gap = bestThreshold - categoryThreshold;
+        return categoryThreshold + gap * liftFraction;
     }
 
-    public BigDecimal liftedSkillLevel(MissionAssignmentContext ctx, Category targetCategory,
-            BigDecimal categorySkillLevel) {
+    public Double liftedSkillLevel(MissionAssignmentContext ctx, Category targetCategory,
+            Double categorySkillLevel) {
         if (categorySkillLevel == null || targetCategory == null)
             return categorySkillLevel;
         UserCategorySkill bestOther = bestOtherSkill(ctx, targetCategory, false);
         if (bestOther == null)
             return categorySkillLevel;
-        BigDecimal skillGap = bestOther.getSkillLevel().subtract(categorySkillLevel);
-        if (skillGap.compareTo(SKILL_GAP_FLOOR) < 0)
+        double skillGap = bestOther.getSkillLevel() - categorySkillLevel;
+        if (skillGap < SKILL_GAP_FLOOR)
             return categorySkillLevel;
-        BigDecimal liftFraction = pickLiftFraction(skillGap, SKILL_LIFT_DEEP, SKILL_LIFT_MID, SKILL_LIFT_SHALLOW);
+        double liftFraction = pickLiftFraction(skillGap, SKILL_LIFT_DEEP, SKILL_LIFT_MID, SKILL_LIFT_SHALLOW);
         liftFraction = applyPlayDampener(ctx, targetCategory, bestOther.getCategory(), liftFraction);
-        return categorySkillLevel.add(skillGap.multiply(liftFraction));
+        return categorySkillLevel + skillGap * liftFraction;
     }
 
     public record RepresentativeStreak(int value, boolean fromComplexityBand) {
@@ -103,7 +101,7 @@ public class MissionSkillService {
     }
 
     public RepresentativeStreak representativeUserStreakForComplexityBand(Long userId, UUID categoryId,
-            MissionBand band, BigDecimal complexityMin, BigDecimal complexityMaxExclusive) {
+            MissionBand band, Double complexityMin, Double complexityMaxExclusive) {
         List<Integer> top = scoreRepository.findTopStreak115ValuesByUserAndCategoryAndComplexityRange(
                 userId, categoryId, complexityMin, complexityMaxExclusive,
                 PageRequest.of(0, STREAK_SAMPLE_SIZE));
@@ -132,10 +130,10 @@ public class MissionSkillService {
         return top.get(Math.min(idx, top.size() - 1));
     }
 
-    public BigDecimal ageAdjustedUserAp(Score myScore, BigDecimal topAp) {
-        BigDecimal scoreAp = myScore.getAp() != null ? myScore.getAp() : BigDecimal.ZERO;
+    public Double ageAdjustedUserAp(Score myScore, Double topAp) {
+        double scoreAp = myScore.getAp();
         Instant when = myScore.getTimeSet() != null ? myScore.getTimeSet() : myScore.getCreatedAt();
-        if (when == null || topAp == null || topAp.compareTo(scoreAp) <= 0)
+        if (when == null || topAp == null || topAp <= scoreAp)
             return scoreAp;
         long days = Duration.between(when, Instant.now()).toDays();
         if (days <= 0)
@@ -144,8 +142,8 @@ public class MissionSkillService {
         double liftWeight = (1.0 - agingFactor) * 0.20;
         if (liftWeight <= 0)
             return scoreAp;
-        BigDecimal lift = topAp.subtract(scoreAp).multiply(BigDecimal.valueOf(liftWeight));
-        return scoreAp.add(lift);
+        double lift = (topAp - scoreAp) * liftWeight;
+        return scoreAp + lift;
     }
 
     public double pbFreshnessBoost(Score existing) {
@@ -167,30 +165,29 @@ public class MissionSkillService {
                 .filter(s -> s.getCategory() != null)
                 .filter(s -> !OVERALL_CODE.equals(s.getCategory().getCode()))
                 .filter(s -> !s.getCategory().getId().equals(targetCategory.getId()))
-                .filter(s -> s.getSkillLevel() != null)
                 .filter(s -> !requireThreshold || s.getRawApForOneGain() != null)
-                .max(Comparator.comparing(UserCategorySkill::getSkillLevel))
+                .max(Comparator.comparingDouble(UserCategorySkill::getSkillLevel))
                 .orElse(null);
     }
 
-    private BigDecimal pickLiftFraction(BigDecimal skillGap, BigDecimal deep, BigDecimal mid, BigDecimal shallow) {
-        if (skillGap.compareTo(SKILL_GAP_MAX) >= 0)
+    private double pickLiftFraction(double skillGap, double deep, double mid, double shallow) {
+        if (skillGap >= SKILL_GAP_MAX)
             return deep;
-        if (skillGap.compareTo(SKILL_GAP_HIGH) >= 0)
+        if (skillGap >= SKILL_GAP_HIGH)
             return mid;
         return shallow;
     }
 
-    private BigDecimal applyPlayDampener(MissionAssignmentContext ctx, Category target, Category best,
-            BigDecimal liftFraction) {
+    private double applyPlayDampener(MissionAssignmentContext ctx, Category target, Category best,
+            double liftFraction) {
         Long targetPlays = ctx.rankedPlaysByCategoryId().get(target.getId());
         Long bestPlays = ctx.rankedPlaysByCategoryId().get(best.getId());
         if (targetPlays == null || bestPlays == null || bestPlays <= 0)
             return liftFraction;
-        double playRatio = targetPlays.doubleValue() / bestPlays.doubleValue();
+        double playRatio = (double) targetPlays / bestPlays;
         if (playRatio >= 1.0)
-            return BigDecimal.ZERO;
+            return 0.0;
         double dampen = Math.max(PLAY_DAMPEN_FLOOR, 1.0 - playRatio * PLAY_DAMPEN_RATE);
-        return liftFraction.multiply(BigDecimal.valueOf(dampen));
+        return liftFraction * dampen;
     }
 }

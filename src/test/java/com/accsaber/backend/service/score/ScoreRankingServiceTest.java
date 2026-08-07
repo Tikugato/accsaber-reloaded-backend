@@ -5,7 +5,6 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -49,7 +48,7 @@ class ScoreRankingServiceTest {
 
         @Test
         void firstScoreOnDifficulty_getsRank1() {
-            BigDecimal ap = new BigDecimal("500.000000");
+            Double ap = 500.000000;
             when(scoreRepository.countActiveScoresRankedAbove(DIFF_ID, ap, TIME_SET)).thenReturn(0);
 
             int rank = scoreRankingService.rankNewScore(DIFF_ID, ap, TIME_SET);
@@ -60,7 +59,7 @@ class ScoreRankingServiceTest {
 
         @Test
         void scoresAboveExist_ranksBelow() {
-            BigDecimal ap = new BigDecimal("300.000000");
+            Double ap = 300.000000;
             when(scoreRepository.countActiveScoresRankedAbove(DIFF_ID, ap, TIME_SET)).thenReturn(5);
 
             int rank = scoreRankingService.rankNewScore(DIFF_ID, ap, TIME_SET);
@@ -71,7 +70,7 @@ class ScoreRankingServiceTest {
 
         @Test
         void countsBeforeShifting() {
-            BigDecimal ap = new BigDecimal("400.000000");
+            Double ap = 400.000000;
             when(scoreRepository.countActiveScoresRankedAbove(DIFF_ID, ap, TIME_SET)).thenReturn(2);
 
             scoreRankingService.rankNewScore(DIFF_ID, ap, TIME_SET);
@@ -87,7 +86,7 @@ class ScoreRankingServiceTest {
 
         @Test
         void closesGapThenInsertsAtNewPosition() {
-            BigDecimal newAp = new BigDecimal("600.000000");
+            Double newAp = 600.000000;
             int oldRank = 3;
             when(scoreRepository.countActiveScoresRankedAbove(DIFF_ID, newAp, TIME_SET)).thenReturn(1);
 
@@ -102,7 +101,7 @@ class ScoreRankingServiceTest {
 
         @Test
         void improvesToFirstPlace() {
-            BigDecimal newAp = new BigDecimal("999.000000");
+            Double newAp = 999.000000;
             int oldRank = 5;
             when(scoreRepository.countActiveScoresRankedAbove(DIFF_ID, newAp, TIME_SET)).thenReturn(0);
 
@@ -116,7 +115,7 @@ class ScoreRankingServiceTest {
 
         @Test
         void staysAtSamePosition() {
-            BigDecimal newAp = new BigDecimal("400.000000");
+            Double newAp = 400.000000;
             int oldRank = 3;
             when(scoreRepository.countActiveScoresRankedAbove(DIFF_ID, newAp, TIME_SET)).thenReturn(2);
 

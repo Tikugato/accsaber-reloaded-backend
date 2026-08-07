@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.milestone;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -38,7 +37,7 @@ public class MilestoneCompletedResponse {
         private String description;
         private String type;
         private String tier;
-        private BigDecimal xp;
+        private Double xp;
         private UUID awardsItemId;
     }
 
@@ -49,7 +48,7 @@ public class MilestoneCompletedResponse {
         private UUID id;
         private String title;
         private String description;
-        private BigDecimal bonusXp;
+        private Double bonusXp;
         private UUID awardsItemId;
     }
 }

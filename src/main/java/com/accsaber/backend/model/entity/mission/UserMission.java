@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.mission;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -65,11 +64,11 @@ public class UserMission {
     @JoinColumn(name = "target_player_id")
     private User targetPlayer;
 
-    @Column(name = "target_acc", precision = 20, scale = 10)
-    private BigDecimal targetAcc;
+    @Column(name = "target_acc")
+    private Double targetAcc;
 
-    @Column(name = "target_ap", precision = 20, scale = 6)
-    private BigDecimal targetAp;
+    @Column(name = "target_ap")
+    private Double targetAp;
 
     @Column(name = "target_score")
     private Integer targetScore;
@@ -80,8 +79,8 @@ public class UserMission {
     @Column(name = "target_xp")
     private Integer targetXp;
 
-    @Column(name = "target_threshold_ap", precision = 20, scale = 6)
-    private BigDecimal targetThresholdAp;
+    @Column(name = "target_threshold_ap")
+    private Double targetThresholdAp;
 
     @Column(name = "target_streak")
     private Integer targetStreak;
@@ -92,8 +91,8 @@ public class UserMission {
     @Column(name = "target_curated_only")
     private Boolean targetCuratedOnly;
 
-    @Column(name = "snipe_distance", precision = 20, scale = 6)
-    private BigDecimal snipeDistance;
+    @Column(name = "snipe_distance")
+    private Double snipeDistance;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
@@ -104,9 +103,9 @@ public class UserMission {
     @Builder.Default
     private Integer progressCount = 0;
 
-    @Column(name = "progress_ap", nullable = false, precision = 20, scale = 6)
+    @Column(name = "progress_ap", nullable = false)
     @Builder.Default
-    private BigDecimal progressAp = BigDecimal.ZERO;
+    private double progressAp = 0.0;
 
     @Column(name = "xp_reward", nullable = false)
     @Builder.Default

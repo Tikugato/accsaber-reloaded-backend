@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.map;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -18,7 +17,7 @@ public class VoteResponse {
     UUID id;
     UUID mapDifficultyId;
     Difficulty difficulty;
-    BigDecimal complexity;
+    Double complexity;
     String songName;
     String songAuthor;
     String mapAuthor;
@@ -29,7 +28,7 @@ public class VoteResponse {
     String staffAvatarUrl;
     VoteType vote;
     MapVoteAction type;
-    BigDecimal suggestedComplexity;
+    Double suggestedComplexity;
     VoteType criteriaVote;
     boolean criteriaVoteOverride;
     String reason;

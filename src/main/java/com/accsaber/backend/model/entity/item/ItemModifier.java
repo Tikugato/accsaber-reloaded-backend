@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.item;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
@@ -70,7 +69,7 @@ public class ItemModifier {
     private JsonNode effectSpec;
 
     @Column(name = "global_drop_chance")
-    private BigDecimal globalDropChance;
+    private Double globalDropChance;
 
     @Column(name = "season_start")
     private String seasonStart;

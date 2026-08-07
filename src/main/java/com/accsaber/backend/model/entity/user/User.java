@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.user;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 
 import org.hibernate.annotations.CreationTimestamp;
@@ -50,17 +49,17 @@ public class User {
     @Builder.Default
     private String bio = "";
 
-    @Column(name = "total_xp", nullable = false, precision = 20, scale = 6)
+    @Column(name = "total_xp", nullable = false)
     @Builder.Default
-    private BigDecimal totalXp = BigDecimal.ZERO;
+    private double totalXp = 0.0;
 
-    @Column(name = "mission_xp", nullable = false, precision = 20, scale = 6)
+    @Column(name = "mission_xp", nullable = false)
     @Builder.Default
-    private BigDecimal missionXp = BigDecimal.ZERO;
+    private double missionXp = 0.0;
 
-    @Column(name = "campaign_xp", nullable = false, precision = 20, scale = 6)
+    @Column(name = "campaign_xp", nullable = false)
     @Builder.Default
-    private BigDecimal campaignXp = BigDecimal.ZERO;
+    private double campaignXp = 0.0;
 
     @Column(name = "item_essence", nullable = false)
     @Builder.Default

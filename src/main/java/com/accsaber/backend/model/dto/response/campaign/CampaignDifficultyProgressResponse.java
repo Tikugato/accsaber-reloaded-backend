@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.campaign;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import lombok.Builder;
@@ -11,7 +10,7 @@ import lombok.Getter;
 public class CampaignDifficultyProgressResponse {
 
     private CampaignDifficultyResponse node;
-    private BigDecimal userValue;
+    private Double userValue;
     private List<CampaignTargetProgressResponse> targets;
     private Integer userScore;
     private boolean completed;

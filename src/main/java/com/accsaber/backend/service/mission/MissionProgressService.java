@@ -1,6 +1,7 @@
 package com.accsaber.backend.service.mission;
 
-import java.math.BigDecimal;
+import com.accsaber.backend.util.Rounding;
+
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
@@ -140,13 +141,13 @@ public class MissionProgressService {
     private boolean evalApGainOverall(UserMission mission, ScoreResponse score, EvalContext ctx) {
         if (!score.isActive() || mission.getTargetAp() == null)
             return false;
-        BigDecimal gained = statisticsRepository
+        Double gained = statisticsRepository
                 .findActiveApGainOverPrevious(ctx.userId, OVERALL_CODE)
-                .orElse(BigDecimal.ZERO);
-        if (gained.signum() <= 0)
+                .orElse(0.0);
+        if (Math.signum(gained) <= 0)
             return false;
-        mission.setProgressAp(mission.getProgressAp().add(gained));
-        return mission.getProgressAp().compareTo(mission.getTargetAp()) >= 0;
+        mission.setProgressAp((mission.getProgressAp() + gained));
+        return (mission.getProgressAp() >= mission.getTargetAp());
     }
 
     private boolean evalBatchPlayN(UserMission mission, ScoreResponse score, EvalContext ctx) {
@@ -285,7 +286,7 @@ public class MissionProgressService {
             return false;
         if (score.getXpGained() == null)
             return false;
-        int gained = score.getXpGained().setScale(0, RoundingMode.HALF_UP).intValue();
+        int gained = (int) (Rounding.round(score.getXpGained(), 0));
         mission.setProgressCount(mission.getProgressCount() + gained);
         return mission.getTargetXp() != null && mission.getProgressCount() >= mission.getTargetXp();
     }
@@ -299,8 +300,8 @@ public class MissionProgressService {
                 && displayedAcc(score.getAccuracy()).compareTo(displayedAcc(mission.getTargetAcc())) >= 0;
     }
 
-    private static BigDecimal displayedAcc(BigDecimal acc) {
-        return acc.setScale(4, RoundingMode.HALF_UP);
+    private static Double displayedAcc(Double acc) {
+        return Rounding.round(acc, 4);
     }
 
     private boolean evalApOnMap(UserMission mission, ScoreResponse score) {
@@ -326,7 +327,7 @@ public class MissionProgressService {
         Score newScore = scoreRepository.findById(score.getId()).orElse(null);
         if (newScore == null || newScore.getSupersedes() == null)
             return false;
-        BigDecimal priorAp = newScore.getSupersedes().getAp();
+        Double priorAp = newScore.getSupersedes().getAp();
         if (priorAp == null || priorAp.compareTo(mission.getTargetThresholdAp()) < 0)
             return false;
         if (score.getAp().compareTo(priorAp) <= 0)
@@ -355,7 +356,7 @@ public class MissionProgressService {
 
         if (mission.getXpReward() > 0) {
             int xpReward = mission.getXpReward();
-            levelUpAwardService.addMissionXp(userId, BigDecimal.valueOf(xpReward));
+            levelUpAwardService.addMissionXp(userId, (double) (xpReward));
             creditXpToWindowMissions(userId, xpReward, completedAt);
         }
         if (mission.getItemReward() != null && !mission.isItemAwarded()) {
@@ -380,12 +381,12 @@ public class MissionProgressService {
     }
 
     @Transactional
-    public void creditXp(Long userId, BigDecimal amount) {
+    public void creditXp(Long userId, Double amount) {
         if (!missionsEnabled)
             return;
         if (amount == null)
             return;
-        int gained = amount.setScale(0, RoundingMode.HALF_UP).intValue();
+        int gained = (int) (Rounding.round(amount, 0));
         creditXpToWindowMissions(userId, gained, Instant.now());
     }
 
@@ -428,7 +429,7 @@ public class MissionProgressService {
                 .categoryCode(mission.getCategory() != null ? mission.getCategory().getCode() : null)
                 .targetMapDifficultyId(mission.getTargetMapDifficulty() != null
                         ? mission.getTargetMapDifficulty().getId() : null)
-                .xpAwarded(mission.getXpReward() != null ? BigDecimal.valueOf(mission.getXpReward()) : null)
+                .xpAwarded(mission.getXpReward() != null ? (double) (mission.getXpReward()) : null)
                 .itemAwardedId(mission.isItemAwarded() && mission.getItemReward() != null
                         ? mission.getItemReward().getId() : null)
                 .build();

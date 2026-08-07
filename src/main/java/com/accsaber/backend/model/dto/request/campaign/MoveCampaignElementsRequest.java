@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.campaign;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,9 +24,9 @@ public class MoveCampaignElementsRequest {
         private UUID id;
 
         @NotNull
-        private BigDecimal positionX;
+        private Double positionX;
 
         @NotNull
-        private BigDecimal positionY;
+        private Double positionY;
     }
 }

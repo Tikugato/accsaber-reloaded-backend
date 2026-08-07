@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.request.milestone;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,14 +31,14 @@ public class CreateMilestoneRequest {
     private MilestoneTier tier;
 
     @NotNull
-    private BigDecimal xp;
+    private Double xp;
 
     @NotNull
     @Valid
     private MilestoneQuerySpec querySpec;
 
     @NotNull
-    private BigDecimal targetValue;
+    private Double targetValue;
 
     @NotNull
     private String comparison = "GTE";

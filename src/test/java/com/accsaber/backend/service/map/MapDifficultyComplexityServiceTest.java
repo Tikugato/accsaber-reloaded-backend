@@ -6,7 +6,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,13 +42,13 @@ class MapDifficultyComplexityServiceTest {
         void returnsComplexity_whenActiveRecordExists() {
             UUID difficultyId = UUID.randomUUID();
             MapDifficulty diff = buildDifficulty(difficultyId);
-            MapDifficultyComplexity complexity = buildComplexity(diff, new BigDecimal("7.5"), true);
+            MapDifficultyComplexity complexity = buildComplexity(diff, 7.5, true);
             when(complexityRepository.findByMapDifficultyIdAndActiveTrue(difficultyId))
                     .thenReturn(Optional.of(complexity));
 
-            Optional<BigDecimal> result = complexityService.findActiveComplexity(difficultyId);
+            Optional<Double> result = complexityService.findActiveComplexity(difficultyId);
 
-            assertThat(result).contains(new BigDecimal("7.5"));
+            assertThat(result).contains(7.5);
         }
 
         @Test
@@ -58,7 +57,7 @@ class MapDifficultyComplexityServiceTest {
             when(complexityRepository.findByMapDifficultyIdAndActiveTrue(difficultyId))
                     .thenReturn(Optional.empty());
 
-            Optional<BigDecimal> result = complexityService.findActiveComplexity(difficultyId);
+            Optional<Double> result = complexityService.findActiveComplexity(difficultyId);
 
             assertThat(result).isEmpty();
         }
@@ -74,16 +73,16 @@ class MapDifficultyComplexityServiceTest {
             MapDifficulty diff1 = buildDifficulty(id1);
             MapDifficulty diff2 = buildDifficulty(id2);
             List<MapDifficultyComplexity> complexities = List.of(
-                    buildComplexity(diff1, new BigDecimal("5.0"), true),
-                    buildComplexity(diff2, new BigDecimal("8.0"), true));
+                    buildComplexity(diff1, 5.0, true),
+                    buildComplexity(diff2, 8.0, true));
             when(complexityRepository.findActiveByMapDifficultyIdIn(List.of(id1, id2)))
                     .thenReturn(complexities);
 
-            Map<UUID, BigDecimal> result = complexityService.findActiveComplexitiesForDifficulties(List.of(id1, id2));
+            Map<UUID, Double> result = complexityService.findActiveComplexitiesForDifficulties(List.of(id1, id2));
 
             assertThat(result)
-                    .containsEntry(id1, new BigDecimal("5.0"))
-                    .containsEntry(id2, new BigDecimal("8.0"));
+                    .containsEntry(id1, 5.0)
+                    .containsEntry(id2, 8.0);
         }
 
     }
@@ -95,8 +94,8 @@ class MapDifficultyComplexityServiceTest {
         void returnsHistoryInDescendingOrder() {
             UUID mapId = UUID.randomUUID();
             MapDifficulty diff = buildDifficulty(UUID.randomUUID());
-            MapDifficultyComplexity old = buildComplexity(diff, new BigDecimal("6.0"), false);
-            MapDifficultyComplexity current = buildComplexity(diff, new BigDecimal("7.5"), true);
+            MapDifficultyComplexity old = buildComplexity(diff, 6.0, false);
+            MapDifficultyComplexity current = buildComplexity(diff, 7.5, true);
             current.setSupersedes(old);
             when(complexityRepository.findAllByMapIdOrderByCreatedAtDesc(mapId))
                     .thenReturn(List.of(current, old));
@@ -104,9 +103,9 @@ class MapDifficultyComplexityServiceTest {
             List<MapComplexityHistoryResponse> history = complexityService.getHistoryForMap(mapId);
 
             assertThat(history).hasSize(2);
-            assertThat(history.get(0).getComplexity()).isEqualByComparingTo(new BigDecimal("7.5"));
+            assertThat(history.get(0).getComplexity()).isEqualByComparingTo(7.5);
             assertThat(history.get(0).getSupersedesId()).isEqualTo(old.getId());
-            assertThat(history.get(1).getComplexity()).isEqualByComparingTo(new BigDecimal("6.0"));
+            assertThat(history.get(1).getComplexity()).isEqualByComparingTo(6.0);
             assertThat(history.get(1).getSupersedesId()).isNull();
         }
 
@@ -132,26 +131,26 @@ class MapDifficultyComplexityServiceTest {
                     .thenReturn(Optional.empty());
             when(complexityRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            BigDecimal result = complexityService.setComplexity(diff, new BigDecimal("9.0"), "Initial", 1L);
+            Double result = complexityService.setComplexity(diff, 9.0, "Initial", 1L);
 
-            assertThat(result).isEqualByComparingTo(new BigDecimal("9.0"));
+            assertThat(result).isEqualByComparingTo(9.0);
             ArgumentCaptor<MapDifficultyComplexity> captor = ArgumentCaptor.forClass(MapDifficultyComplexity.class);
             verify(complexityRepository).saveAndFlush(captor.capture());
             MapDifficultyComplexity saved = captor.getValue();
             assertThat(saved.isActive()).isTrue();
             assertThat(saved.getSupersedes()).isNull();
-            assertThat(saved.getComplexity()).isEqualByComparingTo(new BigDecimal("9.0"));
+            assertThat(saved.getComplexity()).isEqualByComparingTo(9.0);
         }
 
         @Test
         void updatingComplexity_deactivatesExistingRecord() {
             MapDifficulty diff = buildDifficulty(UUID.randomUUID(), MapDifficultyStatus.RANKED);
-            MapDifficultyComplexity existing = buildComplexity(diff, new BigDecimal("5.0"), true);
+            MapDifficultyComplexity existing = buildComplexity(diff, 5.0, true);
             when(complexityRepository.findActiveForUpdate(diff.getId()))
                     .thenReturn(Optional.of(existing));
             when(complexityRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            complexityService.setComplexity(diff, new BigDecimal("8.0"), "Reweight", 42L);
+            complexityService.setComplexity(diff, 8.0, "Reweight", 42L);
 
             assertThat(existing.isActive()).isFalse();
             verify(complexityRepository, times(2)).saveAndFlush(any());
@@ -160,12 +159,12 @@ class MapDifficultyComplexityServiceTest {
         @Test
         void newVersion_linksToOldViaSupersedes_andCarriesAuditFields() {
             MapDifficulty diff = buildDifficulty(UUID.randomUUID(), MapDifficultyStatus.RANKED);
-            MapDifficultyComplexity existing = buildComplexity(diff, new BigDecimal("5.0"), true);
+            MapDifficultyComplexity existing = buildComplexity(diff, 5.0, true);
             when(complexityRepository.findActiveForUpdate(diff.getId()))
                     .thenReturn(Optional.of(existing));
             when(complexityRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            complexityService.setComplexity(diff, new BigDecimal("8.0"), "Reweight", 42L);
+            complexityService.setComplexity(diff, 8.0, "Reweight", 42L);
 
             ArgumentCaptor<MapDifficultyComplexity> captor = ArgumentCaptor.forClass(MapDifficultyComplexity.class);
             verify(complexityRepository, times(2)).saveAndFlush(captor.capture());
@@ -174,7 +173,7 @@ class MapDifficultyComplexityServiceTest {
             assertThat(newVersion.getSupersedesReason()).isEqualTo("Reweight");
             assertThat(newVersion.getSupersedesAuthor()).isEqualTo(42L);
             assertThat(newVersion.isActive()).isTrue();
-            assertThat(newVersion.getComplexity()).isEqualByComparingTo(new BigDecimal("8.0"));
+            assertThat(newVersion.getComplexity()).isEqualByComparingTo(8.0);
         }
 
     }
@@ -193,7 +192,7 @@ class MapDifficultyComplexityServiceTest {
                 .build();
     }
 
-    private MapDifficultyComplexity buildComplexity(MapDifficulty diff, BigDecimal value, boolean active) {
+    private MapDifficultyComplexity buildComplexity(MapDifficulty diff, Double value, boolean active) {
         return MapDifficultyComplexity.builder()
                 .id(UUID.randomUUID())
                 .mapDifficulty(diff)

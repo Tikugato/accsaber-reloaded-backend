@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -116,9 +115,9 @@ class CategoryServiceTest {
                 .type(CurveType.FORMULA)
                 .formula("PLACEHOLDER")
                 .xParameterName("score")
-                .xParameterValue(BigDecimal.valueOf(100))
+                .xParameterValue((double) (100))
                 .yParameterName("scoreWeight")
-                .yParameterValue(BigDecimal.ONE)
+                .yParameterValue(1.0)
                 .build();
     }
 }

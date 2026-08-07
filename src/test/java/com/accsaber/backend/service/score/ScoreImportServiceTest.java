@@ -10,7 +10,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,7 +55,7 @@ class ScoreImportServiceTest {
 
         private static final Long STEAM_ID = 76561198012345678L;
         private static final UUID NF_ID = UUID.randomUUID();
-        private static final BigDecimal COMPLEXITY = BigDecimal.valueOf(8.0);
+        private static final Double COMPLEXITY = (double) (8.0);
 
         @Mock
         private BeatLeaderClient beatLeaderClient;

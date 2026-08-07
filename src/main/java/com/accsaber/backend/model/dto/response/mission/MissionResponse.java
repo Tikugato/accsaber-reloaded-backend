@@ -1,6 +1,7 @@
 package com.accsaber.backend.model.dto.response.mission;
 
-import java.math.BigDecimal;
+import com.accsaber.backend.util.Rounding;
+
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Map;
@@ -44,20 +45,20 @@ public class MissionResponse {
     private String targetPlayerId;
     private String targetPlayerName;
 
-    private BigDecimal targetAcc;
-    private BigDecimal targetAp;
+    private Double targetAcc;
+    private Double targetAp;
     private Integer targetScore;
     private Integer targetCount;
     private Integer targetXp;
-    private BigDecimal targetThresholdAp;
+    private Double targetThresholdAp;
     private Integer targetStreak;
     private Instant targetRankedBefore;
     private Boolean targetCuratedOnly;
 
     private Integer progressCount;
-    private BigDecimal progressAp;
-    private BigDecimal progressValue;
-    private BigDecimal targetValue;
+    private Double progressAp;
+    private Double progressValue;
+    private Double targetValue;
     private Integer xpReward;
     private ItemResponse itemReward;
 
@@ -160,53 +161,52 @@ public class MissionResponse {
                 .build();
     }
 
-    private static Integer countTarget(MissionType type, Integer targetCount, BigDecimal targetAp) {
+    private static Integer countTarget(MissionType type, Integer targetCount, Double targetAp) {
         if (type != MissionType.AP_GAIN_OVERALL || targetCount != null || targetAp == null) {
             return targetCount;
         }
-        return targetAp.setScale(0, RoundingMode.CEILING).intValue();
+        return (int) Math.ceil(targetAp);
     }
 
-    private static Integer countProgress(MissionType type, Integer progressCount, BigDecimal progressAp) {
+    private static Integer countProgress(MissionType type, Integer progressCount, Double progressAp) {
         if (type != MissionType.AP_GAIN_OVERALL || progressAp == null) {
             return progressCount;
         }
-        return progressAp.setScale(0, RoundingMode.FLOOR).intValue();
+        return (int) Math.floor(progressAp);
     }
 
-    private static BigDecimal targetValue(MissionType type, Integer targetCount, Integer targetXp,
-            BigDecimal targetAp) {
+    private static Double targetValue(MissionType type, Integer targetCount, Integer targetXp,
+            Double targetAp) {
         return switch (type) {
             case AP_GAIN_OVERALL -> roundAp(targetAp);
-            case XP_IN_WINDOW -> targetXp == null ? null : BigDecimal.valueOf(targetXp);
+            case XP_IN_WINDOW -> targetXp == null ? null : (double) (targetXp);
             case PLAY_N_MAPS, SCORES_N, STREAK_N_IN_CATEGORY, STREAK_SUM_N, PB_ABOVE_THRESHOLD,
                     SNIPE_RIVAL_ANY_MAP, BATCH_PLAY_N, PB_RANKED_BEFORE_N, CAMPAIGN_COMPLETE_N ->
-                targetCount == null ? null : BigDecimal.valueOf(targetCount);
+                targetCount == null ? null : (double) (targetCount);
             case ACC_ON_MAP, AP_ON_MAP, PB_SPECIFIC_MAP, COMEBACK_PB, SNIPE_PLAYER_ON_MAP, STREAK_ON_MAP -> null;
         };
     }
 
-    private static BigDecimal progressValue(MissionType type, Integer progressCount, BigDecimal progressAp) {
+    private static Double progressValue(MissionType type, Integer progressCount, Double progressAp) {
         return switch (type) {
             case AP_GAIN_OVERALL -> roundProgressAp(progressAp);
             case XP_IN_WINDOW, PLAY_N_MAPS, SCORES_N, STREAK_N_IN_CATEGORY, STREAK_SUM_N, PB_ABOVE_THRESHOLD,
                     SNIPE_RIVAL_ANY_MAP, BATCH_PLAY_N, PB_RANKED_BEFORE_N, CAMPAIGN_COMPLETE_N ->
-                progressCount == null ? null : BigDecimal.valueOf(progressCount);
+                progressCount == null ? null : (double) (progressCount);
             case ACC_ON_MAP, AP_ON_MAP, PB_SPECIFIC_MAP, COMEBACK_PB, SNIPE_PLAYER_ON_MAP, STREAK_ON_MAP -> null;
         };
     }
 
-    private static BigDecimal roundAcc(BigDecimal acc) {
-        return acc == null ? null : acc.multiply(BigDecimal.valueOf(100))
-                .setScale(2, RoundingMode.HALF_UP);
+    private static Double roundAcc(Double acc) {
+        return acc == null ? null :Rounding.round((acc * (double) (100)), 2);
     }
 
-    private static BigDecimal roundAp(BigDecimal ap) {
-        return ap == null ? null : ap.setScale(0, RoundingMode.HALF_UP);
+    private static Double roundAp(Double ap) {
+        return ap == null ? null : Rounding.round(ap, 0);
     }
 
-    private static BigDecimal roundProgressAp(BigDecimal ap) {
-        return ap == null ? null : ap.setScale(2, RoundingMode.HALF_UP);
+    private static Double roundProgressAp(Double ap) {
+        return ap == null ? null : Rounding.round(ap, 2);
     }
 
     public static String renderDescription(UserMission m) {

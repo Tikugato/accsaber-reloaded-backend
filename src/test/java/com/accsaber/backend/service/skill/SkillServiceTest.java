@@ -10,7 +10,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -124,27 +123,27 @@ class SkillServiceTest {
         @Test
         void recordHolderPeakNormalizesToHundred() {
             Category c = Category.builder().id(CATEGORY_ID).code(CATEGORY_CODE).name("True Acc").build();
-            when(scoreRepository.findMaxApInCategory(CATEGORY_ID)).thenReturn(BigDecimal.valueOf(1131));
+            when(scoreRepository.findMaxApInCategory(CATEGORY_ID)).thenReturn((double) (1131));
 
-            assertThat(skillService.computePeakScore(BigDecimal.valueOf(1131), c))
+            assertThat(skillService.computePeakScore((double) (1131), c))
                     .isCloseTo(100.0, within(0.0001));
         }
 
         @Test
         void rankTwoPeakLandsCloseToHundred() {
             Category c = Category.builder().id(CATEGORY_ID).code(CATEGORY_CODE).name("True Acc").build();
-            when(scoreRepository.findMaxApInCategory(CATEGORY_ID)).thenReturn(BigDecimal.valueOf(1131));
+            when(scoreRepository.findMaxApInCategory(CATEGORY_ID)).thenReturn((double) (1131));
 
-            assertThat(skillService.computePeakScore(BigDecimal.valueOf(1124), c))
+            assertThat(skillService.computePeakScore((double) (1124), c))
                     .isGreaterThan(98.0).isLessThan(100.0);
         }
 
         @Test
         void distantPlayerPeakDropsProportionally() {
             Category c = Category.builder().id(CATEGORY_ID).code(CATEGORY_CODE).name("True Acc").build();
-            when(scoreRepository.findMaxApInCategory(CATEGORY_ID)).thenReturn(BigDecimal.valueOf(1131));
+            when(scoreRepository.findMaxApInCategory(CATEGORY_ID)).thenReturn((double) (1131));
 
-            assertThat(skillService.computePeakScore(BigDecimal.valueOf(900), c))
+            assertThat(skillService.computePeakScore((double) (900), c))
                     .isGreaterThan(50.0).isLessThan(80.0);
         }
 
@@ -154,7 +153,7 @@ class SkillServiceTest {
             when(scoreRepository.findMaxApInCategory(CATEGORY_ID)).thenReturn(null);
 
             double expected = skillService.sigmoidScore(500, 850, 90);
-            assertThat(skillService.computePeakScore(BigDecimal.valueOf(500), c))
+            assertThat(skillService.computePeakScore((double) (500), c))
                     .isCloseTo(expected, within(0.0001));
         }
 
@@ -162,7 +161,7 @@ class SkillServiceTest {
         void peakIsZeroWhenPlayerHasNoTopAp() {
             Category c = Category.builder().id(CATEGORY_ID).code(CATEGORY_CODE).name("True Acc").build();
 
-            assertThat(skillService.computePeakScore(BigDecimal.ZERO, c)).isEqualTo(0);
+            assertThat(skillService.computePeakScore(0.0, c)).isEqualTo(0);
         }
     }
 
@@ -191,10 +190,10 @@ class SkillServiceTest {
                     .thenReturn(List.of())
                     .thenReturn(List.of(row));
             when(categoryRepository.findByActiveTrue()).thenReturn(List.of(cat));
-            mockStats(50, BigDecimal.valueOf(900));
+            mockStats(50, (double) (900));
             mockActivePlayers(125000);
             when(apCalculationService.calculateRawApForOneWeightedGain(any(), any()))
-                    .thenReturn(BigDecimal.valueOf(800));
+                    .thenReturn((double) (800));
 
             SkillResponse response = skillService.computeSkillForUser(USER_ID, null);
 
@@ -236,13 +235,13 @@ class SkillServiceTest {
             Category overall = Category.builder().id(OVERALL_ID).code("overall").name("Overall").build();
             when(categoryRepository.findByIdAndActiveTrue(CATEGORY_ID)).thenReturn(Optional.of(cat));
             when(categoryRepository.findByCodeAndActiveTrue("overall")).thenReturn(Optional.of(overall));
-            mockStats(2, BigDecimal.valueOf(1100));
+            mockStats(2, (double) (1100));
             mockActivePlayers(125000);
             when(statsRepository.findByUser_IdAndCategory_IdAndActiveTrue(USER_ID, OVERALL_ID))
                     .thenReturn(Optional.empty());
             when(statsRepository.countActivePlayersInCategory(OVERALL_ID)).thenReturn(125000L);
             when(apCalculationService.calculateRawApForOneWeightedGain(any(), any()))
-                    .thenReturn(BigDecimal.valueOf(1070));
+                    .thenReturn((double) (1070));
             when(skillRepository.findByUserIdForOverall(USER_ID)).thenReturn(List.of(
                     persistedSkill(cat, 95.0, 95)));
 
@@ -268,10 +267,10 @@ class SkillServiceTest {
 
             skillService.upsertSkill(USER_ID, OVERALL_ID);
 
-            ArgumentCaptor<BigDecimal> skillCaptor = ArgumentCaptor.forClass(BigDecimal.class);
+            ArgumentCaptor<Double> skillCaptor = ArgumentCaptor.forClass(Double.class);
             verify(skillRepository).upsert(eq(USER_ID), eq(OVERALL_ID), skillCaptor.capture(),
                     any(), any(), any(), any(), any(), any(), any(), any());
-            assertThat(skillCaptor.getValue().doubleValue()).isCloseTo(70.0, within(0.01));
+            assertThat(skillCaptor.getValue()).isCloseTo(70.0, within(0.01));
         }
 
         @Test
@@ -286,10 +285,10 @@ class SkillServiceTest {
 
             skillService.upsertSkill(USER_ID, OVERALL_ID);
 
-            ArgumentCaptor<BigDecimal> skillCaptor = ArgumentCaptor.forClass(BigDecimal.class);
+            ArgumentCaptor<Double> skillCaptor = ArgumentCaptor.forClass(Double.class);
             verify(skillRepository).upsert(eq(USER_ID), eq(OVERALL_ID), skillCaptor.capture(),
                     any(), any(), any(), any(), any(), any(), any(), any());
-            assertThat(skillCaptor.getValue().doubleValue()).isEqualTo(0);
+            assertThat(skillCaptor.getValue()).isEqualTo(0);
         }
 
         @Test
@@ -344,7 +343,7 @@ class SkillServiceTest {
             UserCategorySkillSnapshot prior = UserCategorySkillSnapshot.builder()
                     .skillLevel(row.getSkillLevel())
                     .rankScore(row.getRankScore())
-                    .sustainedScore(BigDecimal.valueOf(50))
+                    .sustainedScore((double) (50))
                     .peakScore(row.getPeakScore())
                     .combinedScore(row.getCombinedScore())
                     .capturedAt(Instant.now())
@@ -377,7 +376,7 @@ class SkillServiceTest {
                 .build();
     }
 
-    private void mockStats(int rank, BigDecimal topAp) {
+    private void mockStats(int rank, Double topAp) {
         Score topPlay = Score.builder().id(UUID.randomUUID()).ap(topAp).build();
         UserCategoryStatistics stats = UserCategoryStatistics.builder()
                 .ranking(rank).topPlay(topPlay).build();
@@ -395,12 +394,12 @@ class SkillServiceTest {
         return UserCategorySkill.builder()
                 .user(User.builder().id(USER_ID).build())
                 .category(category)
-                .skillLevel(BigDecimal.valueOf(skill))
-                .rankScore(BigDecimal.valueOf(components))
-                .sustainedScore(BigDecimal.valueOf(components))
-                .peakScore(BigDecimal.valueOf(components))
-                .combinedScore(BigDecimal.valueOf(components))
-                .topAp(BigDecimal.valueOf(1000))
+                .skillLevel((double) (skill))
+                .rankScore((double) (components))
+                .sustainedScore((double) (components))
+                .peakScore((double) (components))
+                .combinedScore((double) (components))
+                .topAp((double) (1000))
                 .categoryRank(50)
                 .activePlayers(125000L)
                 .build();

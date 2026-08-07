@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -148,11 +147,11 @@ class MapImportServiceTest {
                         when(mapDifficultyRepository.findById(diffId)).thenReturn(Optional.of(entity));
 
                         ImportMapFromLeaderboardIdsRequest req = request("bl_123", "ss_456");
-                        req.setComplexity(new BigDecimal("7.5"));
+                        req.setComplexity(7.5);
 
                         mapImportService.importByLeaderboardIds(req, STAFF_ID, MapDifficultyStatus.QUEUE);
 
-                        verify(complexityService).setComplexity(eq(entity), eq(new BigDecimal("7.5")),
+                        verify(complexityService).setComplexity(eq(entity), eq(7.5),
                                         eq("Initial import"), eq(null));
                 }
 

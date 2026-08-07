@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -58,7 +57,7 @@ class CurveServiceTest {
 
         assertThat(response.getXParameterName()).isEqualTo("position");
         assertThat(response.getYParameterName()).isEqualTo("base");
-        assertThat(response.getYParameterValue()).isEqualByComparingTo(new BigDecimal("0.965"));
+        assertThat(response.getYParameterValue()).isEqualByComparingTo(0.965);
     }
 
     @Test
@@ -69,8 +68,8 @@ class CurveServiceTest {
 
         CurveResponse response = curveService.findById(curve.getId());
 
-        assertThat(response.getScale()).isEqualByComparingTo(new BigDecimal("61"));
-        assertThat(response.getShift()).isEqualByComparingTo(new BigDecimal("-18"));
+        assertThat(response.getScale()).isEqualByComparingTo(61.0);
+        assertThat(response.getShift()).isEqualByComparingTo(-18.0);
     }
 
     @Test
@@ -94,9 +93,9 @@ class CurveServiceTest {
                 .type(CurveType.FORMULA)
                 .formula("EXPONENTIAL_DECAY")
                 .xParameterName("position")
-                .xParameterValue(BigDecimal.ONE)
+                .xParameterValue(1.0)
                 .yParameterName("base")
-                .yParameterValue(new BigDecimal("0.965"))
+                .yParameterValue(0.965)
                 .build();
     }
 
@@ -105,8 +104,8 @@ class CurveServiceTest {
                 .id(UUID.randomUUID())
                 .name("AccSaber Score Curve")
                 .type(CurveType.POINT_LOOKUP)
-                .scale(new BigDecimal("61"))
-                .shift(new BigDecimal("-18"))
+                .scale(61.0)
+                .shift(-18.0)
                 .build();
     }
 }

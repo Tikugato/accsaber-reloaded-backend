@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.milestone;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.hibernate.annotations.Immutable;
@@ -29,5 +28,5 @@ public class MilestoneCompletionStats {
     private Long totalPlayers;
 
     @Column(name = "completion_percentage")
-    private BigDecimal completionPercentage;
+    private Double completionPercentage;
 }

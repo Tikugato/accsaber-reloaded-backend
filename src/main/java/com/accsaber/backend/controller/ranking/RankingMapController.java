@@ -1,6 +1,5 @@
 package com.accsaber.backend.controller.ranking;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -67,8 +66,8 @@ public class RankingMapController {
             @RequestParam(required = false) UUID categoryId,
             @RequestParam(required = false) UUID batchId,
             @RequestParam(required = false) List<MapDifficultyStatus> status,
-            @RequestParam(required = false) BigDecimal complexityMin,
-            @RequestParam(required = false) BigDecimal complexityMax,
+            @RequestParam(required = false) Double complexityMin,
+            @RequestParam(required = false) Double complexityMax,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "true") boolean active,
             @PageableDefault(size = 20, sort = "rankedAt", direction = Sort.Direction.DESC) Pageable pageable) {

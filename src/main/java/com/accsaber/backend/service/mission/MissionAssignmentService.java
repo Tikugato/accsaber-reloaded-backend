@@ -1,6 +1,7 @@
 package com.accsaber.backend.service.mission;
 
-import java.math.BigDecimal;
+import com.accsaber.backend.util.Rounding;
+
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -222,8 +223,7 @@ public class MissionAssignmentService {
         List<UserCategoryStatistics> activeStats = statsRepository.findActiveByUser_IdWithCategory(userId).stream()
                 .filter(s -> s.getRankedPlays() != null && s.getRankedPlays() > 0)
                 .toList();
-        BigDecimal rollingXp = userRepository.findTotalXpById(userId).orElse(BigDecimal.ZERO)
-                .divide(BigDecimal.valueOf(365), 2, RoundingMode.HALF_UP);
+        Double rollingXp = Rounding.round(userRepository.findTotalXpById(userId).orElse(0.0) / (double) (365), 2);
         if (activeStats.isEmpty()) {
             return new MissionAssignmentContext(userId, List.of(), Map.of(), Map.of(), rollingXp);
         }

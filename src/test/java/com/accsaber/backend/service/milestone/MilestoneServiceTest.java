@@ -9,7 +9,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -100,7 +99,7 @@ class MilestoneServiceTest {
                 .id(UUID.randomUUID())
                 .title("Accuracy Milestones")
                 .description("Score accuracy goals")
-                .setBonusXp(BigDecimal.valueOf(500))
+                .setBonusXp((double) (500))
                 .build();
 
         querySpec = new MilestoneQuerySpec(
@@ -115,9 +114,9 @@ class MilestoneServiceTest {
                 .description("Get a 900 AP score")
                 .type("milestone")
                 .tier(MilestoneTier.gold)
-                .xp(BigDecimal.valueOf(300))
+                .xp((double) (300))
                 .querySpec(querySpec)
-                .targetValue(BigDecimal.valueOf(900))
+                .targetValue((double) (900))
                 .comparison("GTE")
                 .active(true)
                 .build();
@@ -164,9 +163,9 @@ class MilestoneServiceTest {
                     .title("FC King")
                     .type("achievement")
                     .tier(MilestoneTier.platinum)
-                    .xp(BigDecimal.valueOf(500))
+                    .xp((double) (500))
                     .querySpec(querySpec)
-                    .targetValue(BigDecimal.ONE)
+                    .targetValue(1.0)
                     .comparison("GTE")
                     .build();
 
@@ -183,7 +182,7 @@ class MilestoneServiceTest {
 
         @Test
         void completionStatsAreMergedIntoResponse() {
-            MilestoneCompletionStats stats = buildStats(milestone.getId(), 50L, 200L, new BigDecimal("25.00"));
+            MilestoneCompletionStats stats = buildStats(milestone.getId(), 50L, 200L, 25.00);
             when(milestoneRepository.findAllActiveFiltered(isNull(), isNull(), isNull(), eq(MilestoneStatus.ACTIVE),
                     eq(defaultPageable)))
                     .thenReturn(new PageImpl<>(List.of(milestone), defaultPageable, 1));
@@ -192,7 +191,7 @@ class MilestoneServiceTest {
             Page<MilestoneResponse> result = service.findAllActive(null, null, null, defaultPageable);
 
             MilestoneResponse response = result.getContent().get(0);
-            assertThat(response.getCompletionPercentage()).isEqualByComparingTo(new BigDecimal("25.00"));
+            assertThat(response.getCompletionPercentage()).isEqualByComparingTo(25.00);
             assertThat(response.getCompletions()).isEqualTo(50L);
             assertThat(response.getTotalPlayers()).isEqualTo(200L);
         }
@@ -211,7 +210,7 @@ class MilestoneServiceTest {
             MilestoneResponse response = service.findById(milestone.getId());
 
             assertThat(response.getId()).isEqualTo(milestone.getId());
-            assertThat(response.getTargetValue()).isEqualByComparingTo(BigDecimal.valueOf(900));
+            assertThat(response.getTargetValue()).isEqualByComparingTo((double) (900));
             assertThat(response.getComparison()).isEqualTo("GTE");
             assertThat(response.getQuerySpec()).isEqualTo(querySpec);
         }
@@ -237,9 +236,9 @@ class MilestoneServiceTest {
             request.setDescription("Desc");
             request.setType("milestone");
             request.setTier(MilestoneTier.silver);
-            request.setXp(BigDecimal.valueOf(200));
+            request.setXp((double) (200));
             request.setQuerySpec(querySpec);
-            request.setTargetValue(BigDecimal.valueOf(500));
+            request.setTargetValue((double) (500));
             request.setComparison("GTE");
 
             when(milestoneSetRepository.findByIdAndActiveTrue(set.getId()))
@@ -257,7 +256,7 @@ class MilestoneServiceTest {
             CreateMilestoneRequest request = new CreateMilestoneRequest();
             request.setSetId(set.getId());
             request.setQuerySpec(querySpec);
-            request.setTargetValue(BigDecimal.ONE);
+            request.setTargetValue(1.0);
 
             when(milestoneSetRepository.findByIdAndActiveTrue(set.getId()))
                     .thenReturn(Optional.of(set));
@@ -291,7 +290,7 @@ class MilestoneServiceTest {
             CreateMilestoneSetRequest request = new CreateMilestoneSetRequest();
             request.setTitle("New Set");
             request.setDescription("Desc");
-            request.setSetBonusXp(BigDecimal.valueOf(1000));
+            request.setSetBonusXp((double) (1000));
 
             when(milestoneSetRepository.save(any())).thenReturn(set);
 
@@ -307,12 +306,12 @@ class MilestoneServiceTest {
             request.setSetBonusXp(null);
 
             MilestoneSet zeroSet = MilestoneSet.builder()
-                    .id(UUID.randomUUID()).title("Set").setBonusXp(BigDecimal.ZERO).build();
+                    .id(UUID.randomUUID()).title("Set").setBonusXp(0.0).build();
             when(milestoneSetRepository.save(any())).thenReturn(zeroSet);
 
             MilestoneSetResponse response = service.createSet(request);
 
-            assertThat(response.getSetBonusXp()).isEqualByComparingTo(BigDecimal.ZERO);
+            assertThat(response.getSetBonusXp()).isEqualByComparingTo(0.0);
         }
     }
 
@@ -365,7 +364,7 @@ class MilestoneServiceTest {
             com.accsaber.backend.model.entity.milestone.UserMilestoneLink link = com.accsaber.backend.model.entity.milestone.UserMilestoneLink
                     .builder()
                     .milestone(milestone)
-                    .progress(BigDecimal.valueOf(950))
+                    .progress((double) (950))
                     .completed(true)
                     .completedAt(java.time.Instant.now())
                     .build();
@@ -380,7 +379,7 @@ class MilestoneServiceTest {
 
             assertThat(progress.getContent()).hasSize(1);
             assertThat(progress.getContent().get(0).isCompleted()).isTrue();
-            assertThat(progress.getContent().get(0).getProgress()).isEqualByComparingTo(BigDecimal.valueOf(950));
+            assertThat(progress.getContent().get(0).getProgress()).isEqualByComparingTo((double) (950));
         }
 
         @Test
@@ -435,9 +434,9 @@ class MilestoneServiceTest {
                     .title("Draft")
                     .type("milestone")
                     .tier(MilestoneTier.bronze)
-                    .xp(BigDecimal.TEN)
+                    .xp(10.0)
                     .querySpec(querySpec)
-                    .targetValue(BigDecimal.ONE)
+                    .targetValue(1.0)
                     .comparison("GTE")
                     .status(MilestoneStatus.DRAFT)
                     .build();
@@ -460,9 +459,9 @@ class MilestoneServiceTest {
                     .title("Active")
                     .type("milestone")
                     .tier(MilestoneTier.bronze)
-                    .xp(BigDecimal.TEN)
+                    .xp(10.0)
                     .querySpec(querySpec)
-                    .targetValue(BigDecimal.ONE)
+                    .targetValue(1.0)
                     .comparison("GTE")
                     .status(MilestoneStatus.ACTIVE)
                     .build();
@@ -482,11 +481,11 @@ class MilestoneServiceTest {
         void allDraft_activatedSuccessfully() {
             Milestone m1 = Milestone.builder().id(UUID.randomUUID()).milestoneSet(set)
                     .title("M1").type("milestone").tier(MilestoneTier.bronze)
-                    .xp(BigDecimal.TEN).querySpec(querySpec).targetValue(BigDecimal.ONE)
+                    .xp(10.0).querySpec(querySpec).targetValue(1.0)
                     .comparison("GTE").status(MilestoneStatus.DRAFT).build();
             Milestone m2 = Milestone.builder().id(UUID.randomUUID()).milestoneSet(set)
                     .title("M2").type("milestone").tier(MilestoneTier.silver)
-                    .xp(BigDecimal.TEN).querySpec(querySpec).targetValue(BigDecimal.ONE)
+                    .xp(10.0).querySpec(querySpec).targetValue(1.0)
                     .comparison("GTE").status(MilestoneStatus.DRAFT).build();
             List<UUID> ids = List.of(m1.getId(), m2.getId());
 
@@ -504,11 +503,11 @@ class MilestoneServiceTest {
         void someAlreadyActive_throwsConflict() {
             Milestone draft = Milestone.builder().id(UUID.randomUUID()).milestoneSet(set)
                     .title("Draft").type("milestone").tier(MilestoneTier.bronze)
-                    .xp(BigDecimal.TEN).querySpec(querySpec).targetValue(BigDecimal.ONE)
+                    .xp(10.0).querySpec(querySpec).targetValue(1.0)
                     .comparison("GTE").status(MilestoneStatus.DRAFT).build();
             Milestone active = Milestone.builder().id(UUID.randomUUID()).milestoneSet(set)
                     .title("Active").type("milestone").tier(MilestoneTier.bronze)
-                    .xp(BigDecimal.TEN).querySpec(querySpec).targetValue(BigDecimal.ONE)
+                    .xp(10.0).querySpec(querySpec).targetValue(1.0)
                     .comparison("GTE").status(MilestoneStatus.ACTIVE).build();
             List<UUID> ids = List.of(draft.getId(), active.getId());
 
@@ -542,9 +541,9 @@ class MilestoneServiceTest {
                     .title("Prerequisite")
                     .type("milestone")
                     .tier(MilestoneTier.silver)
-                    .xp(BigDecimal.valueOf(100))
+                    .xp((double) (100))
                     .querySpec(querySpec)
-                    .targetValue(BigDecimal.valueOf(500))
+                    .targetValue((double) (500))
                     .comparison("GTE")
                     .build();
         }
@@ -698,9 +697,9 @@ class MilestoneServiceTest {
             request.setTitle("Test");
             request.setType("milestone");
             request.setTier(MilestoneTier.bronze);
-            request.setXp(BigDecimal.TEN);
+            request.setXp(10.0);
             request.setQuerySpec(querySpec);
-            request.setTargetValue(BigDecimal.ONE);
+            request.setTargetValue(1.0);
             request.setComparison("GTE");
 
             when(milestoneSetRepository.findByIdAndActiveTrue(set.getId()))
@@ -718,7 +717,7 @@ class MilestoneServiceTest {
     }
 
     private MilestoneCompletionStats buildStats(UUID milestoneId, long completions,
-            long total, BigDecimal pct) {
+            long total, Double pct) {
         MilestoneCompletionStats stats = new MilestoneCompletionStats();
         try {
             var milestoneIdField = MilestoneCompletionStats.class.getDeclaredField("milestoneId");

@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.entity.campaign;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.hibernate.annotations.Immutable;
@@ -25,8 +24,8 @@ public class CampaignRewardTotals {
     @Column(name = "campaign_id")
     private UUID campaignId;
 
-    @Column(name = "total_xp", nullable = false, precision = 20, scale = 6)
-    private BigDecimal totalXp;
+    @Column(name = "total_xp", nullable = false)
+    private double totalXp;
 
     @Column(name = "total_rewards", nullable = false)
     private Integer totalRewards;

@@ -1,7 +1,5 @@
 package com.accsaber.backend.service.og;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,6 +26,7 @@ import com.accsaber.backend.repository.map.MapRepository;
 import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.milestone.LevelService;
+import com.accsaber.backend.util.Rounding;
 
 import lombok.RequiredArgsConstructor;
 
@@ -79,10 +78,9 @@ public class OgService {
                         .append(" #").append(stats.getCountryRanking());
             }
             desc.append("\nAccSaber Points: ")
-                    .append(stats.getAp().setScale(2, RoundingMode.HALF_UP)).append(" AP");
+                    .append(Rounding.round(stats.getAp(), 2)).append(" AP");
             if (stats.getAverageAcc() != null) {
-                BigDecimal acc = stats.getAverageAcc().multiply(BigDecimal.valueOf(100))
-                        .setScale(2, RoundingMode.HALF_UP);
+                Double acc = Rounding.round((stats.getAverageAcc() * (double) (100)), 2);
                 desc.append("\nAverage Accuracy: ").append(acc).append("%");
             }
             desc.append("\nRanked Plays: ").append(stats.getRankedPlays());
@@ -128,14 +126,12 @@ public class OgService {
 
             complexityRepository.findByMapDifficultyIdAndActiveTrue(diff.getId())
                     .ifPresent(c -> desc.append("\nComplexity: ")
-                            .append(c.getComplexity().setScale(2, RoundingMode.HALF_UP)));
+                            .append(Rounding.round(c.getComplexity(), 2)));
 
             diffStatsRepository.findByMapDifficultyIdAndActiveTrue(diff.getId())
                     .ifPresent(s -> {
-                        BigDecimal max = s.getMaxAp() != null
-                                ? s.getMaxAp().setScale(0, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-                        BigDecimal avg = s.getAverageAp() != null
-                                ? s.getAverageAp().setScale(0, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+                        long max = (long) Rounding.round(s.getMaxAp(), 0);
+                        long avg = (long) Rounding.round(s.getAverageAp(), 0);
                         desc.append("\nMax/Avg AP: ").append(max).append(" / ").append(avg);
                         desc.append("\n").append(s.getTotalScores()).append(" scores");
                     });
@@ -276,7 +272,8 @@ public class OgService {
     }
 
     private String escapeHtml(String s) {
-        if (s == null) return "";
+        if (s == null)
+            return "";
         return s.replace("&", "&amp;").replace("\"", "&quot;").replace("<", "&lt;").replace(">", "&gt;");
     }
 }

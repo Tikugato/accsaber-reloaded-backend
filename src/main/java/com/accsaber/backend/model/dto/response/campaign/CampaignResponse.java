@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.campaign;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -31,7 +30,7 @@ public class CampaignResponse {
     private boolean progressionAgnostic;
     private CampaignCompletionMode completionMode;
     private boolean legacy;
-    private BigDecimal completionXp;
+    private Double completionXp;
     private boolean playlistExportEnabled;
     private String backgroundUrl;
     private String backgroundColor;
@@ -44,7 +43,7 @@ public class CampaignResponse {
     private CampaignVoteDirection myVote;
     private List<CampaignTagResponse> tags;
     private List<CampaignItemAwardResponse> completionItems;
-    private BigDecimal totalXp;
+    private Double totalXp;
     private Integer totalRewardCount;
     private List<CampaignItemAwardResponse> rewards;
     private boolean loved;

@@ -1,6 +1,7 @@
 package com.accsaber.backend.service.map;
 
-import java.math.BigDecimal;
+import com.accsaber.backend.util.Rounding;
+
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
@@ -59,7 +60,7 @@ public class MapVotingService {
     public VoteListResponse getVotes(UUID mapDifficultyId, MapVoteAction type) {
         List<StaffMapVote> voteEntities = voteRepository.findByMapDifficultyIdAndActiveTrue(mapDifficultyId);
         java.util.Map<UUID, StaffInfo> staffInfo = loadStaffInfo(voteEntities);
-        BigDecimal complexity = complexityService.findActiveComplexity(mapDifficultyId).orElse(null);
+        Double complexity = complexityService.findActiveComplexity(mapDifficultyId).orElse(null);
 
         List<VoteResponse> votes = voteEntities.stream()
                 .filter(v -> v.getType() == type)
@@ -107,7 +108,7 @@ public class MapVotingService {
                 .map(v -> v.getMapDifficulty().getId())
                 .distinct()
                 .toList();
-        java.util.Map<UUID, BigDecimal> complexities = complexityService
+        java.util.Map<UUID, Double> complexities = complexityService
                 .findActiveComplexitiesForDifficulties(difficultyIds);
         return votes.map(v -> toResponse(v, staffInfo.get(v.getStaffId()),
                 complexities.get(v.getMapDifficulty().getId())));
@@ -115,7 +116,7 @@ public class MapVotingService {
 
     @Transactional
     public VoteResponse castVote(UUID mapDifficultyId, UUID staffId, VoteType vote, MapVoteAction type,
-            BigDecimal suggestedComplexity, String reason,
+            Double suggestedComplexity, String reason,
             VoteType criteriaVote, Boolean criteriaVoteOverride, StaffRole role) {
         MapDifficulty difficulty = mapDifficultyRepository.findByIdAndActiveTrue(mapDifficultyId)
                 .orElseThrow(() -> new ResourceNotFoundException("MapDifficulty", mapDifficultyId));
@@ -156,7 +157,7 @@ public class MapVotingService {
                 .map(s -> new StaffInfo(s.getUsername(),
                         s.getUser() != null ? s.getUser().getAvatarUrl() : null))
                 .orElse(null);
-        BigDecimal complexity = complexityService.findActiveComplexity(mapDifficultyId).orElse(null);
+        Double complexity = complexityService.findActiveComplexity(mapDifficultyId).orElse(null);
         return toResponse(saved, info, complexity);
     }
 
@@ -175,7 +176,7 @@ public class MapVotingService {
         recomputeCriteriaStatus(difficulty);
     }
 
-    public BigDecimal aggregateSuggestedComplexity(UUID mapDifficultyId) {
+    public Double aggregateSuggestedComplexity(UUID mapDifficultyId) {
         List<StaffMapVote> reweightVotes = voteRepository
                 .findByMapDifficultyIdAndActiveTrue(mapDifficultyId).stream()
                 .filter(v -> v.getType() == MapVoteAction.REWEIGHT && v.getSuggestedComplexity() != null)
@@ -184,11 +185,11 @@ public class MapVotingService {
         if (reweightVotes.isEmpty())
             return null;
 
-        BigDecimal sum = reweightVotes.stream()
+        Double sum = reweightVotes.stream()
                 .map(StaffMapVote::getSuggestedComplexity)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(0.0, Double::sum);
 
-        return sum.divide(BigDecimal.valueOf(reweightVotes.size()), 6, RoundingMode.HALF_UP);
+        return Rounding.round(sum / (double) (reweightVotes.size()), 6);
     }
 
     private void tryAutoQualify(MapDifficulty difficulty) {
@@ -282,7 +283,7 @@ public class MapVotingService {
         }
     }
 
-    private void validateSuggestedComplexity(MapVoteAction type, BigDecimal suggestedComplexity) {
+    private void validateSuggestedComplexity(MapVoteAction type, Double suggestedComplexity) {
         if (type == MapVoteAction.REWEIGHT && suggestedComplexity == null) {
             throw new ValidationException("suggestedComplexity is required for REWEIGHT votes");
         }
@@ -292,7 +293,7 @@ public class MapVotingService {
     }
 
     private StaffMapVote updateVote(StaffMapVote existing, VoteType vote, MapVoteAction type,
-            BigDecimal suggestedComplexity, String reason) {
+            Double suggestedComplexity, String reason) {
         existing.setVote(vote);
         existing.setType(type);
         existing.setSuggestedComplexity(suggestedComplexity);
@@ -301,7 +302,7 @@ public class MapVotingService {
     }
 
     private StaffMapVote buildVote(MapDifficulty difficulty, UUID staffId, VoteType vote, MapVoteAction type,
-            BigDecimal suggestedComplexity, String reason) {
+            Double suggestedComplexity, String reason) {
         return StaffMapVote.builder()
                 .mapDifficulty(difficulty)
                 .staffId(staffId)
@@ -326,7 +327,7 @@ public class MapVotingService {
                                 s.getUser() != null ? s.getUser().getAvatarUrl() : null)));
     }
 
-    private VoteResponse toResponse(StaffMapVote v, StaffInfo info, BigDecimal complexity) {
+    private VoteResponse toResponse(StaffMapVote v, StaffInfo info, Double complexity) {
         var map = v.getMapDifficulty().getMap();
         return VoteResponse.builder()
                 .id(v.getId())

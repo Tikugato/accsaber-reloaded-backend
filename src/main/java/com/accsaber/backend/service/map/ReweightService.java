@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.map;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -36,7 +35,7 @@ public class ReweightService {
     private final BatchRepository batchRepository;
 
     @Transactional
-    public MapDifficultyResponse reweight(UUID mapDifficultyId, BigDecimal complexity, String reason,
+    public MapDifficultyResponse reweight(UUID mapDifficultyId, Double complexity, String reason,
             Long staffUserId, UUID staffId) {
         MapDifficulty difficulty = mapDifficultyRepository.findByIdAndActiveTrue(mapDifficultyId)
                 .orElseThrow(() -> new ResourceNotFoundException("MapDifficulty", mapDifficultyId));
@@ -92,7 +91,7 @@ public class ReweightService {
     @Transactional
     public void bulkReweight(List<BulkReweightRequest.Item> items, String reason,
             Long staffUserId, UUID staffId) {
-        Map<UUID, BigDecimal> complexityByDifficulty = items.stream()
+        Map<UUID, Double> complexityByDifficulty = items.stream()
                 .collect(Collectors.toMap(BulkReweightRequest.Item::getMapDifficultyId,
                         BulkReweightRequest.Item::getComplexity));
 

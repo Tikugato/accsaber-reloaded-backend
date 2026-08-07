@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -92,7 +91,7 @@ class MapVotingServiceTest {
                                         .thenReturn(Optional.of(queue));
 
                         assertThatThrownBy(() -> votingService.castVote(queue.getId(), UUID.randomUUID(),
-                                        VoteType.UPVOTE, MapVoteAction.REWEIGHT, BigDecimal.valueOf(7.5), null, null,
+                                        VoteType.UPVOTE, MapVoteAction.REWEIGHT, (double) (7.5), null, null,
                                         null, StaffRole.RANKING))
                                         .isInstanceOf(ValidationException.class);
                 }
@@ -246,7 +245,7 @@ class MapVotingServiceTest {
         }
 
         private StaffMapVote buildVote(MapDifficulty diff, UUID staffId, VoteType vote,
-                        MapVoteAction type, BigDecimal suggestedComplexity, String reason) {
+                        MapVoteAction type, Double suggestedComplexity, String reason) {
                 return StaffMapVote.builder()
                                 .id(UUID.randomUUID())
                                 .mapDifficulty(diff)

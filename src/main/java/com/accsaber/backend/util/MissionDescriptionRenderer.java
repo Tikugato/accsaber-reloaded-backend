@@ -1,6 +1,7 @@
 package com.accsaber.backend.util;
 
-import java.math.BigDecimal;
+import com.accsaber.backend.util.Rounding;
+
 import java.math.RoundingMode;
 
 import com.accsaber.backend.model.entity.map.MapDifficulty;
@@ -13,10 +14,10 @@ public final class MissionDescriptionRenderer {
     public record Values(
             Integer count,
             Integer xp,
-            BigDecimal acc,
-            BigDecimal ap,
+            Double acc,
+            Double ap,
             Integer score,
-            BigDecimal thresholdAp,
+            Double thresholdAp,
             Integer streak,
             String mapName,
             String playerName,
@@ -58,15 +59,15 @@ public final class MissionDescriptionRenderer {
         return diff != null ? song + " (" + diff + ")" : song;
     }
 
-    private static String formatAcc(BigDecimal acc) {
+    private static String formatAcc(Double acc) {
         if (acc == null)
             return "?";
-        return acc.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP) + "%";
+        return Rounding.round(acc * 100, 2) + "%";
     }
 
-    private static String formatAp(BigDecimal ap) {
+    private static String formatAp(Double ap) {
         if (ap == null)
             return "?";
-        return ap.setScale(0, RoundingMode.HALF_UP).toPlainString();
+        return String.valueOf((long) Rounding.round(ap, 0));
     }
 }

@@ -1,6 +1,5 @@
 package com.accsaber.backend.controller.user;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -248,8 +247,8 @@ public class UserController {
             @PathVariable Long userId,
             @RequestParam(required = false) String categoryId,
             @RequestParam(required = false) List<MapDifficultyStatus> status,
-            @RequestParam(required = false) BigDecimal complexityMin,
-            @RequestParam(required = false) BigDecimal complexityMax,
+            @RequestParam(required = false) Double complexityMin,
+            @RequestParam(required = false) Double complexityMax,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "rankedAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(mapService.findDifficultiesPublic(categoryService.resolveId(categoryId), status,
@@ -262,7 +261,7 @@ public class UserController {
     @GetMapping("/{userId}/maps-above-ap")
     public ResponseEntity<List<PublicMapDifficultyResponse>> getMapsAboveAp(
             @PathVariable Long userId,
-            @RequestParam BigDecimal apMin,
+            @RequestParam Double apMin,
             @RequestParam(required = false) String categoryId) {
         return ResponseEntity.ok(mapService.findDifficultiesWithUserScoreAbovePublic(userId, apMin,
                 categoryService.resolveId(categoryId)));

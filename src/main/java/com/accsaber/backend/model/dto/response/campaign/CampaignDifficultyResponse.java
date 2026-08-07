@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.campaign;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,11 +22,11 @@ public class CampaignDifficultyResponse {
     private UUID mapDifficultyId;
     private UUID mapId;
     private UUID categoryId;
-    private BigDecimal complexity;
+    private Double complexity;
     private String beatsaverCode;
     private Integer maxScore;
     private MapDifficultyMetadata metadata;
-    private BigDecimal nps;
+    private Double nps;
     private Integer maxCombo;
     private String songName;
     private String songAuthor;
@@ -38,8 +37,8 @@ public class CampaignDifficultyResponse {
     private String characteristic;
     private MapDifficultyStatus mapDifficultyStatus;
     private CampaignRequirementType requirementType;
-    private BigDecimal requirementValue;
-    private BigDecimal requirementValueMax;
+    private Double requirementValue;
+    private Double requirementValueMax;
     private CampaignPrerequisiteMode targetMode;
     private List<CampaignTargetResponse> targets;
     private CampaignPrerequisiteMode prerequisiteMode;
@@ -55,9 +54,9 @@ public class CampaignDifficultyResponse {
     private CampaignNodeBorderLayer nodeBorderLayer;
     private Integer size;
     private Integer checkpointSize;
-    private BigDecimal positionX;
-    private BigDecimal positionY;
-    private BigDecimal xp;
+    private Double positionX;
+    private Double positionY;
+    private Double xp;
     private List<CampaignConnectionResponse> prerequisites;
     private List<CampaignItemAwardResponse> items;
     private List<CampaignModifierRequirementResponse> modifiers;

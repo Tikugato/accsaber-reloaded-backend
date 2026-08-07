@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response.map;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -16,7 +15,7 @@ public class RankedDifficultyResponse {
     String songHash;
     String songName;
     Difficulty difficulty;
-    BigDecimal complexity;
+    Double complexity;
     String categoryCode;
     String ssLeaderboardId;
     String blLeaderboardId;

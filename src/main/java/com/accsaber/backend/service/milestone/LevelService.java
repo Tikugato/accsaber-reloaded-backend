@@ -1,7 +1,5 @@
 package com.accsaber.backend.service.milestone;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,6 +16,7 @@ import com.accsaber.backend.model.entity.milestone.LevelThreshold;
 import com.accsaber.backend.repository.CurveRepository;
 import com.accsaber.backend.repository.item.ItemRepository;
 import com.accsaber.backend.repository.milestone.LevelThresholdRepository;
+import com.accsaber.backend.util.Rounding;
 
 import lombok.RequiredArgsConstructor;
 
@@ -35,25 +34,25 @@ public class LevelService {
     private volatile Curve cachedLevelCurve;
     private final Object curveLock = new Object();
 
-    public LevelResponse calculateLevel(BigDecimal totalXp) {
-        if (totalXp == null || totalXp.compareTo(BigDecimal.ZERO) <= 0) {
+    public LevelResponse calculateLevel(Double totalXp) {
+        if (totalXp == null || totalXp.compareTo(0.0) <= 0) {
             return LevelResponse.builder()
                     .level(0)
                     .title(null)
-                    .totalXp(BigDecimal.ZERO)
-                    .xpForCurrentLevel(BigDecimal.ZERO)
+                    .totalXp(0.0)
+                    .xpForCurrentLevel(0.0)
                     .xpForNextLevel(xpForLevel(1))
-                    .progressPercent(BigDecimal.ZERO)
+                    .progressPercent(0.0)
                     .build();
         }
 
         int level = 0;
-        BigDecimal cumulative = BigDecimal.ZERO;
+        Double cumulative = 0.0;
 
         while (true) {
             int nextLevel = level + 1;
-            BigDecimal xpNeeded = xpForLevel(nextLevel);
-            BigDecimal nextCumulative = cumulative.add(xpNeeded);
+            Double xpNeeded = xpForLevel(nextLevel);
+            Double nextCumulative = (cumulative + xpNeeded);
             if (nextCumulative.compareTo(totalXp) > 0) {
                 break;
             }
@@ -61,12 +60,11 @@ public class LevelService {
             level = nextLevel;
         }
 
-        BigDecimal xpIntoCurrentLevel = totalXp.subtract(cumulative);
-        BigDecimal xpNeededForNext = xpForLevel(level + 1);
-        BigDecimal progress = xpNeededForNext.compareTo(BigDecimal.ZERO) > 0
-                ? xpIntoCurrentLevel.multiply(BigDecimal.valueOf(100))
-                        .divide(xpNeededForNext, 2, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
+        Double xpIntoCurrentLevel = (totalXp - cumulative);
+        Double xpNeededForNext = xpForLevel(level + 1);
+        Double progress = xpNeededForNext.compareTo(0.0) > 0
+                ? Rounding.round((xpIntoCurrentLevel * (double) (100)) / xpNeededForNext, 2)
+                : 0.0;
 
         String title = levelThresholdRepository.findHighestTitleAtOrBelow(level)
                 .map(LevelThreshold::getTitle)
@@ -82,16 +80,15 @@ public class LevelService {
                 .build();
     }
 
-    public BigDecimal xpForLevel(int n) {
+    public double xpForLevel(int n) {
         if (n <= 0) {
-            return BigDecimal.ZERO;
+            return 0.0;
         }
         Curve curve = getLevelCurve();
-        double base = curve.getXParameterValue().doubleValue();
-        double exponent = curve.getYParameterValue().doubleValue();
+        double base = curve.getXParameterValue();
+        double exponent = curve.getYParameterValue();
         int effectiveN = Math.min(n, 100);
-        return BigDecimal.valueOf(Math.floor(base * Math.pow(effectiveN, exponent)))
-                .setScale(0, RoundingMode.UNNECESSARY);
+        return Math.floor(base * Math.pow(effectiveN, exponent));
     }
 
     public List<LevelThreshold> getAllThresholds() {

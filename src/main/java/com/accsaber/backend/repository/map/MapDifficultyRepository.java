@@ -1,6 +1,5 @@
 package com.accsaber.backend.repository.map;
 
-import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -212,8 +211,8 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         """)
         List<Object[]> findRankedWithComplexityInRange(
                         @Param("categoryId") UUID categoryId,
-                        @Param("minComplexity") BigDecimal minComplexity,
-                        @Param("maxComplexity") BigDecimal maxComplexity);
+                        @Param("minComplexity") Double minComplexity,
+                        @Param("maxComplexity") Double maxComplexity);
 
         @Query(value = """
                         SELECT d FROM MapDifficulty d
@@ -249,8 +248,8 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         @Param("active") boolean active,
                         @Param("batchId") UUID batchId,
                         @Param("statuses") Collection<MapDifficultyStatus> statuses,
-                        @Param("complexityMin") BigDecimal complexityMin,
-                        @Param("complexityMax") BigDecimal complexityMax,
+                        @Param("complexityMin") Double complexityMin,
+                        @Param("complexityMax") Double complexityMax,
                         @Param("excludeUserId") Long excludeUserId,
                         Pageable pageable);
 
@@ -294,8 +293,8 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         @Param("active") boolean active,
                         @Param("batchId") UUID batchId,
                         @Param("statuses") Collection<MapDifficultyStatus> statuses,
-                        @Param("complexityMin") BigDecimal complexityMin,
-                        @Param("complexityMax") BigDecimal complexityMax,
+                        @Param("complexityMin") Double complexityMin,
+                        @Param("complexityMax") Double complexityMax,
                         @Param("excludeUserId") Long excludeUserId,
                         @Param("search") String search,
                         Pageable pageable);
@@ -312,7 +311,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         """)
         List<MapDifficulty> findWithUserScoreAboveAp(
                         @Param("userId") Long userId,
-                        @Param("apMin") BigDecimal apMin,
+                        @Param("apMin") Double apMin,
                         @Param("categoryId") UUID categoryId);
 
         long countByImportedByAndStatusAndActiveTrue(Long importedBy, MapDifficultyStatus status);

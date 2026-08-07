@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.mission;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,5 +12,5 @@ public record MissionPoolCache(
         List<MissionTemplate> weekly,
         List<Item> poolableItems,
         Item eventCrate,
-        ConcurrentHashMap<UUID, BigDecimal> mapWrApByDifficulty) {
+        ConcurrentHashMap<UUID, Double> mapWrApByDifficulty) {
 }

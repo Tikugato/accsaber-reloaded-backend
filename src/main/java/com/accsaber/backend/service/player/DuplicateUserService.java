@@ -1,6 +1,5 @@
 package com.accsaber.backend.service.player;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -338,7 +337,7 @@ public class DuplicateUserService {
             switch (action.getActionType()) {
                 case CREATED_MERGED -> {
                     score.setActive(false);
-                    score.setXpGained(BigDecimal.ZERO);
+                    score.setXpGained(0.0);
                     scoreRepository.saveAndFlush(score);
                 }
                 case DEACTIVATED_SECONDARY, DEACTIVATED_PRIMARY -> {
@@ -366,7 +365,7 @@ public class DuplicateUserService {
                 Score merged = createMergedScore(score, primary);
                 recordAction(link, ActionType.CREATED_MERGED, merged);
                 count++;
-            } else if (score.getAp().compareTo(primaryScore.get().getAp()) > 0) {
+            } else if ((score.getAp() > primaryScore.get().getAp())) {
                 primaryScore.get().setActive(false);
                 scoreRepository.saveAndFlush(primaryScore.get());
                 recordAction(link, ActionType.DEACTIVATED_PRIMARY, primaryScore.get());

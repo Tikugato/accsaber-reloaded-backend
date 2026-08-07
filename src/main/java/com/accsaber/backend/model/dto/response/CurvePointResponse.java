@@ -1,6 +1,5 @@
 package com.accsaber.backend.model.dto.response;
 
-import java.math.BigDecimal;
 
 import lombok.Builder;
 import lombok.Value;
@@ -9,6 +8,6 @@ import lombok.Value;
 @Builder
 public class CurvePointResponse {
 
-    BigDecimal x;
-    BigDecimal y;
+    Double x;
+    Double y;
 }

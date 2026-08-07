@@ -38,6 +38,9 @@ public class MissionSkillService {
     private static final int STREAK_OUTLIER_WINDOW = 10;
     private static final double STREAK_REFERENCE_DEPTH = 0.30;
     private static final int STREAK_MIN_DEPTH_INDEX = 4;
+    private static final int AP_SAMPLE_SIZE = 20;
+    private static final double AP_REFERENCE_DEPTH = 0.30;
+    private static final int AP_MIN_DEPTH_INDEX = 4;
 
     private final ScoreRepository scoreRepository;
 
@@ -110,6 +113,17 @@ public class MissionSkillService {
         if (top.isEmpty())
             return new RepresentativeStreak(representativeUserStreak(userId, categoryId, band), false);
         return new RepresentativeStreak(representativeStreakFromTop(top, band), true);
+    }
+
+    public BigDecimal representativeUserApForComplexityBand(Long userId, UUID categoryId,
+            BigDecimal complexityMin, BigDecimal complexityMaxExclusive) {
+        List<BigDecimal> top = scoreRepository.findTopApValuesByUserAndCategoryAndComplexityRange(
+                userId, categoryId, complexityMin, complexityMaxExclusive, PageRequest.of(0, AP_SAMPLE_SIZE));
+        if (top.size() < 3)
+            return null;
+        int idx = Math.max((int) Math.round((top.size() - 1) * AP_REFERENCE_DEPTH),
+                Math.min(AP_MIN_DEPTH_INDEX, top.size() - 1));
+        return top.get(Math.min(idx, top.size() - 1));
     }
 
     private int representativeStreakFromTop(List<Integer> top, MissionBand band) {

@@ -43,7 +43,7 @@ Common stuff every build pulls from the context:
 
 - **PLAY_N_MAPS** - just a count, no map picked. Count picked by band. I have this disabled currently since not everyone will have the plugin at the start, but just gotta turn bool to true in DB
 - **XP_IN_WINDOW** - `rollingDailyXp * bandMultiplier`, floored at 100.
-- **ACC_ON_MAP / AP_ON_MAP** - full map-target pipeline (below). The acc variant converts to acc + score at the end; the AP variant uses the rawAp directly.
+- **ACC_ON_MAP / AP_ON_MAP** - full map-target pipeline (below). The acc variant converts to acc + score at the end; the AP variant uses the rawAp directly. These also apply a complexity-band cap off the player's own AP history in the same 3-wide complexity bucket, so a high-complexity tech/true map cannot ask for a "medium" raw AP target that is only medium relative to easier maps.
 - **PB_SPECIFIC_MAP** - same pipeline, plus a `pbFreshnessBoost` XP bonus if the existing PB is recent. With no score on the picked map the band clamps to easy for the whole target computation (anchor, floors, caps, `minMeaningfulTarget`, XP and the stored band), since completion for this type is just "an active score on the target map". The map is still sampled and WR-floor checked against the rolled band, so a strong map stays a strong map and only the ask drops.
 - **PB_ABOVE_THRESHOLD** - percentile of the user's own scores (70/45/22/10 for easy/medium/hard/extreme) times a small shift (0.98/1.0/1.015/1.02), capped at 0.97 * topAp (with the skill-aware nerf described below for easy/medium/hard). Needs at least 2 qualifying scores or it fails.
 - **SNIPE_PLAYER_ON_MAP** - two branches in `computeSnipeTarget` (has-score vs no-score). Candidate filter uses `snipeMaxSkillDistance` (5/8/12/18) to avoid asking you to snipe someone two tiers above.
@@ -96,6 +96,7 @@ This runs for ACC_ON_MAP, AP_ON_MAP, PB_SPECIFIC_MAP and (in a slightly differen
 | `target = capExtremeAtTopAp(target, band, skill, skillLevel)` | hard ceiling vs topAp | factors 0.96 / 0.97 / 0.98 / 1.005; for skill < 70 the easy/medium/hard factors get a smoothstep nerf (up to ~7% at skill 0) so a 46-skill player doesn't get told to score 98% of their topAp on a hard map. Extreme is exempt — it should stay the only band that stretches past topAp |
 | `target = capAtMapRealisticCeiling(...)` | skill-aware fraction of map WR | prevents "beat the WR" assignments |
 | `target = applyLeaderboardDensityDampener(...)` | drop if the top of the leaderboard is too dense | only fires on hard/extreme |
+| `target = min(target, representativeApForComplexityBand * bandCap)` | complexity-local sanity cap | only for ACC/AP map targets; `representativeApForComplexityBand` is the user's own representative AP in the same 3-wide complexity band, with multipliers 1.03 / 1.06 / 1.10 / 1.15 |
 | reject if `target <= existing` OR `target < minMeaningfulTarget` | sanity check | `minMeaningfulTarget` uses `0.70 * topAp` for hard/extreme - anything below that is busywork |
 
 ### Snipe specifically

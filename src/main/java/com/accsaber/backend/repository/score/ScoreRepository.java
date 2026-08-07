@@ -387,6 +387,25 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         org.springframework.data.domain.Pageable pageable);
 
         @Query("""
+                        SELECT s.ap FROM Score s
+                        JOIN com.accsaber.backend.model.entity.map.MapDifficultyComplexity c
+                          ON c.mapDifficulty = s.mapDifficulty AND c.active = true
+                        WHERE s.user.id = :userId
+                          AND s.mapDifficulty.category.id = :categoryId
+                          AND s.active = true
+                          AND s.ap IS NOT NULL
+                          AND c.complexity >= :minComplexity
+                          AND c.complexity < :maxComplexityExclusive
+                        ORDER BY s.ap DESC
+                        """)
+        List<java.math.BigDecimal> findTopApValuesByUserAndCategoryAndComplexityRange(
+                        @Param("userId") Long userId,
+                        @Param("categoryId") java.util.UUID categoryId,
+                        @Param("minComplexity") java.math.BigDecimal minComplexity,
+                        @Param("maxComplexityExclusive") java.math.BigDecimal maxComplexityExclusive,
+                        org.springframework.data.domain.Pageable pageable);
+
+        @Query("""
                         SELECT s, ucs.skillLevel FROM Score s
                         JOIN FETCH s.user u
                         JOIN com.accsaber.backend.model.entity.user.UserCategorySkill ucs

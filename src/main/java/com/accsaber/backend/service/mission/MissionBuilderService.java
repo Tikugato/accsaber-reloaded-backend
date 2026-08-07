@@ -263,6 +263,8 @@ public class MissionBuilderService {
                     categorySkill);
             targetRawAp = targetService.applyLeaderboardDensityDampener(targetRawAp, effectiveBand, pick, cache,
                     existingAp);
+            targetRawAp = applyComplexityAwareScoreTargetCap(ctx.userId(), category.getId(), pick, effectiveBand,
+                    targetRawAp);
 
             if (existingAp != null && targetRawAp.compareTo(existingAp) <= 0) {
                 lastReason = "target-below-existing-after-caps";
@@ -365,17 +367,11 @@ public class MissionBuilderService {
         if (band == MissionBand.easy || band == MissionBand.medium || scores.size() < 50) {
             return threshold;
         }
-        Score score;
-        BigDecimal ap;
-        int idx;
-        if (scores.size() > 100) {
-            double percentile = (band == MissionBand.hard ? 0.15 : 0.10);
-            idx = Math.min(scores.size() - 1, Math.max(0, (int) Math.round(scores.size() * percentile)));
-        } else {
-            idx = (band == MissionBand.hard ? 14 : 9);
-        }
-        score = scores.get(idx);
-        ap = score.getAp().setScale(0, RoundingMode.HALF_UP);
+        int idx = scores.size() > 100
+                ? pbAboveThresholdFixedIndexForLargeScoreCount(band, true)
+                : (band == MissionBand.hard ? 14 : 9);
+        Score score = scores.get(Math.min(scores.size() - 1, Math.max(0, idx)));
+        BigDecimal ap = score.getAp().setScale(0, RoundingMode.HALF_UP);
         return (ap.compareTo(threshold) < 0 ? ap : threshold);
     }
 
@@ -391,7 +387,7 @@ public class MissionBuilderService {
             case hard -> 0.22;
             case extreme -> 0.10;
         };
-        int idx = Math.min(scores.size() - 1, Math.max(0, (int) Math.round(scores.size() * percentile)));
+        int idx = pbAboveThresholdAnchorIndex(scores.size(), band, percentile);
         BigDecimal anchor = scores.get(idx).getAp();
         BigDecimal thresholdShift = switch (band) {
             case easy -> new BigDecimal("0.98");
@@ -426,6 +422,22 @@ public class MissionBuilderService {
                 .xpReward(xp)
                 .itemReward(rollItemReward(template, rng, cache))
                 .build();
+    }
+
+    private int pbAboveThresholdAnchorIndex(int scoreCount, MissionBand band, double percentile) {
+        if (scoreCount > 100) {
+            return pbAboveThresholdFixedIndexForLargeScoreCount(band, false);
+        }
+        return Math.min(scoreCount - 1, Math.max(0, (int) Math.round(scoreCount * percentile)));
+    }
+
+    private int pbAboveThresholdFixedIndexForLargeScoreCount(MissionBand band, boolean availabilityCap) {
+        return switch (band) {
+            case easy -> 70;
+            case medium -> 45;
+            case hard -> availabilityCap ? 14 : 22;
+            case extreme -> 9;
+        };
     }
 
     private UserMission buildSnipe(MissionAssignmentContext ctx, MissionTemplate template, Category category,
@@ -751,6 +763,30 @@ public class MissionBuilderService {
         if (highBand && skill.getTopAp() != null)
             return skill.getTopAp().multiply(new BigDecimal("0.70"));
         return skillAnchored.multiply(new BigDecimal("0.80"));
+    }
+
+    private BigDecimal applyComplexityAwareScoreTargetCap(Long userId, UUID categoryId, MapPick pick,
+            MissionBand band, BigDecimal targetRawAp) {
+        if (targetRawAp == null || pick == null || pick.complexity() == null) {
+            return targetRawAp;
+        }
+        BigDecimal[] bandRange = streakComplexityBand(pick.complexity());
+        BigDecimal representativeAp = skillService.representativeUserApForComplexityBand(
+                userId, categoryId, bandRange[0], bandRange[1]);
+        if (representativeAp == null || representativeAp.signum() <= 0) {
+            return targetRawAp;
+        }
+        BigDecimal cap = representativeAp.multiply(scoreTargetComplexityCapMultiplier(band));
+        return targetRawAp.min(cap);
+    }
+
+    private BigDecimal scoreTargetComplexityCapMultiplier(MissionBand band) {
+        return switch (band) {
+            case easy -> new BigDecimal("1.03");
+            case medium -> new BigDecimal("1.06");
+            case hard -> new BigDecimal("1.10");
+            case extreme -> new BigDecimal("1.15");
+        };
     }
 
     private Integer scoreFromAcc(BigDecimal targetAcc, Integer maxScore) {

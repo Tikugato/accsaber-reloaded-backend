@@ -34,11 +34,19 @@ public interface UserCampaignScoreRepository extends JpaRepository<UserCampaignS
         List<UserCampaignScore> findByUser_IdAndCampaign_IdAndActiveTrueAndRewardsPaidFalse(Long userId,
                         UUID campaignId);
 
-        long countByUser_IdAndCampaign_IdAndActiveTrue(Long userId, UUID campaignId);
+        @Query("""
+                        SELECT COUNT(ucs) FROM UserCampaignScore ucs
+                        JOIN ucs.campaignDifficulty cd
+                        WHERE ucs.user.id = :userId AND ucs.campaign.id = :campaignId AND ucs.active = true
+                          AND cd.active = true AND cd.barrier = false
+                        """)
+        long countActiveByUserAndCampaign(@Param("userId") Long userId, @Param("campaignId") UUID campaignId);
 
         @Query("""
                         SELECT ucs.campaign.id, COUNT(ucs) FROM UserCampaignScore ucs
+                        JOIN ucs.campaignDifficulty cd
                         WHERE ucs.user.id = :userId AND ucs.campaign.id IN :campaignIds AND ucs.active = true
+                          AND cd.active = true AND cd.barrier = false
                         GROUP BY ucs.campaign.id
                         """)
         List<Object[]> countActiveByUserAndCampaignIds(@Param("userId") Long userId,

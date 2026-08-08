@@ -2908,7 +2908,7 @@ public class CampaignService {
 
     private UserCampaignResponse toUserCampaignResponse(UserCampaign uc) {
         int completed = (int) userCampaignScoreRepository
-                .countByUser_IdAndCampaign_IdAndActiveTrue(uc.getUser().getId(), uc.getCampaign().getId());
+                .countActiveByUserAndCampaign(uc.getUser().getId(), uc.getCampaign().getId());
         return toUserCampaignResponse(uc, toCampaignResponse(uc.getCampaign()), completed);
     }
 

@@ -35,15 +35,18 @@ public class GitHubReleaseClient {
     @Value("${accsaber.quest.github-repo:accsaber/accsaber-qlite-plugin}")
     private String repo;
 
+    @Value("${accsaber.quest.github-token:}")
+    private String token;
+
     public GitHubReleaseClient(@Qualifier("gitHubWebClient") WebClient webClient) {
         this.webClient = webClient;
     }
 
     public List<GitHubRelease> listReleases() {
         try {
-            String body = webClient.get()
-                    .uri("/repos/{repo}/releases?per_page=20", repo)
-                    .header("Accept", "application/vnd.github+json")
+            String body = authorized(webClient.get()
+                    .uri("/repos/" + repo + "/releases?per_page=20")
+                    .header("Accept", "application/vnd.github+json"))
                     .retrieve()
                     .bodyToMono(String.class)
                     .block(HTTP_TIMEOUT);
@@ -83,9 +86,9 @@ public class GitHubReleaseClient {
 
     public Optional<byte[]> downloadAsset(String downloadUrl) {
         try {
-            return Optional.ofNullable(webClient.get()
+            return Optional.ofNullable(authorized(webClient.get()
                     .uri(java.net.URI.create(downloadUrl))
-                    .header("Accept", "application/octet-stream")
+                    .header("Accept", "application/octet-stream"))
                     .retrieve()
                     .bodyToMono(byte[].class)
                     .block(HTTP_TIMEOUT));
@@ -93,6 +96,10 @@ public class GitHubReleaseClient {
             log.error("Failed to download GitHub asset {}: {}", downloadUrl, e.getMessage());
             return Optional.empty();
         }
+    }
+
+    private WebClient.RequestHeadersSpec<?> authorized(WebClient.RequestHeadersSpec<?> spec) {
+        return token == null || token.isBlank() ? spec : spec.header("Authorization", "Bearer " + token);
     }
 
     private static Instant parseInstant(String value) {

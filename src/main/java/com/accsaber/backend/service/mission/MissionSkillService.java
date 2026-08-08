@@ -35,8 +35,12 @@ public class MissionSkillService {
     private static final double PLAY_DAMPEN_RATE = 0.70;
     private static final int STREAK_SAMPLE_SIZE = 30;
     private static final int STREAK_OUTLIER_WINDOW = 10;
-    private static final double STREAK_REFERENCE_DEPTH = 0.30;
-    private static final int STREAK_MIN_DEPTH_INDEX = 4;
+    private static final double REFERENCE_DEPTH = 0.30;
+    private static final int MIN_DEPTH_INDEX = 4;
+    private static final int AP_SAMPLE_SIZE = 20;
+    private static final int AP_MIN_SAMPLE = 5;
+    private static final double ANY_COMPLEXITY_MIN = 0.0;
+    private static final double ANY_COMPLEXITY_MAX = Double.MAX_VALUE;
 
     private final ScoreRepository scoreRepository;
 
@@ -101,13 +105,36 @@ public class MissionSkillService {
     }
 
     public RepresentativeStreak representativeUserStreakForComplexityBand(Long userId, UUID categoryId,
-            MissionBand band, Double complexityMin, Double complexityMaxExclusive) {
+            MissionBand band, double complexityMin, double complexityMaxExclusive) {
         List<Integer> top = scoreRepository.findTopStreak115ValuesByUserAndCategoryAndComplexityRange(
                 userId, categoryId, complexityMin, complexityMaxExclusive,
                 PageRequest.of(0, STREAK_SAMPLE_SIZE));
         if (top.isEmpty())
             return new RepresentativeStreak(representativeUserStreak(userId, categoryId, band), false);
         return new RepresentativeStreak(representativeStreakFromTop(top, band), true);
+    }
+
+    public Double representativeNormalizedApForComplexityBand(Long userId, UUID categoryId, double shift,
+            double complexityMin, double complexityMaxExclusive) {
+        Double banded = representativeNormalizedAp(userId, categoryId, shift, complexityMin, complexityMaxExclusive);
+        if (banded != null)
+            return banded;
+        return representativeNormalizedAp(userId, categoryId, shift, ANY_COMPLEXITY_MIN, ANY_COMPLEXITY_MAX);
+    }
+
+    private Double representativeNormalizedAp(Long userId, UUID categoryId, double shift,
+            double complexityMin, double complexityMaxExclusive) {
+        List<Double> top = scoreRepository.findTopApPerComplexityByUserAndCategoryAndComplexityRange(
+                userId, categoryId, complexityMin, complexityMaxExclusive, shift,
+                PageRequest.of(0, AP_SAMPLE_SIZE));
+        if (top.size() < AP_MIN_SAMPLE)
+            return null;
+        return top.get(referenceIndex(top.size()));
+    }
+
+    private int referenceIndex(int size) {
+        return Math.min(size - 1, Math.max((int) Math.round((size - 1) * REFERENCE_DEPTH),
+                Math.min(MIN_DEPTH_INDEX, size - 1)));
     }
 
     private int representativeStreakFromTop(List<Integer> top, MissionBand band) {
@@ -125,9 +152,7 @@ public class MissionSkillService {
             };
             return Math.max(2, (int) Math.round(median * multiplier));
         }
-        int idx = Math.max((int) Math.round((top.size() - 1) * STREAK_REFERENCE_DEPTH),
-                Math.min(STREAK_MIN_DEPTH_INDEX, top.size() - 1));
-        return top.get(Math.min(idx, top.size() - 1));
+        return top.get(referenceIndex(top.size()));
     }
 
     public Double ageAdjustedUserAp(Score myScore, Double topAp) {

@@ -61,6 +61,7 @@ public class OauthService {
     private final OauthStateService stateService;
     private final JwtService jwtService;
     private final MissionAssignmentService missionAssignmentService;
+    private final PairingCodeService pairingCodeService;
 
     @Value("${accsaber.jwt.player-refresh-token-ttl}")
     private long playerRefreshTokenTtl;
@@ -116,6 +117,41 @@ public class OauthService {
     public PlayerAuthResponse handleIngameTicket(String provider, String ticket) {
         return loginViaBeatLeader(beatLeaderClient.verifyTicketAndFetchIdentity(provider, ticket), null, null,
                 JwtService.SCOPE_GAME);
+    }
+
+    @Transactional(readOnly = true)
+    public String createPairingCode(Long userId) {
+        User user = requireUser(duplicateUserService.resolvePrimaryUserId(userId));
+        rejectIfBanned(user);
+        return pairingCodeService.create(user.getId());
+    }
+
+    @Transactional
+    public PlayerAuthResponse redeemPairingCode(String code) {
+        Long userId = pairingCodeService.consume(code);
+        if (userId == null) {
+            throw new UnauthorizedException("Invalid or expired pairing code");
+        }
+        return issueGameSessionForUser(userId);
+    }
+
+    @Transactional
+    public PlayerAuthResponse issueGameSessionForUser(Long userId) {
+        User user = requireUser(duplicateUserService.resolvePrimaryUserId(userId));
+        rejectIfBanned(user);
+
+        OauthConnection anchor = oauthConnectionRepository.findByUserIdAndActiveTrue(user.getId()).stream()
+                .min(Comparator.comparingInt(conn -> providerPriority(conn.getProvider())))
+                .orElseThrow(() -> new ConflictException("This account has no linked provider to anchor a session"));
+        return issueSession(anchor, JwtService.SCOPE_GAME);
+    }
+
+    private static int providerPriority(String provider) {
+        return switch (provider) {
+            case PROVIDER_BEATLEADER -> 0;
+            case PROVIDER_STEAM -> 1;
+            default -> 2;
+        };
     }
 
     private PlayerAuthResponse loginViaBeatLeader(BeatLeaderIdentity identity, Long linkUserId,

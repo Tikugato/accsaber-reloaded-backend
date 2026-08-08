@@ -45,7 +45,7 @@ Common stuff every build pulls from the context:
 - **XP_IN_WINDOW** - `rollingDailyXp * bandMultiplier`, floored at 100.
 - **ACC_ON_MAP / AP_ON_MAP** - full map-target pipeline (below). The acc variant converts to acc + score at the end; the AP variant uses the rawAp directly.
 - **PB_SPECIFIC_MAP** - same pipeline, plus a `pbFreshnessBoost` XP bonus if the existing PB is recent. With no score on the picked map the band clamps to easy for the whole target computation (anchor, floors, caps, `minMeaningfulTarget`, XP and the stored band), since completion for this type is just "an active score on the target map". The map is still sampled and WR-floor checked against the rolled band, so a strong map stays a strong map and only the ask drops.
-- **PB_ABOVE_THRESHOLD** - percentile of the user's own scores (70/45/22/10 for easy/medium/hard/extreme) times a small shift (0.98/1.0/1.015/1.02), capped at 0.97 * topAp (with the skill-aware nerf described below for easy/medium/hard). Needs at least 2 qualifying scores or it fails.
+- **PB_ABOVE_THRESHOLD** - percentile of the user's own scores (70/45/22/10 for easy/medium/hard/extreme) times a small shift (0.98/1.0/1.015/1.02), capped at 0.97 * topAp (with the skill-aware nerf described below for easy/medium/hard). Needs at least 2 qualifying scores or it fails. The percentile runs over your top 100 scores at most (`PB_ANCHOR_POOL_CAP`), so roughly 70 maps qualify however deep your score list goes.
 - **SNIPE_PLAYER_ON_MAP** - two branches in `computeSnipeTarget` (has-score vs no-score). Candidate filter uses `snipeMaxSkillDistance` (5/8/12/18) to avoid asking you to snipe someone two tiers above.
 - **STREAK_ON_MAP** - streak target built from the user's *per-complexity-band* representative streak, not one blended category number. The map is sampled first, its complexity resolves to a 3-wide half-open band (`[1,4) [4,7) [7,10) [10,13) [13,16)`), and we pull the user's top streaks **on maps in that band only** (`representativeUserStreakForComplexityBand`). That `bandAbility` feeds both the reference and the `bandAbility + 1` cap, so a hard map is measured against how the user streaks on hard maps - not inflated by their easy-map streaks. Reference = `0.6*avg + 0.4*max` of the map's own top-5 streaks; a ranked map always has imported scores, so `bandAbility` is only a defensive fallback if that leaderboard ever comes back empty. Final demand = `streakTargetFor(band)` clamped to `[3, bandAbility + 1]`. The `< 3` gate now runs **after** the pick on `bandAbility`, inside a `COMPUTE_MAP_RETRIES` resample loop: if the sampled map lands in a band the user can't streak 3 on, we resample rather than drop the mission. If the user has no streak data in the band at all, `bandAbility` falls back to their category-wide representative streak translated down by `complexityTranslationFactor` (so an easy-map streak isn't reused as-is on a hard map).
 - **STREAK_N_IN_CATEGORY** - same streak logic, plus a count. Routes through the shared `streakTargetFor(band)` so band shaping matches STREAK_ON_MAP; extreme + top-tier (skill >= 90) still gets `+1` on the streak.
@@ -97,7 +97,7 @@ Binary types (`ACC_ON_MAP`, `AP_ON_MAP`, `PB_SPECIFIC_MAP`, `COMEBACK_PB`, `SNIP
 
 ### The shared map-target pipeline
 
-This runs for ACC_ON_MAP, AP_ON_MAP, PB_SPECIFIC_MAP and (in a slightly different shape) snipe:
+Everything from `skillAnchored` down lives in `cappedTargetForPick`, which ACC_ON_MAP, AP_ON_MAP and PB_SPECIFIC_MAP all call with their own pick and effective band. Snipe does its own slightly different shape:
 
 | Step | What it does | Notes |
 |---|---|---|
@@ -110,6 +110,7 @@ This runs for ACC_ON_MAP, AP_ON_MAP, PB_SPECIFIC_MAP and (in a slightly differen
 | `target = capExtremeAtTopAp(target, band, skill, skillLevel)` | hard ceiling vs topAp | factors 0.96 / 0.97 / 0.98 / 1.005; for skill < 70 the easy/medium/hard factors get a smoothstep nerf (up to ~7% at skill 0) so a 46-skill player doesn't get told to score 98% of their topAp on a hard map. Extreme is exempt — it should stay the only band that stretches past topAp |
 | `target = capAtMapRealisticCeiling(...)` | skill-aware fraction of map WR | prevents "beat the WR" assignments |
 | `target = applyLeaderboardDensityDampener(...)` | drop if the top of the leaderboard is too dense | only fires on hard/extreme |
+| `target = applyComplexityAwareScoreTargetCap(...)` | ceiling from how you actually accuracy at this complexity | compares in normalized space (`ap / (complexity - shift)`) and multiplies back out by the picked map's own complexity, so it does not care where in the band the map sits; band multipliers 1.03 / 1.06 / 1.10 / 1.15. Sample is your top scores in the map's 3-wide complexity band, 5 minimum, otherwise a category-wide normalized sample. Sampled once per band per user, memoized on `MissionAssignmentContext` alongside `complexityBandAbility` |
 | reject if `target <= existing` OR `target < minMeaningfulTarget` | sanity check | `minMeaningfulTarget` uses `0.70 * topAp` for hard/extreme - anything below that is busywork |
 
 ### Snipe specifically

@@ -43,6 +43,25 @@ public class WebClientConfig {
         return buildWebClient(properties.getBeatsaver(), metricsService.getOutboundBeatSaver());
     }
 
+    @Bean(name = "gitHubWebClient")
+    public WebClient gitHubWebClient() {
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10_000)
+                .responseTimeout(Duration.ofSeconds(30))
+                .followRedirect(true);
+
+        ExchangeStrategies strategies = ExchangeStrategies.builder()
+                .codecs(c -> c.defaultCodecs().maxInMemorySize(LARGE_BUFFER_BYTES))
+                .build();
+
+        return WebClient.builder()
+                .baseUrl("https://api.github.com")
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .exchangeStrategies(strategies)
+                .filter(logRequest())
+                .build();
+    }
+
     @Bean(name = "criteriaCheckerWebClient")
     public WebClient criteriaCheckerWebClient() {
         HttpClient httpClient = HttpClient.create()

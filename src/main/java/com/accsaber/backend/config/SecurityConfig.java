@@ -92,7 +92,7 @@ public class SecurityConfig {
         firstParty.setAllowedOriginPatterns(patterns);
         firstParty.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
         firstParty.setAllowedHeaders(List.of("*"));
-        firstParty.setExposedHeaders(List.of("X-Correlation-Id", "X-Rate-Limit-Remaining"));
+        firstParty.setExposedHeaders(List.of("X-Correlation-Id", "X-Rate-Limit-Remaining", "Content-Disposition"));
         firstParty.setAllowCredentials(true);
         firstParty.setMaxAge(3600L);
 
@@ -131,7 +131,9 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v1/swagger-ui/**", "/v1/docs/**", "/v1/api-docs/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/staff/auth/login", "/v1/staff/auth/refresh").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/auth/*/start", "/v1/auth/*/callback").permitAll()
-                .requestMatchers(HttpMethod.POST, "/v1/auth/refresh", "/v1/auth/logout", "/v1/auth/ingame").permitAll()
+                .requestMatchers(HttpMethod.POST, "/v1/auth/refresh", "/v1/auth/logout", "/v1/auth/ingame",
+                        "/v1/auth/pair").permitAll()
+                .requestMatchers(HttpMethod.GET, "/v1/quest/releases").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/curves/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/modifiers/**").permitAll()

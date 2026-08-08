@@ -673,7 +673,7 @@ public class SiteStatisticsService {
                                 .country((String) row[4])
                                 .ownedCount(((Number) row[5]).longValue())
                                 .catalogTotal(((Number) row[6]).longValue())
-                                .completionPercent((Double) row[7])
+                                .completionPercent(row[7] != null ? ((Number) row[7]).doubleValue() : null)
                                 .build());
         }
 

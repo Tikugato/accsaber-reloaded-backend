@@ -113,6 +113,9 @@ public class Item {
     @Column(name = "unlock_level")
     private Integer unlockLevel;
 
+    @Column(name = "obtainable_until")
+    private Instant obtainableUntil;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -120,4 +123,8 @@ public class Item {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    public boolean isObtainableAt(Instant now) {
+        return obtainableUntil == null || obtainableUntil.isAfter(now);
+    }
 }

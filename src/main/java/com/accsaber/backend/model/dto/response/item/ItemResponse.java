@@ -31,5 +31,6 @@ public class ItemResponse {
     private Long worth;
     private String requirement;
     private Integer unlockLevel;
+    private Instant obtainableUntil;
     private Instant createdAt;
 }

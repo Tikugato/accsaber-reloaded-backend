@@ -1489,6 +1489,66 @@ class CampaignServiceTest {
                 }
 
                 @Test
+                void rejectsItemPastItsObtainableCutoff() {
+                        CampaignDifficulty node = draftNode();
+                        Item expired = Item.builder().id(UUID.randomUUID()).name("Alpha Crate").tradeable(true)
+                                        .obtainableUntil(Instant.now().minusSeconds(60)).build();
+                        SetCampaignItemRequest request = new SetCampaignItemRequest();
+                        request.setItemId(expired.getId());
+                        when(campaignDifficultyRepository.findByIdAndActiveTrue(node.getId()))
+                                        .thenReturn(Optional.of(node));
+                        when(itemRepository.findByIdAndActiveTrue(expired.getId()))
+                                        .thenReturn(Optional.of(expired));
+
+                        assertThatThrownBy(() -> campaignService.setDifficultyItemAsEditor(
+                                        CampaignEditor.player(creator.getId()), node.getId(), request))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("Alpha Crate");
+
+                        verify(campaignDifficultyItemRepository, never()).save(any());
+                }
+
+                @Test
+                void allowsItemWhoseObtainableCutoffHasNotPassed() {
+                        CampaignDifficulty node = draftNode();
+                        Item stillOpen = Item.builder().id(UUID.randomUUID()).name("Alpha Crate").tradeable(true)
+                                        .obtainableUntil(Instant.now().plusSeconds(3600)).build();
+                        SetCampaignItemRequest request = new SetCampaignItemRequest();
+                        request.setItemId(stillOpen.getId());
+                        when(campaignDifficultyRepository.findByIdAndActiveTrue(node.getId()))
+                                        .thenReturn(Optional.of(node));
+                        when(itemRepository.findByIdAndActiveTrue(stillOpen.getId()))
+                                        .thenReturn(Optional.of(stillOpen));
+                        when(campaignDifficultyItemRepository.findById(any())).thenReturn(Optional.empty());
+                        when(campaignDifficultyItemRepository.findByCampaignDifficulty_Id(node.getId()))
+                                        .thenReturn(List.of());
+
+                        campaignService.setDifficultyItemAsEditor(CampaignEditor.player(creator.getId()), node.getId(),
+                                        request);
+
+                        verify(campaignDifficultyItemRepository).save(any());
+                }
+
+                @Test
+                void rejectsItemPastItsObtainableCutoffOnCompletionRewards() {
+                        Item expired = Item.builder().id(UUID.randomUUID()).name("Alpha Crate").tradeable(true)
+                                        .obtainableUntil(Instant.now().minusSeconds(60)).build();
+                        SetCampaignItemRequest request = new SetCampaignItemRequest();
+                        request.setItemId(expired.getId());
+                        when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
+                                        .thenReturn(Optional.of(campaign));
+                        when(itemRepository.findByIdAndActiveTrue(expired.getId()))
+                                        .thenReturn(Optional.of(expired));
+
+                        assertThatThrownBy(() -> campaignService.setCompletionItemAsEditor(
+                                        CampaignEditor.player(creator.getId()), campaign.getId(), request))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("Alpha Crate");
+
+                        verify(campaignCompletionItemRepository, never()).save(any());
+                }
+
+                @Test
                 void setOfficialMarksCampaignOfficialAndExposesIt() {
                         when(campaignRepository.findByIdAndActiveTrue(campaign.getId()))
                                         .thenReturn(Optional.of(campaign));

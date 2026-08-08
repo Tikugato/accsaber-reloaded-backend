@@ -1,6 +1,7 @@
 package com.accsaber.backend.service.item;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Comparator;
@@ -91,6 +92,10 @@ public class CrateService {
                 .orElseThrow(() -> new ResourceNotFoundException("Item", rewardItemId));
         if (reward.isDeprecated()) {
             throw new ValidationException("rewardItemId", "cannot add a deprecated item as a reward");
+        }
+        if (!reward.isObtainableAt(Instant.now())) {
+            throw new ValidationException("rewardItemId",
+                    "'" + reward.getName() + "' can no longer be handed out as a reward");
         }
 
         CrateContentId pk = CrateContentId.builder()

@@ -1125,6 +1125,10 @@ public class CampaignService {
             throw new ValidationException(
                     "Only official campaigns can reward untradeable items");
         }
+        if (!item.isObtainableAt(Instant.now())) {
+            throw new ValidationException(
+                    "'" + item.getName() + "' can no longer be handed out as a reward");
+        }
     }
 
     private List<CampaignItemAwardResponse> setDifficultyItem(CampaignDifficulty difficulty,

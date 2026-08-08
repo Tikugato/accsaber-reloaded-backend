@@ -1,5 +1,6 @@
 package com.accsaber.backend.controller.admin;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -145,6 +146,16 @@ public class AdminItemController {
                 staff.getStaffUser(), req.getReason(), req.getModifierKeys(), req.getQuantity(),
                 req.getUnusualEffectId());
         return ResponseEntity.status(HttpStatus.CREATED).body(ItemMapper.toUserItemResponse(link, null));
+    }
+
+    @Operation(summary = "Set the cutoff after which an item can no longer be handed out",
+            description = "Past this moment the item can no longer be attached as a campaign reward or added to a "
+                    + "crate's drop pool. Copies players already hold are untouched, and the item stays tradeable and "
+                    + "openable as normal. Leave the parameter off to clear the cutoff and make it available again.")
+    @PatchMapping("/items/{id}/obtainable-until")
+    public ResponseEntity<ItemResponse> setObtainableUntil(@PathVariable UUID id,
+            @RequestParam(required = false) Instant at) {
+        return ResponseEntity.ok(ItemMapper.toItemResponse(itemService.setObtainableUntil(id, at)));
     }
 
     @Operation(summary = "Mark an item as deprecated")

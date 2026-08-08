@@ -74,6 +74,7 @@ public final class ItemMapper {
                 .worth(item.getWorth())
                 .requirement(item.getRequirement())
                 .unlockLevel(item.getUnlockLevel())
+                .obtainableUntil(item.getObtainableUntil())
                 .createdAt(item.getCreatedAt())
                 .build();
     }

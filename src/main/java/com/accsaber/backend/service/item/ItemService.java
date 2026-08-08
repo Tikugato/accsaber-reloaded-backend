@@ -481,6 +481,14 @@ public class ItemService {
         return itemRepository.save(item);
     }
 
+    @Transactional
+    public Item setObtainableUntil(UUID id, Instant obtainableUntil) {
+        Item item = itemRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Item", id));
+        item.setObtainableUntil(obtainableUntil);
+        return itemRepository.save(item);
+    }
+
     public long getEssenceBalance(Long userId) {
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
         return essenceLedgerService.balance(resolved);

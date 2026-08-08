@@ -61,7 +61,6 @@ public class OauthService {
     private final OauthStateService stateService;
     private final JwtService jwtService;
     private final MissionAssignmentService missionAssignmentService;
-    private final PairingCodeService pairingCodeService;
 
     @Value("${accsaber.jwt.player-refresh-token-ttl}")
     private long playerRefreshTokenTtl;
@@ -117,22 +116,6 @@ public class OauthService {
     public PlayerAuthResponse handleIngameTicket(String provider, String ticket) {
         return loginViaBeatLeader(beatLeaderClient.verifyTicketAndFetchIdentity(provider, ticket), null, null,
                 JwtService.SCOPE_GAME);
-    }
-
-    @Transactional(readOnly = true)
-    public String createPairingCode(Long userId) {
-        User user = requireUser(duplicateUserService.resolvePrimaryUserId(userId));
-        rejectIfBanned(user);
-        return pairingCodeService.create(user.getId());
-    }
-
-    @Transactional
-    public PlayerAuthResponse redeemPairingCode(String code) {
-        Long userId = pairingCodeService.consume(code);
-        if (userId == null) {
-            throw new UnauthorizedException("Invalid or expired pairing code");
-        }
-        return issueGameSessionForUser(userId);
     }
 
     @Transactional

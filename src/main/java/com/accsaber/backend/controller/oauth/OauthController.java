@@ -26,9 +26,6 @@ import com.accsaber.backend.exception.UnauthorizedException;
 import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.request.RefreshTokenRequest;
 import com.accsaber.backend.model.dto.request.auth.IngameAuthRequest;
-import com.accsaber.backend.model.dto.request.auth.PairingRedeemRequest;
-import com.accsaber.backend.model.dto.response.PairingCodeResponse;
-import com.accsaber.backend.service.oauth.PairingCodeService;
 import com.accsaber.backend.model.dto.response.AuthMeResponse;
 import com.accsaber.backend.model.dto.response.PlayerAuthResponse;
 import com.accsaber.backend.security.PlayerUserDetails;
@@ -144,27 +141,6 @@ public class OauthController {
             throw new ValidationException("Unknown ticket provider: " + request.getProvider());
         }
         return ResponseEntity.ok(oauthService.handleIngameTicket(request.getProvider(), request.getTicket()));
-    }
-
-    @Operation(summary = "Create a Quest pairing code", description = "Mints a short lived one time code for linking a Quest "
-            + "headset to the signed in account. The code is shown on the website, dropped into the mod's data folder on the "
-            + "headset, and expires after ten minutes or on first use, whichever comes first.")
-    @PostMapping("/pair/code")
-    public ResponseEntity<PairingCodeResponse> createPairingCode(
-            @AuthenticationPrincipal PlayerUserDetails principal) {
-        PlayerUserDetails player = requirePrincipal(principal);
-        return ResponseEntity.ok(PairingCodeResponse.builder()
-                .code(oauthService.createPairingCode(player.getUserId()))
-                .expiresIn(PairingCodeService.TTL_SECONDS)
-                .build());
-    }
-
-    @Operation(summary = "Redeem a Quest pairing code", description = "How the Quest mod signs in, since Meta does not hand "
-            + "out user tokens to Quest game clients. It trades a pairing code from the website for a player session. Tokens "
-            + "minted here carry the game scope, the same as the ingame ticket route, so they can submit scores.")
-    @PostMapping("/pair")
-    public ResponseEntity<PlayerAuthResponse> redeemPairingCode(@Valid @RequestBody PairingRedeemRequest request) {
-        return ResponseEntity.ok(oauthService.redeemPairingCode(request.getCode()));
     }
 
     @Operation(summary = "Refresh your session", description = "Trade a refresh token for a fresh access token so the player "

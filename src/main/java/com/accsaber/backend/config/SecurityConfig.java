@@ -131,8 +131,7 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v1/swagger-ui/**", "/v1/docs/**", "/v1/api-docs/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/staff/auth/login", "/v1/staff/auth/refresh").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/auth/*/start", "/v1/auth/*/callback").permitAll()
-                .requestMatchers(HttpMethod.POST, "/v1/auth/refresh", "/v1/auth/logout", "/v1/auth/ingame",
-                        "/v1/auth/pair").permitAll()
+                .requestMatchers(HttpMethod.POST, "/v1/auth/refresh", "/v1/auth/logout", "/v1/auth/ingame").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/quest/releases").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/curves/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/categories/**").permitAll()

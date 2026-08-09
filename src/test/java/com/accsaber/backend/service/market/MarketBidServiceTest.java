@@ -73,7 +73,7 @@ class MarketBidServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(bidService, "antiSnipeSeconds", 60);
+        ReflectionTestUtils.setField(bidService, "antiSnipeSeconds", 3600);
         when(rateLimitService.tryAcquire(any())).thenReturn(true);
         when(duplicateUserService.resolvePrimaryUserId(BIDDER_ID)).thenReturn(BIDDER_ID);
         when(duplicateUserService.resolvePrimaryUserId(SELLER_ID)).thenReturn(SELLER_ID);

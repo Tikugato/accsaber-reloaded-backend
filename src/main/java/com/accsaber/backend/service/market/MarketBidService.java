@@ -46,7 +46,7 @@ public class MarketBidService {
     private final NotificationService notificationService;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Value("${accsaber.market.anti-snipe-seconds:60}")
+    @Value("${accsaber.market.anti-snipe-seconds:3600}")
     private int antiSnipeSeconds;
 
     public List<MarketBidResponse> findBids(UUID listingId) {

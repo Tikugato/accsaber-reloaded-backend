@@ -505,17 +505,8 @@ public class CampaignEvaluationService {
         if (!modifiers.satisfies(row.getId(), nodeTargets.modifierRule())) {
             return false;
         }
-        return targetsMet(difficulty, nodeTargets.targets(), type -> rowMetric(row, type, modifiers));
-    }
-
-    private static Double rowMetric(Score row, CampaignRequirementType type, ScoreModifierIndex modifiers) {
-        if (type != CampaignRequirementType.RANK) {
-            return CampaignScoreMetrics.requirementValue(row, type, modifiers);
-        }
-        if (!row.isActive() || row.getRank() == null || row.getRankWhenSet() == null) {
-            return null;
-        }
-        return (double) (Math.min(row.getRank(), row.getRankWhenSet()));
+        return targetsMet(difficulty, nodeTargets.targets(),
+                type -> CampaignScoreMetrics.rowValue(row, type, modifiers));
     }
 
     private void recordQualifyingScore(UserCampaign uc, CampaignDifficulty difficulty, Score score,
@@ -1005,30 +996,12 @@ public class CampaignEvaluationService {
         return assembled;
     }
 
-    private static List<CampaignDifficultyTarget> legacyTargets(CampaignDifficulty difficulty) {
-        if (difficulty.getRequirementType() == null) {
-            return List.of();
-        }
-        return List.of(CampaignDifficultyTarget.builder()
-                .requirementType(difficulty.getRequirementType())
-                .requirementValue(difficulty.getRequirementValue())
-                .requirementValueMax(difficulty.getRequirementValueMax())
-                .build());
-    }
-
     private static boolean targetsMet(CampaignDifficulty difficulty, List<CampaignDifficultyTarget> stored,
             Function<CampaignRequirementType, Double> valueOf) {
-        List<CampaignDifficultyTarget> targets = stored.isEmpty() ? legacyTargets(difficulty) : stored;
-        if (targets.isEmpty()) {
-            return false;
-        }
-        boolean requireAll = difficulty.getTargetMode() != CampaignPrerequisiteMode.OR;
-        for (CampaignDifficultyTarget target : targets) {
-            if (CampaignScoreMetrics.satisfies(target, valueOf.apply(target.getRequirementType())) != requireAll) {
-                return !requireAll;
-            }
-        }
-        return requireAll;
+        return CampaignScoreMetrics.targetsMet(
+                CampaignScoreMetrics.effectiveTargets(difficulty, stored),
+                CampaignScoreMetrics.requiresAllTargets(difficulty),
+                valueOf);
     }
 
     private boolean isBetterScore(Score candidate, Score current) {

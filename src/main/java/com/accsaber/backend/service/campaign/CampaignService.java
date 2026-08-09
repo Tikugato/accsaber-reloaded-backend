@@ -1440,6 +1440,7 @@ public class CampaignService {
             NodeWindow window = displayWindow(prereqs, mode, completionTimes, since, agnostic);
             boolean unlocked = window != null;
             UserMapDifficultyBests bests = null;
+            Score reference = null;
             if (window != null) {
                 CampaignModifierRule rule = ctx.modifierRulesByNode.get(d.getId());
                 List<Score> rows = rowsByMap.getOrDefault(d.getMapDifficulty().getId(), List.of()).stream()
@@ -1448,15 +1449,18 @@ public class CampaignService {
                         .toList();
                 bests = CampaignScoreMetrics.reduceBests(d.getMapDifficulty().getId(),
                         d.getMapDifficulty().getMaxScore(), rows, scoreModifiers);
+                reference = CampaignScoreMetrics.bestMatchingRow(rows,
+                        CampaignScoreMetrics.effectiveTargets(d, ctx.targetsByNode.getOrDefault(d.getId(), List.of())),
+                        CampaignScoreMetrics.requiresAllTargets(d), scoreModifiers);
             }
             if (bests != null) {
                 bestsByNode.put(d.getId(), bests);
             }
-            Double userValue = bests != null
-                    ? CampaignScoreMetrics.requirementValue(bests, d.getRequirementType())
+            Double userValue = reference != null && d.getRequirementType() != null
+                    ? CampaignScoreMetrics.rowValue(reference, d.getRequirementType(), scoreModifiers)
                     : null;
             List<CampaignTargetProgressResponse> targetProgress = toTargetProgress(
-                    ctx.targetsByNode.getOrDefault(d.getId(), List.of()), bests);
+                    ctx.targetsByNode.getOrDefault(d.getId(), List.of()), reference, scoreModifiers);
             Score score = campaignScores.get(d.getId());
             Integer userScore = score != null ? score.getScore() : null;
             progress.add(CampaignDifficultyProgressResponse.builder()
@@ -2006,10 +2010,10 @@ public class CampaignService {
     }
 
     private static List<CampaignTargetProgressResponse> toTargetProgress(List<CampaignDifficultyTarget> targets,
-            UserMapDifficultyBests bests) {
+            Score reference, ScoreModifierIndex modifiers) {
         return targets.stream().map(target -> {
-            Double userValue = bests != null
-                    ? CampaignScoreMetrics.requirementValue(bests, target.getRequirementType())
+            Double userValue = reference != null
+                    ? CampaignScoreMetrics.rowValue(reference, target.getRequirementType(), modifiers)
                     : null;
             return CampaignTargetProgressResponse.builder()
                     .target(toTargetResponse(target))

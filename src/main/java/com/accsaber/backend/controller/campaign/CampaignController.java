@@ -28,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.accsaber.backend.exception.UnauthorizedException;
 import com.accsaber.backend.model.dto.request.campaign.AddCampaignBarrierRequest;
 import com.accsaber.backend.model.dto.request.campaign.AddCampaignDifficultyRequest;
+import com.accsaber.backend.model.dto.request.campaign.CampaignFilter;
 import com.accsaber.backend.model.dto.request.campaign.CampaignTextRequest;
 import com.accsaber.backend.model.dto.request.campaign.CampaignVoteRequest;
 import com.accsaber.backend.model.dto.request.campaign.CreateCampaignRequest;
@@ -50,7 +51,7 @@ import com.accsaber.backend.model.dto.response.campaign.UserCampaignResponse;
 import com.accsaber.backend.model.dto.response.map.PublicMapDifficultyResponse;
 import com.accsaber.backend.model.entity.campaign.CampaignStatus;
 import com.accsaber.backend.model.entity.campaign.CampaignTagKind;
-import com.accsaber.backend.model.entity.staff.StaffRole;
+import com.accsaber.backend.model.entity.campaign.UserCampaignStatus;
 import com.accsaber.backend.security.PlayerUserDetails;
 import com.accsaber.backend.security.StaffPrincipals;
 import com.accsaber.backend.service.campaign.CampaignEditor;
@@ -80,18 +81,9 @@ public class CampaignController {
     private final MapImportService mapImportService;
     private final MediaProcessingService mediaProcessingService;
 
-    private static Long viewerId(Authentication authentication) {
-        return authentication != null ? StaffPrincipals.linkedUserIdOf(authentication) : null;
-    }
-
-    private static boolean canViewAllDrafts(Authentication authentication) {
-        StaffRole role = StaffPrincipals.roleOrNull(authentication);
-        return role == StaffRole.ADMIN || role == StaffRole.CAMPAIGN_CURATOR;
-    }
-
     private static CampaignEditor editorFor(Authentication authentication, PlayerUserDetails principal) {
-        if (canViewAllDrafts(authentication)) {
-            return CampaignEditor.staff(viewerId(authentication));
+        if (StaffPrincipals.canViewCampaignDrafts(authentication)) {
+            return CampaignEditor.staff(StaffPrincipals.viewerIdOf(authentication));
         }
         if (principal == null) {
             throw new UnauthorizedException("Player authentication required");
@@ -110,8 +102,12 @@ public class CampaignController {
             @RequestParam(required = false) Boolean loved,
             Authentication authentication,
             @PageableDefault(size = 20, sort = "name") Pageable pageable) {
-        return ResponseEntity.ok(campaignService.findCampaigns(status, tagIds, creatorId, search, official, loved,
-                viewerId(authentication), canViewAllDrafts(authentication), pageable));
+        CampaignFilter filter = CampaignFilter.builder()
+                .status(status).tagIds(tagIds).creatorId(creatorId).search(search)
+                .official(official).loved(loved).build();
+        return ResponseEntity.ok(campaignService.findCampaigns(filter,
+                StaffPrincipals.viewerIdOf(authentication),
+                StaffPrincipals.canViewCampaignDrafts(authentication), pageable));
     }
 
     @Operation(summary = "Get one campaign", description = "A campaign with its nodes, barriers and text, which is everything you need to draw the map. Reward totals are left off here on purpose, so use the list if you want those.")
@@ -120,7 +116,8 @@ public class CampaignController {
             @PathVariable UUID campaignId,
             Authentication authentication) {
         return ResponseEntity.ok(campaignService.findCampaignById(campaignId,
-                viewerId(authentication), canViewAllDrafts(authentication)));
+                StaffPrincipals.viewerIdOf(authentication),
+                StaffPrincipals.canViewCampaignDrafts(authentication)));
     }
 
     @Operation(summary = "Get one campaign by slug", description = "The same as above but addressed by the readable slug rather than the id, which is nicer in a URL.")
@@ -129,7 +126,8 @@ public class CampaignController {
             @PathVariable String slug,
             Authentication authentication) {
         return ResponseEntity.ok(campaignService.findCampaignBySlug(slug,
-                viewerId(authentication), canViewAllDrafts(authentication)));
+                StaffPrincipals.viewerIdOf(authentication),
+                StaffPrincipals.canViewCampaignDrafts(authentication)));
     }
 
     @Operation(summary = "List the campaign tags", description = "Tags campaigns can be filed under. Pass kind to narrow to one sort of tag.")
@@ -179,13 +177,27 @@ public class CampaignController {
         return ResponseEntity.ok(campaignService.clearVote(principal.getUserId(), campaignId));
     }
 
-    @Operation(summary = "List your campaigns", description = "Campaigns you have started, with how far through each one you are.")
+    @Operation(summary = "List your campaigns", description = "Campaigns you have started, with how far through each one you are. Filters and sorting work exactly as they do on the campaign list, and progressStatus narrows it to the ones you are still playing or have finished.")
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/me")
     public ResponseEntity<Page<UserCampaignResponse>> listMyCampaigns(
+            @RequestParam(required = false) List<CampaignStatus> status,
+            @RequestParam(required = false) List<UUID> tagIds,
+            @RequestParam(required = false) Long creatorId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean official,
+            @RequestParam(required = false) Boolean loved,
+            @RequestParam(required = false) List<UserCampaignStatus> progressStatus,
             @AuthenticationPrincipal PlayerUserDetails principal,
-            @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(campaignService.listUserCampaigns(principal.getUserId(), pageable));
+            Authentication authentication,
+            @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+        CampaignFilter filter = CampaignFilter.builder()
+                .status(status).tagIds(tagIds).creatorId(creatorId).search(search)
+                .official(official).loved(loved)
+                .participantId(principal.getUserId()).progressStatus(progressStatus).build();
+        return ResponseEntity.ok(campaignService.listUserCampaigns(filter,
+                StaffPrincipals.viewerIdOf(authentication),
+                StaffPrincipals.canViewCampaignDrafts(authentication), pageable));
     }
 
     @Operation(summary = "Get your progress in a campaign", description = "Node by node progress for one campaign, including which nodes are unlocked and your best on each. Locked nodes deliberately show no best, since you are not meant to be able to see ahead.")

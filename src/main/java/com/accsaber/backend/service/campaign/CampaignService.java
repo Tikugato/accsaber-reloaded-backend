@@ -33,6 +33,7 @@ import com.accsaber.backend.model.dto.request.campaign.AddCampaignBarrierRequest
 import com.accsaber.backend.model.dto.request.campaign.AddCampaignDifficultyRequest;
 import com.accsaber.backend.model.dto.request.campaign.CampaignBound;
 import com.accsaber.backend.model.dto.request.campaign.CampaignConnectionRequest;
+import com.accsaber.backend.model.dto.request.campaign.CampaignFilter;
 import com.accsaber.backend.model.dto.request.campaign.CampaignModifierRequirementRequest;
 import com.accsaber.backend.model.dto.request.campaign.CampaignTargetRequest;
 import com.accsaber.backend.model.dto.request.campaign.CampaignTextRequest;
@@ -188,26 +189,27 @@ public class CampaignService {
     private final CdnProperties cdnProperties;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
-    public Page<CampaignResponse> findCampaigns(Collection<CampaignStatus> statuses,
-            Collection<UUID> tagIds,
-            Long creatorId,
-            String search,
-            Boolean official,
-            Boolean loved,
-            Long viewerId,
-            boolean privileged,
+    public Page<CampaignResponse> findCampaigns(CampaignFilter filter, Long viewerId, boolean privileged,
             Pageable pageable) {
-        boolean hasStatus = statuses != null && !statuses.isEmpty();
-        boolean hasTags = tagIds != null && !tagIds.isEmpty();
-        Collection<CampaignStatus> statusArg = hasStatus ? statuses
+        boolean hasStatus = filter.status() != null && !filter.status().isEmpty();
+        boolean hasTags = filter.tagIds() != null && !filter.tagIds().isEmpty();
+        Collection<CampaignStatus> statusArg = hasStatus ? filter.status()
                 : List.of(CampaignStatus.PUBLISHED, CampaignStatus.EDITING, CampaignStatus.CURATED);
-        Collection<UUID> tagArg = hasTags ? tagIds : List.of(new UUID(0L, 0L));
-        String searchArg = search != null && !search.isBlank() ? search.trim() : null;
+        Collection<UUID> tagArg = hasTags ? filter.tagIds() : List.of(new UUID(0L, 0L));
+        String searchArg = filter.search() != null && !filter.search().isBlank() ? filter.search().trim() : null;
+        Collection<UserCampaignStatus> progressArg = filter.progressStatus() != null
+                && !filter.progressStatus().isEmpty()
+                        ? filter.progressStatus()
+                        : List.of(UserCampaignStatus.IN_PROGRESS, UserCampaignStatus.COMPLETED);
         Long resolvedViewerId = viewerId != null ? duplicateUserService.resolvePrimaryUserId(viewerId) : null;
+        Long resolvedParticipantId = filter.participantId() != null
+                ? duplicateUserService.resolvePrimaryUserId(filter.participantId())
+                : null;
         return paginateAsResponses(
-                campaignRepository.findFiltered(hasStatus, statusArg, creatorId, hasTags, tagArg,
+                campaignRepository.findFiltered(hasStatus, statusArg, filter.creatorId(), hasTags, tagArg,
                         CampaignStatus.DRAFT, resolvedViewerId, privileged,
-                        CampaignCollaboratorStatus.ACCEPTED, searchArg, official, loved,
+                        CampaignCollaboratorStatus.ACCEPTED, searchArg, filter.official(), filter.loved(),
+                        resolvedParticipantId, progressArg,
                         withSortExpressions(pageable)),
                 resolvedViewerId);
     }
@@ -1273,38 +1275,21 @@ public class CampaignService {
                 .build();
     }
 
-    public Page<UserCampaignResponse> listUserCampaigns(Long userId, Pageable pageable) {
-        Long resolvedUserId = duplicateUserService.resolvePrimaryUserId(userId);
-        Page<UserCampaign> page = userCampaignRepository.findActiveByUserExcludingStatus(
-                resolvedUserId, UserCampaignStatus.ABANDONED, pageable);
-        List<UUID> campaignIds = page.getContent().stream()
-                .map(uc -> uc.getCampaign().getId())
-                .distinct()
-                .toList();
-        Map<UUID, List<CampaignTagResponse>> tagsByCampaign = loadTagsByCampaignIds(campaignIds);
-        Map<UUID, Integer> totalByCampaign = countMap(
-                campaignIds.isEmpty()
-                        ? List.<Object[]>of()
-                        : campaignDifficultyRepository.countActiveByCampaignIds(campaignIds));
-        Map<UUID, Integer> completedByCampaign = countMap(
-                campaignIds.isEmpty()
-                        ? List.<Object[]>of()
-                        : userCampaignScoreRepository.countActiveByUserAndCampaignIds(resolvedUserId, campaignIds));
-        Map<UUID, List<CampaignItemAwardResponse>> completionItemsByCampaign = loadCompletionItemsBulk(campaignIds);
-        Map<UUID, CampaignVoteDirection> votesByCampaign = loadViewerVotes(resolvedUserId, campaignIds);
-        Map<UUID, PublicStaffUserResponse> staffRefs = loadStaffRefs(
-                page.getContent().stream().map(UserCampaign::getCampaign).toList());
-        return page.map(uc -> {
-            UUID cid = uc.getCampaign().getId();
-            CampaignResponse campaign = toCampaignResponse(uc.getCampaign(), new CampaignRow(
-                    tagsByCampaign.getOrDefault(cid, List.of()),
-                    totalByCampaign.getOrDefault(cid, 0),
-                    votesByCampaign.get(cid),
-                    completionItemsByCampaign.getOrDefault(cid, List.of()),
-                    CampaignRewards.none(),
-                    staffRefs));
-            return toUserCampaignResponse(uc, campaign, completedByCampaign.getOrDefault(cid, 0));
-        });
+    public Page<UserCampaignResponse> listUserCampaigns(CampaignFilter filter, Long viewerId, boolean privileged,
+            Pageable pageable) {
+        Long participantId = duplicateUserService.resolvePrimaryUserId(filter.participantId());
+        Page<CampaignResponse> campaigns = findCampaigns(filter, viewerId, privileged, pageable);
+        List<UUID> campaignIds = campaigns.getContent().stream().map(CampaignResponse::getId).toList();
+        Map<UUID, UserCampaign> byCampaign = campaignIds.isEmpty()
+                ? Map.of()
+                : userCampaignRepository.findByUser_IdAndCampaign_IdInAndActiveTrue(participantId, campaignIds)
+                        .stream()
+                        .collect(Collectors.toMap(uc -> uc.getCampaign().getId(), uc -> uc));
+        Map<UUID, Integer> completedByCampaign = countMap(campaignIds.isEmpty()
+                ? List.<Object[]>of()
+                : userCampaignScoreRepository.countActiveByUserAndCampaignIds(participantId, campaignIds));
+        return campaigns.map(campaign -> toUserCampaignResponse(byCampaign.get(campaign.getId()), campaign,
+                completedByCampaign.getOrDefault(campaign.getId(), 0)));
     }
 
     public CampaignProgressResponse getUserProgress(Long userId, UUID campaignId) {

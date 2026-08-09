@@ -45,6 +45,15 @@ public final class StaffPrincipals {
         throw new UnauthorizedException("Staff role not present");
     }
 
+    public static Long viewerIdOf(Authentication auth) {
+        return auth != null ? linkedUserIdOf(auth) : null;
+    }
+
+    public static boolean canViewCampaignDrafts(Authentication auth) {
+        StaffRole role = roleOrNull(auth);
+        return role == StaffRole.ADMIN || role == StaffRole.CAMPAIGN_CURATOR;
+    }
+
     public static StaffRole roleOrNull(Authentication auth) {
         if (auth == null) {
             return null;

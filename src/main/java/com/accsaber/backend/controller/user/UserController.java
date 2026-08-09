@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,8 +18,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.accsaber.backend.security.PlayerUserDetails;
+import com.accsaber.backend.security.StaffPrincipals;
 
+import com.accsaber.backend.model.dto.request.campaign.CampaignFilter;
 import com.accsaber.backend.model.dto.response.campaign.CampaignProgressResponse;
+import com.accsaber.backend.model.dto.response.campaign.UserCampaignResponse;
 import com.accsaber.backend.model.dto.response.map.PublicMapDifficultyResponse;
 import com.accsaber.backend.model.dto.response.milestone.LevelResponse;
 import com.accsaber.backend.model.dto.response.milestone.UserMilestoneProgressResponse;
@@ -31,6 +35,8 @@ import com.accsaber.backend.model.dto.response.player.UserCategoryStatisticsResp
 import com.accsaber.backend.model.dto.response.player.UserResponse;
 import com.accsaber.backend.model.dto.response.score.ScoreResponse;
 import com.accsaber.backend.model.dto.response.score.UserScoreSummaryResponse;
+import com.accsaber.backend.model.entity.campaign.CampaignStatus;
+import com.accsaber.backend.model.entity.campaign.UserCampaignStatus;
 import com.accsaber.backend.model.entity.map.Difficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
 import com.accsaber.backend.service.campaign.CampaignService;
@@ -265,6 +271,31 @@ public class UserController {
             @RequestParam(required = false) String categoryId) {
         return ResponseEntity.ok(mapService.findDifficultiesWithUserScoreAbovePublic(userId, apMin,
                 categoryService.resolveId(categoryId)));
+    }
+
+    @Operation(summary = "List a player's campaigns", description = "Campaigns this player has started, with how far through "
+            + "each one they are and everything the campaign list gives you. Filters and sorting match the campaign list, and "
+            + "progressStatus narrows it to the ones they are still playing or have already finished. Signing in is optional "
+            + "and only changes whether your own vote comes back on each campaign.")
+    @GetMapping("/{userId}/campaigns")
+    public ResponseEntity<Page<UserCampaignResponse>> listUserCampaigns(
+            @PathVariable Long userId,
+            @RequestParam(required = false) List<CampaignStatus> status,
+            @RequestParam(required = false) List<UUID> tagIds,
+            @RequestParam(required = false) Long creatorId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean official,
+            @RequestParam(required = false) Boolean loved,
+            @RequestParam(required = false) List<UserCampaignStatus> progressStatus,
+            Authentication authentication,
+            @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+        CampaignFilter filter = CampaignFilter.builder()
+                .status(status).tagIds(tagIds).creatorId(creatorId).search(search)
+                .official(official).loved(loved)
+                .participantId(userId).progressStatus(progressStatus).build();
+        return ResponseEntity.ok(campaignService.listUserCampaigns(filter,
+                StaffPrincipals.viewerIdOf(authentication),
+                StaffPrincipals.canViewCampaignDrafts(authentication), pageable));
     }
 
     @Operation(summary = "Get a player's progress in a campaign", description = "How far a given player has got through one "

@@ -18,6 +18,7 @@ import jakarta.persistence.LockModeType;
 import com.accsaber.backend.model.entity.campaign.Campaign;
 import com.accsaber.backend.model.entity.campaign.CampaignCollaboratorStatus;
 import com.accsaber.backend.model.entity.campaign.CampaignStatus;
+import com.accsaber.backend.model.entity.campaign.UserCampaignStatus;
 
 public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
 
@@ -62,6 +63,10 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
                           AND (:hasTags = false OR EXISTS (
                               SELECT 1 FROM CampaignTagLink ctl
                               WHERE ctl.campaign = c AND ctl.campaignTag.id IN :tagIds))
+                          AND (:participantId IS NULL OR EXISTS (
+                              SELECT 1 FROM UserCampaign uc
+                              WHERE uc.campaign = c AND uc.user.id = :participantId
+                                AND uc.active = true AND uc.status IN :progressStatuses))
                           AND (:official IS NULL OR c.official = :official)
                           AND (:loved IS NULL OR c.loved = :loved)
                           AND (CAST(:search AS string) IS NULL
@@ -85,5 +90,7 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
                         @Param("search") String search,
                         @Param("official") Boolean official,
                         @Param("loved") Boolean loved,
+                        @Param("participantId") Long participantId,
+                        @Param("progressStatuses") Collection<UserCampaignStatus> progressStatuses,
                         Pageable pageable);
 }

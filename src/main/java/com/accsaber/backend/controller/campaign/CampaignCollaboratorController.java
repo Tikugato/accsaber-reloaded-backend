@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.accsaber.backend.model.dto.request.campaign.InviteCampaignCollaboratorRequest;
 import com.accsaber.backend.model.dto.response.campaign.CampaignCollaboratorResponse;
 import com.accsaber.backend.model.entity.campaign.CampaignCollaboratorStatus;
-import com.accsaber.backend.model.entity.staff.StaffRole;
 import com.accsaber.backend.security.PlayerUserDetails;
 import com.accsaber.backend.security.StaffPrincipals;
 import com.accsaber.backend.service.campaign.CampaignCollaboratorService;
@@ -42,15 +41,6 @@ public class CampaignCollaboratorController {
 
     private final CampaignCollaboratorService collaboratorService;
 
-    private static Long viewerId(Authentication authentication) {
-        return authentication != null ? StaffPrincipals.linkedUserIdOf(authentication) : null;
-    }
-
-    private static boolean isPrivileged(Authentication authentication) {
-        StaffRole role = StaffPrincipals.roleOrNull(authentication);
-        return role == StaffRole.ADMIN || role == StaffRole.CAMPAIGN_CURATOR;
-    }
-
     @Operation(summary = "List a campaign's collaborators", description = "Who else can edit this campaign alongside the owner.")
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/{campaignId}/collaborators")
@@ -58,7 +48,8 @@ public class CampaignCollaboratorController {
             @PathVariable UUID campaignId,
             Authentication authentication) {
         return ResponseEntity.ok(collaboratorService.listCollaborators(
-                viewerId(authentication), campaignId, isPrivileged(authentication)));
+                StaffPrincipals.viewerIdOf(authentication), campaignId,
+                StaffPrincipals.canViewCampaignDrafts(authentication)));
     }
 
     @Operation(summary = "Invite a collaborator", description = "Asks another player to help edit your draft. They have to accept before they can change anything.")

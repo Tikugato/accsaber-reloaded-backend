@@ -38,6 +38,7 @@ import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.request.campaign.AddCampaignDifficultyRequest;
 import com.accsaber.backend.model.dto.request.campaign.CampaignBound;
+import com.accsaber.backend.model.dto.request.campaign.CampaignFilter;
 import com.accsaber.backend.model.dto.request.campaign.CreateCampaignRequest;
 import com.accsaber.backend.model.dto.request.campaign.SetCampaignItemRequest;
 import com.accsaber.backend.model.dto.request.campaign.UpdateCampaignDifficultyRequest;
@@ -484,8 +485,8 @@ class CampaignServiceTest {
                 }
 
                 private CampaignResponse firstListedCampaign() {
-                        Page<CampaignResponse> page = campaignService.findCampaigns(List.of(), List.of(), null, null,
-                                        null, null, null, true, PageRequest.of(0, 20));
+                        Page<CampaignResponse> page = campaignService.findCampaigns(
+                                        CampaignFilter.builder().build(), null, true, PageRequest.of(0, 20));
                         assertThat(page.getContent()).hasSize(1);
                         return page.getContent().get(0);
                 }
@@ -493,7 +494,7 @@ class CampaignServiceTest {
                 private void stubCampaignPage() {
                         campaign.setStatus(CampaignStatus.PUBLISHED);
                         when(campaignRepository.findFiltered(anyBoolean(), any(), any(), anyBoolean(), any(), any(),
-                                        any(), anyBoolean(), any(), any(), any(), any(), any()))
+                                        any(), anyBoolean(), any(), any(), any(), any(), any(), any(), any()))
                                         .thenReturn(new PageImpl<>(List.of(campaign)));
                         when(campaignTagLinkRepository.findByCampaign_IdIn(List.of(campaign.getId())))
                                         .thenReturn(List.of());
@@ -603,10 +604,11 @@ class CampaignServiceTest {
                 void sortsNeverLovedCampaignsBehindLovedOnes() {
                         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
                         when(campaignRepository.findFiltered(anyBoolean(), any(), any(), anyBoolean(), any(), any(),
-                                        any(), anyBoolean(), any(), any(), any(), any(), pageable.capture()))
+                                        any(), anyBoolean(), any(), any(), any(), any(), any(), any(),
+                                        pageable.capture()))
                                         .thenReturn(new PageImpl<>(List.of()));
 
-                        campaignService.findCampaigns(List.of(), List.of(), null, null, null, null, null, false,
+                        campaignService.findCampaigns(CampaignFilter.builder().build(), null, false,
                                         PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "lovedAt")));
 
                         assertThat(pageable.getValue().getSort())
@@ -1408,14 +1410,54 @@ class CampaignServiceTest {
 
                 @Test
                 void listExcludesAbandonedCampaigns() {
-                        when(userCampaignRepository.findActiveByUserExcludingStatus(eq(creator.getId()),
-                                        eq(UserCampaignStatus.ABANDONED), any()))
-                                        .thenReturn(Page.<UserCampaign>empty());
+                        when(campaignRepository.findFiltered(anyBoolean(), any(), any(), anyBoolean(), any(), any(),
+                                        any(), anyBoolean(), any(), any(), any(), any(), any(), any(), any()))
+                                        .thenReturn(new PageImpl<>(List.of()));
 
-                        campaignService.listUserCampaigns(creator.getId(), PageRequest.of(0, 20));
+                        campaignService.listUserCampaigns(
+                                        CampaignFilter.builder().participantId(creator.getId()).build(),
+                                        null, false, PageRequest.of(0, 20));
 
-                        verify(userCampaignRepository).findActiveByUserExcludingStatus(
-                                        creator.getId(), UserCampaignStatus.ABANDONED, PageRequest.of(0, 20));
+                        verify(campaignRepository).findFiltered(anyBoolean(), any(), any(), anyBoolean(), any(), any(),
+                                        any(), anyBoolean(), any(), any(), any(), any(), eq(creator.getId()),
+                                        eq(List.of(UserCampaignStatus.IN_PROGRESS, UserCampaignStatus.COMPLETED)),
+                                        any());
+                }
+
+                @Test
+                void listReportsProgressAlongsideTheCampaign() {
+                        campaign.setStatus(CampaignStatus.PUBLISHED);
+                        UserCampaign uc = UserCampaign.builder().id(UUID.randomUUID())
+                                        .user(creator).campaign(campaign)
+                                        .status(UserCampaignStatus.IN_PROGRESS).active(true).build();
+                        when(campaignRepository.findFiltered(anyBoolean(), any(), any(), anyBoolean(), any(), any(),
+                                        any(), anyBoolean(), any(), any(), any(), any(), any(), any(), any()))
+                                        .thenReturn(new PageImpl<>(List.of(campaign)));
+                        when(campaignTagLinkRepository.findByCampaign_IdIn(List.of(campaign.getId())))
+                                        .thenReturn(List.of());
+                        when(campaignDifficultyRepository.countActiveByCampaignIds(List.of(campaign.getId())))
+                                        .thenReturn(List.<Object[]>of(new Object[] { campaign.getId(), 14L }));
+                        when(campaignCompletionItemRepository.findByCampaign_IdIn(List.of(campaign.getId())))
+                                        .thenReturn(List.of());
+                        when(campaignDifficultyItemRepository.findActiveByCampaignIds(List.of(campaign.getId())))
+                                        .thenReturn(List.of());
+                        when(campaignRewardTotalsRepository.findByCampaignIdIn(List.of(campaign.getId())))
+                                        .thenReturn(List.of());
+                        when(userCampaignRepository.findByUser_IdAndCampaign_IdInAndActiveTrue(
+                                        creator.getId(), List.of(campaign.getId()))).thenReturn(List.of(uc));
+                        when(userCampaignScoreRepository.countActiveByUserAndCampaignIds(
+                                        creator.getId(), List.of(campaign.getId())))
+                                        .thenReturn(List.<Object[]>of(new Object[] { campaign.getId(), 12L }));
+
+                        Page<UserCampaignResponse> page = campaignService.listUserCampaigns(
+                                        CampaignFilter.builder().participantId(creator.getId()).build(),
+                                        null, false, PageRequest.of(0, 20));
+
+                        assertThat(page.getContent()).hasSize(1);
+                        UserCampaignResponse result = page.getContent().get(0);
+                        assertThat(result.getProgressStatus()).isEqualTo(UserCampaignStatus.IN_PROGRESS);
+                        assertThat(result.getCompletedDifficulties()).isEqualTo(12);
+                        assertThat(result.getCampaign().getDifficultyCount()).isEqualTo(14);
                 }
         }
 

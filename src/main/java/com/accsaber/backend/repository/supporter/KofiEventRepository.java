@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -30,6 +31,27 @@ public interface KofiEventRepository extends JpaRepository<KofiEvent, UUID> {
         List<KofiEvent> findUnclaimedSince(@Param("since") Instant since);
 
         List<KofiEvent> findByClaimedUser_IdOrderByClaimedAtDesc(Long userId);
+
+        @Query(value = "SELECT e FROM KofiEvent e LEFT JOIN FETCH e.claimedUser u "
+                        + "WHERE (:status = 'all' "
+                        + "     OR (:status = 'unclaimed' AND e.claimedUser IS NULL) "
+                        + "     OR (:status = 'claimed' AND e.claimedUser IS NOT NULL)) "
+                        + "AND (:userId IS NULL OR u.id = :userId) "
+                        + "AND (CAST(:search AS string) IS NULL "
+                        + "     OR LOWER(e.email) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) "
+                        + "     OR LOWER(e.fromName) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))",
+                        countQuery = "SELECT count(e) FROM KofiEvent e LEFT JOIN e.claimedUser u "
+                        + "WHERE (:status = 'all' "
+                        + "     OR (:status = 'unclaimed' AND e.claimedUser IS NULL) "
+                        + "     OR (:status = 'claimed' AND e.claimedUser IS NOT NULL)) "
+                        + "AND (:userId IS NULL OR u.id = :userId) "
+                        + "AND (CAST(:search AS string) IS NULL "
+                        + "     OR LOWER(e.email) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) "
+                        + "     OR LOWER(e.fromName) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))")
+        Page<KofiEvent> findFiltered(@Param("status") String status,
+                        @Param("userId") Long userId,
+                        @Param("search") String search,
+                        org.springframework.data.domain.Pageable pageable);
 
         @Query("SELECT e.claimedUser.id FROM KofiEvent e "
                         + "WHERE e.claimedUser IS NOT NULL "

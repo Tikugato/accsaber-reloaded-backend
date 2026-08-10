@@ -159,6 +159,7 @@ public class SecurityConfig {
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/webhooks/kofi").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/supporters/credits").permitAll()
+                .requestMatchers(HttpMethod.GET, "/v1/supporters/tiers").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/practice-scores").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/practice-scores").permitAll()
                 .requestMatchers("/v1/admin/**").hasAnyRole(ADMIN_PATH_ROLES)

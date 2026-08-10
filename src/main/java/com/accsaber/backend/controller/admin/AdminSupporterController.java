@@ -2,15 +2,22 @@ package com.accsaber.backend.controller.admin;
 
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.accsaber.backend.model.dto.request.supporter.ClaimSupporterEventRequest;
 import com.accsaber.backend.model.dto.request.supporter.ManualSupporterGrantRequest;
+import com.accsaber.backend.model.dto.response.supporter.KofiEventResponse;
 import com.accsaber.backend.model.entity.supporter.KofiEvent;
 import com.accsaber.backend.model.entity.supporter.KofiEventType;
 import com.accsaber.backend.service.supporter.SupporterService;
@@ -47,6 +54,17 @@ public class AdminSupporterController {
                 "tier", event.getTierName(),
                 "amountCents", event.getAmountCents(),
                 "type", event.getType().name()));
+    }
+
+    @Operation(summary = "List Ko-fi events", description = "Every webhook event the platform has received, newest first. Filter with status for all, unclaimed or claimed, narrow to one player with userId, or search across the donor email and name.")
+    @GetMapping("/events")
+    public ResponseEntity<Page<KofiEventResponse>> events(
+            @RequestParam(required = false, defaultValue = "all") String status,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 50, sort = "receivedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(supporterService.findEvents(status, userId, search, pageable)
+                .map(KofiEventResponse::from));
     }
 
     @Operation(summary = "Claim an existing (unclaimed) Ko-fi event for a user by user id - applies the tier/balance and seeds the event's email so future renewals auto-claim")

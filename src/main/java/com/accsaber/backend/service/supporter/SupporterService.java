@@ -244,6 +244,23 @@ public class SupporterService {
         return supporterAccountRepository.findCredits(normalized, pageable);
     }
 
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<KofiEvent> findEvents(
+            String status, Long userId, String search,
+            org.springframework.data.domain.Pageable pageable) {
+        String normalized = status == null ? "all" : status.toLowerCase();
+        if (!normalized.equals("all") && !normalized.equals("unclaimed") && !normalized.equals("claimed")) {
+            normalized = "all";
+        }
+        String needle = search == null || search.isBlank() ? null : search.trim();
+        return kofiEventRepository.findFiltered(normalized, userId, needle, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SupporterTier> findTiers() {
+        return supporterTierRepository.findAllByOrderBySortOrderAsc();
+    }
+
     private Long resolveDiscordToUserId(String discordId) {
         return oauthConnectionRepository.findByProviderAndProviderUserIdAndActiveTrue("discord", discordId)
                 .map(c -> c.getUser().getId())

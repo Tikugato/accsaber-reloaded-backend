@@ -1,5 +1,7 @@
 package com.accsaber.backend.controller.supporter;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.accsaber.backend.model.dto.response.supporter.SupporterAccountResponse;
 import com.accsaber.backend.model.dto.response.supporter.SupporterCreditsRowResponse;
+import com.accsaber.backend.model.dto.response.supporter.SupporterTierResponse;
 import com.accsaber.backend.model.entity.supporter.SupporterAccount;
 import com.accsaber.backend.service.supporter.SupporterService;
 
@@ -33,6 +36,14 @@ public class SupporterPublicController {
         return ResponseEntity.ok(account == null
                 ? SupporterAccountResponse.empty(userId)
                 : SupporterAccountResponse.from(account));
+    }
+
+    @Operation(summary = "Get the supporter tiers", description = "Every tier a supporter can hold, cheapest first, with what it costs per month.")
+    @GetMapping("/v1/supporters/tiers")
+    public ResponseEntity<List<SupporterTierResponse>> tiers() {
+        return ResponseEntity.ok(supporterService.findTiers().stream()
+                .map(SupporterTierResponse::from)
+                .toList());
     }
 
     @Operation(summary = "Get the supporters credits", description = "The roll of everyone who has supported AccSaber, past and present. Filter with status for all, active or past.")

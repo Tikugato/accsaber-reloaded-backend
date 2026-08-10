@@ -11,7 +11,7 @@ import lombok.Value;
 @Builder
 public class SupporterCreditsRowResponse {
 
-    Long userId;
+    String userId;
     String name;
     String avatarUrl;
     String cdnAvatarUrl;
@@ -24,7 +24,7 @@ public class SupporterCreditsRowResponse {
 
     public static SupporterCreditsRowResponse from(SupporterAccount account) {
         SupporterCreditsRowResponseBuilder b = SupporterCreditsRowResponse.builder()
-                .userId(account.getUserId())
+                .userId(String.valueOf(account.getUserId()))
                 .name(account.getUser().getName())
                 .avatarUrl(account.getUser().getAvatarUrl())
                 .cdnAvatarUrl(account.getUser().getCdnAvatarUrl())

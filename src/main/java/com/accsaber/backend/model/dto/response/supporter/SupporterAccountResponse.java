@@ -11,7 +11,7 @@ import lombok.Data;
 @Builder
 public class SupporterAccountResponse {
 
-    private Long userId;
+    private String userId;
     private String currentTier;
     private String currentTierDisplayName;
     private Integer monthlyCostCents;
@@ -23,7 +23,7 @@ public class SupporterAccountResponse {
 
     public static SupporterAccountResponse empty(Long userId) {
         return SupporterAccountResponse.builder()
-                .userId(userId)
+                .userId(String.valueOf(userId))
                 .balanceCents(0)
                 .lifetimeSupportedCents(0L)
                 .hasEverSupported(false)
@@ -32,7 +32,7 @@ public class SupporterAccountResponse {
 
     public static SupporterAccountResponse from(SupporterAccount account) {
         SupporterAccountResponseBuilder b = SupporterAccountResponse.builder()
-                .userId(account.getUserId())
+                .userId(String.valueOf(account.getUserId()))
                 .balanceCents(account.getBalanceCents())
                 .lifetimeSupportedCents(account.getLifetimeSupportedCents())
                 .tierStartedAt(account.getTierStartedAt())

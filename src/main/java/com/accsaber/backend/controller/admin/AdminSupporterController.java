@@ -43,7 +43,7 @@ public class AdminSupporterController {
                 request.getNote());
         return ResponseEntity.ok(Map.of(
                 "kofiTransactionId", event.getKofiTransactionId(),
-                "userId", request.getUserId(),
+                "userId", String.valueOf(request.getUserId()),
                 "tier", event.getTierName(),
                 "amountCents", event.getAmountCents(),
                 "type", event.getType().name()));

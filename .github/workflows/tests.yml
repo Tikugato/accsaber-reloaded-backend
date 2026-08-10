@@ -25,6 +25,9 @@ jobs:
           distribution: temurin
           cache: maven
 
+      - name: Make the wrapper executable
+        run: chmod +x ./mvnw
+
       - name: Unit suite
         if: inputs.suite == 'unit'
         run: ./mvnw -B --no-transfer-progress verify

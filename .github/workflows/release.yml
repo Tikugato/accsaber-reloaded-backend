@@ -84,6 +84,7 @@ jobs:
       - name: Stamp version into pom
         if: steps.version.outputs.BUMP != 'none'
         run: |
+          chmod +x ./mvnw
           ./mvnw -B --no-transfer-progress versions:set \
             -DnewVersion=${{ steps.version.outputs.VERSION }} \
             -DgenerateBackupPoms=false

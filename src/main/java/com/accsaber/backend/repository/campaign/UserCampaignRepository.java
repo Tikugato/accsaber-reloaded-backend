@@ -19,7 +19,7 @@ public interface UserCampaignRepository extends JpaRepository<UserCampaign, UUID
 
     List<UserCampaign> findByUser_IdAndCampaign_IdInAndActiveTrue(Long userId, Collection<UUID> campaignIds);
 
-    List<UserCampaign> findByUser_IdAndStatusAndActiveTrue(Long userId, UserCampaignStatus status);
+    List<UserCampaign> findByUser_IdAndStatusInAndActiveTrue(Long userId, Collection<UserCampaignStatus> statuses);
 
     @Query("""
             SELECT uc FROM UserCampaign uc
@@ -31,16 +31,16 @@ public interface UserCampaignRepository extends JpaRepository<UserCampaign, UUID
 
     @Query("""
             SELECT DISTINCT uc.user.id FROM UserCampaign uc
-            WHERE uc.active = true AND uc.status = :status
+            WHERE uc.active = true AND uc.status IN :statuses
               AND uc.campaign.active = true AND uc.campaign.status <> :excludedCampaignStatus
             """)
-    List<Long> findUserIdsByStatusAndCampaignReleased(@Param("status") UserCampaignStatus status,
+    List<Long> findUserIdsByStatusesAndCampaignReleased(@Param("statuses") Collection<UserCampaignStatus> statuses,
             @Param("excludedCampaignStatus") CampaignStatus excludedCampaignStatus);
 
     @Query("""
             SELECT DISTINCT uc.user.id FROM UserCampaign uc
-            WHERE uc.campaign.id = :campaignId AND uc.active = true AND uc.status = :status
+            WHERE uc.campaign.id = :campaignId AND uc.active = true AND uc.status IN :statuses
             """)
-    List<Long> findUserIdsByCampaignAndStatus(@Param("campaignId") UUID campaignId,
-            @Param("status") UserCampaignStatus status);
+    List<Long> findUserIdsByCampaignAndStatuses(@Param("campaignId") UUID campaignId,
+            @Param("statuses") Collection<UserCampaignStatus> statuses);
 }

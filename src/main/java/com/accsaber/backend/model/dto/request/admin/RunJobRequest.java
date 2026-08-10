@@ -34,7 +34,7 @@ public class RunJobRequest {
 
         @Schema(description = "Required by BACKFILL_SCORES_USER, BACKFILL_MILESTONES_USER and RECALCULATE_XP_USER."
                         + " Optional for BACKFILL_CAMPAIGN_LEGACY and RESETTLE_CAMPAIGN"
-                        + " - leave it off to sweep every in-progress participant.")
+                        + " - leave it off to sweep every participant.")
         private Long userId;
 
         @Schema(description = "Required by BACKFILL_SCORES_USERS.")

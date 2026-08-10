@@ -200,7 +200,7 @@ public class CampaignService {
         Collection<UserCampaignStatus> progressArg = filter.progressStatus() != null
                 && !filter.progressStatus().isEmpty()
                         ? filter.progressStatus()
-                        : List.of(UserCampaignStatus.IN_PROGRESS, UserCampaignStatus.COMPLETED);
+                        : UserCampaignStatus.PARTICIPATING;
         Long resolvedViewerId = viewerId != null ? duplicateUserService.resolvePrimaryUserId(viewerId) : null;
         Long resolvedParticipantId = filter.participantId() != null
                 ? duplicateUserService.resolvePrimaryUserId(filter.participantId())

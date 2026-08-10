@@ -87,25 +87,22 @@ public class CampaignEvaluationService {
             return;
         }
         UUID mapDifficultyId = score.getMapDifficulty().getId();
-        List<UserCampaign> inProgress = userCampaignRepository
-                .findByUser_IdAndStatusAndActiveTrue(userId, UserCampaignStatus.IN_PROGRESS);
-        if (inProgress.isEmpty()) {
+        List<UserCampaign> participations = evaluableParticipations(userId);
+        if (participations.isEmpty()) {
+            return;
+        }
+        Map<UUID, List<CampaignDifficulty>> nodesByCampaign = nodesByCampaign(participations, mapDifficultyId);
+        if (nodesByCampaign.isEmpty()) {
             return;
         }
 
         Instant scoreTime = effectiveTime(score);
         ScoreModifierIndex modifiers = ScoreModifierIndex.load(List.of(score),
                 scoreModifierLinkRepository::findModifierRows);
-        for (UserCampaign uc : inProgress) {
+        for (UserCampaign uc : participations) {
             Campaign campaign = uc.getCampaign();
-            if (!campaign.isActive() || campaign.getStatus() == CampaignStatus.DRAFT) {
-                continue;
-            }
-            List<CampaignDifficulty> nodes = campaignDifficultyRepository
-                    .findByCampaign_IdAndMapDifficulty_IdAndActiveTrue(campaign.getId(), mapDifficultyId).stream()
-                    .filter(d -> !d.isBarrier())
-                    .toList();
-            if (nodes.isEmpty()) {
+            List<CampaignDifficulty> nodes = nodesByCampaign.get(campaign.getId());
+            if (nodes == null) {
                 continue;
             }
             Instant campaignSince = sinceFor(uc);
@@ -211,18 +208,15 @@ public class CampaignEvaluationService {
     }
 
     public boolean isRecordable(Long userId, UUID mapDifficultyId) {
-        List<UserCampaign> inProgress = userCampaignRepository
-                .findByUser_IdAndStatusAndActiveTrue(userId, UserCampaignStatus.IN_PROGRESS);
-        for (UserCampaign uc : inProgress) {
+        List<UserCampaign> participations = evaluableParticipations(userId);
+        if (participations.isEmpty()) {
+            return false;
+        }
+        Map<UUID, List<CampaignDifficulty>> nodesByCampaign = nodesByCampaign(participations, mapDifficultyId);
+        for (UserCampaign uc : participations) {
             Campaign campaign = uc.getCampaign();
-            if (!campaign.isActive() || campaign.getStatus() == CampaignStatus.DRAFT) {
-                continue;
-            }
-            List<CampaignDifficulty> nodes = campaignDifficultyRepository
-                    .findByCampaign_IdAndMapDifficulty_IdAndActiveTrue(campaign.getId(), mapDifficultyId).stream()
-                    .filter(d -> !d.isBarrier())
-                    .toList();
-            if (nodes.isEmpty()) {
+            List<CampaignDifficulty> nodes = nodesByCampaign.get(campaign.getId());
+            if (nodes == null) {
                 continue;
             }
             if (campaign.isProgressionAgnostic()) {
@@ -238,6 +232,26 @@ public class CampaignEvaluationService {
             }
         }
         return false;
+    }
+
+    private List<UserCampaign> evaluableParticipations(Long userId) {
+        return userCampaignRepository
+                .findByUser_IdAndStatusInAndActiveTrue(userId, UserCampaignStatus.PARTICIPATING).stream()
+                .filter(CampaignEvaluationService::isLiveCampaign)
+                .toList();
+    }
+
+    private static boolean isLiveCampaign(UserCampaign uc) {
+        return uc.getCampaign().isActive() && uc.getCampaign().getStatus() != CampaignStatus.DRAFT;
+    }
+
+    private Map<UUID, List<CampaignDifficulty>> nodesByCampaign(List<UserCampaign> participations,
+            UUID mapDifficultyId) {
+        List<UUID> campaignIds = participations.stream().map(uc -> uc.getCampaign().getId()).toList();
+        return campaignDifficultyRepository
+                .findByCampaign_IdInAndMapDifficulty_IdAndBarrierFalseAndActiveTrue(campaignIds, mapDifficultyId)
+                .stream()
+                .collect(Collectors.groupingBy(d -> d.getCampaign().getId()));
     }
 
     @Transactional
@@ -335,7 +349,7 @@ public class CampaignEvaluationService {
     @Transactional
     public void recomputeCampaignCompletion(UUID campaignId) {
         List<UserCampaign> participants = userCampaignRepository.findByCampaignAndStatuses(campaignId,
-                List.of(UserCampaignStatus.IN_PROGRESS, UserCampaignStatus.COMPLETED));
+                UserCampaignStatus.PARTICIPATING);
         if (participants.isEmpty()) {
             return;
         }
@@ -406,20 +420,15 @@ public class CampaignEvaluationService {
     @Transactional
     public void resettleForUser(Long userId, UUID campaignId) {
         userCampaignRepository.findByUser_IdAndCampaign_IdAndActiveTrue(userId, campaignId)
-                .filter(uc -> uc.getStatus() == UserCampaignStatus.IN_PROGRESS)
-                .filter(uc -> uc.getCampaign().isActive() && uc.getCampaign().getStatus() != CampaignStatus.DRAFT)
+                .filter(uc -> UserCampaignStatus.PARTICIPATING.contains(uc.getStatus()))
+                .filter(CampaignEvaluationService::isLiveCampaign)
                 .ifPresent(uc -> settleCampaignFromCurrentScores(uc, false));
     }
 
     @Transactional
-    public void evaluateInProgressForUser(Long userId) {
-        List<UserCampaign> inProgress = userCampaignRepository
-                .findByUser_IdAndStatusAndActiveTrue(userId, UserCampaignStatus.IN_PROGRESS);
-        for (UserCampaign uc : inProgress) {
-            Campaign campaign = uc.getCampaign();
-            if (campaign.isActive() && campaign.getStatus() != CampaignStatus.DRAFT) {
-                settleCampaignFromCurrentScores(uc, false);
-            }
+    public void evaluateParticipatingForUser(Long userId) {
+        for (UserCampaign uc : evaluableParticipations(userId)) {
+            settleCampaignFromCurrentScores(uc, false);
         }
     }
 
@@ -515,7 +524,7 @@ public class CampaignEvaluationService {
                 .findByUser_IdAndCampaignDifficulty_IdAndActiveTrue(uc.getUser().getId(), difficulty.getId())
                 .orElse(null);
         if (existing != null) {
-            if (isBetterScore(score, existing.getScore())) {
+            if (uc.getStatus() != UserCampaignStatus.COMPLETED && isBetterScore(score, existing.getScore())) {
                 existing.setScore(score);
                 userCampaignScoreRepository.save(existing);
             }

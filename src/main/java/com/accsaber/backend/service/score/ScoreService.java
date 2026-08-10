@@ -2,7 +2,6 @@ package com.accsaber.backend.service.score;
 
 import com.accsaber.backend.util.Rounding;
 
-import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
@@ -227,7 +226,7 @@ public class ScoreService {
                 validateScoreBounds(request, difficulty, true);
                 if (!campaignEvaluationService.isRecordable(request.getUserId(), difficulty.getId())) {
                         throw new ValidationException(
-                                        "No in-progress campaign has this map difficulty unlocked");
+                                        "No campaign you are playing has this map difficulty unlocked");
                 }
                 User user = loadUserForBackfill(request.getUserId());
 

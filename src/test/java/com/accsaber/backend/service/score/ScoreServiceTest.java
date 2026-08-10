@@ -819,7 +819,7 @@ class ScoreServiceTest {
 
                         assertThatThrownBy(() -> scoreService.submitPlayer(req))
                                         .isInstanceOf(ValidationException.class)
-                                        .hasMessageContaining("No in-progress campaign");
+                                        .hasMessageContaining("has this map difficulty unlocked");
                         verify(scoreRepository, never()).saveAndFlush(any());
                 }
 

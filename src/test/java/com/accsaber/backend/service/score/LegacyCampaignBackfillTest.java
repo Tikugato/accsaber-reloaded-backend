@@ -120,7 +120,7 @@ class LegacyCampaignBackfillTest {
         assertThatThrownBy(() -> scoreImportService.recheckLegacyCampaign(CAMPAIGN, null))
                 .isInstanceOf(ValidationException.class);
 
-        verify(userCampaignRepository, never()).findUserIdsByCampaignAndStatus(any(), any());
+        verify(userCampaignRepository, never()).findUserIdsByCampaignAndStatuses(any(), any());
         verify(campaignEvaluationService, never()).importLegacyScores(any(), any());
     }
 
@@ -131,7 +131,7 @@ class LegacyCampaignBackfillTest {
 
         when(campaignRepository.findByIdAndActiveTrue(CAMPAIGN))
                 .thenReturn(Optional.of(Campaign.builder().id(CAMPAIGN).legacy(true).build()));
-        when(userCampaignRepository.findUserIdsByCampaignAndStatus(CAMPAIGN, UserCampaignStatus.IN_PROGRESS))
+        when(userCampaignRepository.findUserIdsByCampaignAndStatuses(CAMPAIGN, UserCampaignStatus.PARTICIPATING))
                 .thenReturn(List.of(USER, other));
         when(duplicateUserService.resolvePrimaryUserId(any())).thenAnswer(inv -> inv.getArgument(0));
         when(modifierCacheService.getModifierCodeToId()).thenReturn(Map.of());
@@ -165,7 +165,7 @@ class LegacyCampaignBackfillTest {
 
         assertThat(scoreImportService.recheckLegacyCampaign(CAMPAIGN, duplicate)).isCompleted();
 
-        verify(userCampaignRepository, never()).findUserIdsByCampaignAndStatus(any(), any());
+        verify(userCampaignRepository, never()).findUserIdsByCampaignAndStatuses(any(), any());
         verify(campaignEvaluationService).importLegacyScores(USER, CAMPAIGN);
     }
 

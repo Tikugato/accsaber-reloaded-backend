@@ -51,7 +51,7 @@ public class CampaignScoreGate {
         campaignBlIds = Set.copyOf(blIds);
         campaignSsIds = Set.copyOf(ssIds);
         participantIds = Set.copyOf(userCampaignRepository
-                .findUserIdsByStatusAndCampaignReleased(UserCampaignStatus.IN_PROGRESS, CampaignStatus.DRAFT));
+                .findUserIdsByStatusesAndCampaignReleased(UserCampaignStatus.PARTICIPATING, CampaignStatus.DRAFT));
         log.info("Refreshed campaign score gate: {} BL, {} SS, {} participants",
                 campaignBlIds.size(), campaignSsIds.size(), participantIds.size());
     }

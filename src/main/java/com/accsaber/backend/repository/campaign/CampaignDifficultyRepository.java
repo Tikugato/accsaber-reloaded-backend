@@ -29,8 +29,8 @@ public interface CampaignDifficultyRepository extends JpaRepository<CampaignDiff
 
         Optional<CampaignDifficulty> findByIdAndActiveTrue(UUID id);
 
-        List<CampaignDifficulty> findByCampaign_IdAndMapDifficulty_IdAndActiveTrue(UUID campaignId,
-                        UUID mapDifficultyId);
+        List<CampaignDifficulty> findByCampaign_IdInAndMapDifficulty_IdAndBarrierFalseAndActiveTrue(
+                        Collection<UUID> campaignIds, UUID mapDifficultyId);
 
         boolean existsByCampaign_IdAndPositionXAndPositionYAndActiveTrue(UUID campaignId, Double positionX,
                         Double positionY);
@@ -74,7 +74,7 @@ public interface CampaignDifficultyRepository extends JpaRepository<CampaignDiff
                           AND EXISTS (
                                 SELECT 1 FROM UserCampaign uc
                                 WHERE uc.campaign = cd.campaign AND uc.active = true
-                                  AND uc.status = com.accsaber.backend.model.entity.campaign.UserCampaignStatus.IN_PROGRESS)
+                                  AND uc.status <> com.accsaber.backend.model.entity.campaign.UserCampaignStatus.ABANDONED)
                         """)
         List<Object[]> findCampaignIngestLeaderboardIds();
 }

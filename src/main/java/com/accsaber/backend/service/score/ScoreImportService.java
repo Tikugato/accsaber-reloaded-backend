@@ -386,9 +386,9 @@ public class ScoreImportService {
         }
         List<Long> targets = userId != null
                 ? List.of(duplicateUserService.resolvePrimaryUserId(userId))
-                : userCampaignRepository.findUserIdsByCampaignAndStatus(campaignId, UserCampaignStatus.IN_PROGRESS);
+                : userCampaignRepository.findUserIdsByCampaignAndStatuses(campaignId, UserCampaignStatus.PARTICIPATING);
         if (targets.isEmpty()) {
-            log.info("Legacy campaign re-check for campaign {} has no in-progress participants", campaignId);
+            log.info("Legacy campaign re-check for campaign {} has no participants", campaignId);
             return CompletableFuture.completedFuture(null);
         }
         log.info("Legacy campaign re-check queued for campaign {} across {} user(s)", campaignId, targets.size());
@@ -400,9 +400,9 @@ public class ScoreImportService {
                 .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
         List<Long> targets = userId != null
                 ? List.of(duplicateUserService.resolvePrimaryUserId(userId))
-                : userCampaignRepository.findUserIdsByCampaignAndStatus(campaignId, UserCampaignStatus.IN_PROGRESS);
+                : userCampaignRepository.findUserIdsByCampaignAndStatuses(campaignId, UserCampaignStatus.PARTICIPATING);
         if (targets.isEmpty()) {
-            log.info("Campaign re-settle for campaign {} has no in-progress participants", campaignId);
+            log.info("Campaign re-settle for campaign {} has no participants", campaignId);
             return CompletableFuture.completedFuture(null);
         }
         log.info("Campaign re-settle queued for campaign {} across {} user(s)", campaignId, targets.size());
@@ -642,7 +642,7 @@ public class ScoreImportService {
         }
 
         try {
-            campaignEvaluationService.evaluateInProgressForUser(userId);
+            campaignEvaluationService.evaluateParticipatingForUser(userId);
         } catch (Exception e) {
             log.error("Campaign evaluation failed during user {} backfill: {}", userId, e.getMessage());
         }
@@ -684,7 +684,7 @@ public class ScoreImportService {
         Set<Long> settledUsers = imported.values().stream()
                 .flatMap(Set::stream)
                 .collect(java.util.stream.Collectors.toCollection(HashSet::new));
-        recoverCampaignsForInProgressUsers(settledUsers);
+        recoverCampaignsForParticipants(settledUsers);
 
         long elapsed = System.currentTimeMillis() - start;
         log.info("Parallel gap-fill complete for {} difficulties in {}s", ranked.size(), elapsed / 1000);
@@ -692,19 +692,19 @@ public class ScoreImportService {
         scoreRankingService.reassignAllRanks();
     }
 
-    private void recoverCampaignsForInProgressUsers(Set<Long> alreadySettled) {
+    private void recoverCampaignsForParticipants(Set<Long> alreadySettled) {
         List<Long> pending = userCampaignRepository
-                .findUserIdsByStatusAndCampaignReleased(UserCampaignStatus.IN_PROGRESS, CampaignStatus.DRAFT).stream()
+                .findUserIdsByStatusesAndCampaignReleased(UserCampaignStatus.PARTICIPATING, CampaignStatus.DRAFT).stream()
                 .filter(userId -> !alreadySettled.contains(userId))
                 .toList();
         if (pending.isEmpty()) {
             return;
         }
-        log.info("Re-settling campaigns for {} in-progress users not covered by gap-fill imports", pending.size());
+        log.info("Re-settling campaigns for {} participants not covered by gap-fill imports", pending.size());
         List<CompletableFuture<Void>> futures = pending.stream()
                 .map(userId -> CompletableFuture.runAsync(() -> {
                     try {
-                        campaignEvaluationService.evaluateInProgressForUser(userId);
+                        campaignEvaluationService.evaluateParticipatingForUser(userId);
                     } catch (Exception e) {
                         log.error("Campaign re-settle failed for user {} during gap-fill recovery: {}",
                                 userId, e.getMessage());
@@ -973,7 +973,7 @@ public class ScoreImportService {
                         }
                         var evaluation = milestoneEvaluationService.evaluateAllForUser(userId);
                         awardMilestoneXp(userId, evaluation);
-                        campaignEvaluationService.evaluateInProgressForUser(userId);
+                        campaignEvaluationService.evaluateParticipatingForUser(userId);
                     } catch (Exception ex) {
                         log.error("Per-user post-backfill work failed for user {}: {}",
                                 userId, ex.getMessage());
@@ -1019,7 +1019,7 @@ public class ScoreImportService {
                         statisticsService.recalculate(userId, categoryId, false);
                         var evaluation = milestoneEvaluationService.evaluateAllForUser(userId);
                         awardMilestoneXp(userId, evaluation);
-                        campaignEvaluationService.evaluateInProgressForUser(userId);
+                        campaignEvaluationService.evaluateParticipatingForUser(userId);
                     } catch (Exception e) {
                         log.error("Batch recalc failed for user {} on difficulty {}: {}", userId, difficulty.getId(),
                                 e.getMessage());

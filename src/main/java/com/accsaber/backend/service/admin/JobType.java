@@ -71,14 +71,14 @@ public enum JobType {
                     + " the campaign. The campaign has to be flagged legacy.",
             JobField.required("campaignId", JobFieldKind.CAMPAIGN, "Campaign", RunJobRequest::getCampaignId),
             JobField.optional("userId", JobFieldKind.USER, "Player",
-                    "Leave it off to sweep every in progress participant.", RunJobRequest::getUserId)),
+                    "Leave it off to sweep every participant.", RunJobRequest::getUserId)),
 
     RESETTLE_CAMPAIGN(JobGroup.CAMPAIGN, "Re-settle a campaign",
             "Re-runs campaign evaluation over the scores we already hold, with no platform calls. Use it after a"
                     + " progression fix so people who are already finished get marked as finished.",
             JobField.required("campaignId", JobFieldKind.CAMPAIGN, "Campaign", RunJobRequest::getCampaignId),
             JobField.optional("userId", JobFieldKind.USER, "Player",
-                    "Leave it off to sweep every in progress participant.", RunJobRequest::getUserId)),
+                    "Leave it off to sweep every participant.", RunJobRequest::getUserId)),
 
     BACKFILL_CDN_MAP_COVERS(JobGroup.CDN, "Mirror map covers",
             "Copies map cover art onto our CDN for anything that is missing it.",

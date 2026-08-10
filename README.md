@@ -120,7 +120,16 @@ src/main/resources/
 | `CDN_VIPS_BINARY`         | No   | Path to the `vips` CLI. Override if not on `$PATH`. |
 | `CDN_WEBP_QUALITY`        | No   | WebP encode quality (0-100). Default 80. |
 | `CDN_WEBP_EFFORT`         | No   | WebP encode effort (0-6, higher = smaller file, slower). Default 4. |
-| `CDN_MAX_DIMENSION`       | No   | Pixel cap for **mirrored** content (avatars, map covers). Default 512. |
+| `CDN_AVATAR_MAX_DIMENSION` | No  | Pixel cap for mirrored player avatars. Default 256. |
+| `CDN_COVER_MAX_DIMENSION` | No   | Pixel cap for mirrored map covers. Default 1024. |
+| `CDN_AVIF_QUALITY`        | No   | AVIF encode quality (0-100). Default 60. |
+| `CDN_AVIF_EFFORT`         | No   | AVIF encode effort (0-9, higher is smaller and slower). Default 4. |
+| `CDN_PNG_COMPRESSION`     | No   | PNG compression level (0-9). Default 6. |
+| `RATE_LIMIT_TRUSTED_IPS`  | No   | Comma separated IPs that skip the 400 requests per 60 seconds limit. Empty means nobody is exempt. |
+| `SONGSUGGEST_OUTPUT_PATH` | No   | Where the weekly SongSuggest leaderboard export gets written. |
+| `IMAGE_TAG`               | No   | Which published backend image the production compose file pulls. Defaults to `latest`; set it to a `v` tag to pin or roll back. |
+| `WS_START_DELAY_SECONDS`  | No   | How long to wait after boot before connecting the BeatLeader and ScoreSaber sockets. Defaults to 0 locally and 60 in production, which keeps a freshly started container quiet until the one it is replacing has gone, so the same score never gets ingested twice. |
+| `BACKFILL_STARTUP_DELAY_SECONDS` | No | How long to wait after boot before the startup gap-fill runs. Wants to be longer than `WS_START_DELAY_SECONDS`, so the gap-fill happens once the sockets are live and picks up anything missed during the handover. |
 | `CDN_UPLOAD_MAX_DIMENSION`| No   | Pixel cap for **uploaded** content (campaign bg/icon, item icon, user-uploaded avatar). Default 4096. Effectively unconstrained; admin/user controls dimension. |
 | `CDN_MAX_UPLOAD_BYTES`    | No   | Hard ceiling on uploaded file size in bytes. Default 10485760 (10 MB). |
 | `CDN_BACKFILL_DELAY_MS`   | No   | Throttle between tasks in the avatar/cover backfill loop. Default 0 (no throttle). Set higher to gentle the system or upstream APIs. |

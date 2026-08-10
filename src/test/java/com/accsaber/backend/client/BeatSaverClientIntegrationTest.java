@@ -13,7 +13,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import com.accsaber.backend.config.PlatformProperties;
 import com.accsaber.backend.model.dto.platform.beatsaver.BeatSaverMapResponse;
 
-@Tag("integration")
+@Tag("external")
 class BeatSaverClientIntegrationTest {
 
     private static final String KNOWN_HASH = "47a4e1e2aec435105ceeedda437bdccc7db18058";

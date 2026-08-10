@@ -47,13 +47,21 @@ public class WebSocketConnectionManager implements SmartLifecycle {
     @Override
     public void start() {
         if (running.compareAndSet(false, true)) {
-            connectBeatLeader();
-            connectScoreSaber();
             long interval = properties.getWsReconnectIntervalMs();
-            reconnectScheduler.scheduleWithFixedDelay(this::monitorConnections, interval, interval,
+            long startDelay = Math.max(0, properties.getWsStartDelaySeconds()) * 1000L;
+            reconnectScheduler.schedule(this::connectAll, startDelay, TimeUnit.MILLISECONDS);
+            reconnectScheduler.scheduleWithFixedDelay(this::monitorConnections, startDelay + interval, interval,
                     TimeUnit.MILLISECONDS);
-            log.info("WebSocket connection manager started");
+            log.info("WebSocket connection manager started, connecting in {}ms", startDelay);
         }
+    }
+
+    private void connectAll() {
+        if (!running.get()) {
+            return;
+        }
+        connectBeatLeader();
+        connectScoreSaber();
     }
 
     @Override

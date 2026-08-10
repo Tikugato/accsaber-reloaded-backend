@@ -3,7 +3,9 @@ set -euo pipefail
 
 DUMP="${1:-}"
 CONTAINER="${CONTAINER:-accsaber-postgres}"
-BACKEND="${BACKEND:-accsaber-backend}"
+BACKEND="${BACKEND:-}"
+COMPOSE_PROJECT="${COMPOSE_PROJECT:-}"
+COMPOSE_SERVICE="${COMPOSE_SERVICE:-backend}"
 DB="${POSTGRES_DB:-accsaber}"
 DB_USER="${POSTGRES_USER:-accsaber}"
 OUT_DIR="${OUT_DIR:-$HOME/accsaber-backups}"
@@ -27,8 +29,26 @@ if [[ "$CONFIRM" != "$DB" ]]; then
   exit 1
 fi
 
+if [[ -z "$BACKEND" ]]; then
+  if [[ -z "$COMPOSE_PROJECT" ]]; then
+    echo "error: set BACKEND (explicit container name) or COMPOSE_PROJECT (compose project label)" >&2
+    echo "find it with: docker ps --format '{{.Label \"com.docker.compose.project\"}}'" >&2
+    exit 1
+  fi
+  BACKEND="$(docker ps \
+    --filter "label=com.docker.compose.project=$COMPOSE_PROJECT" \
+    --filter "label=com.docker.compose.service=$COMPOSE_SERVICE" \
+    --format '{{.Names}}' | tr '\n' ' ')"
+  BACKEND="${BACKEND% }"
+  if [[ -z "$BACKEND" ]]; then
+    echo "error: no running container for project '$COMPOSE_PROJECT' service '$COMPOSE_SERVICE'" >&2
+    exit 1
+  fi
+  echo "resolved backend: $BACKEND"
+fi
+
 echo "==> stopping $BACKEND"
-docker stop "$BACKEND" > /dev/null
+docker stop $BACKEND > /dev/null
 
 echo "==> dropping and recreating $DB"
 docker exec "$CONTAINER" psql -U "$DB_USER" -d postgres -c "DROP DATABASE IF EXISTS \"$DB\" WITH (FORCE);"
@@ -38,7 +58,7 @@ echo "==> restoring"
 docker exec -i "$CONTAINER" pg_restore -U "$DB_USER" -d "$DB" --no-owner --exit-on-error < "$DUMP"
 
 echo "==> starting $BACKEND"
-docker start "$BACKEND" > /dev/null
+docker start $BACKEND > /dev/null
 
 echo
 echo "restore ok — tail the backend until Flyway reports the schema is current:"

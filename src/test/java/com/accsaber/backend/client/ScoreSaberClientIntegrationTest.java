@@ -15,7 +15,7 @@ import com.accsaber.backend.model.dto.platform.scoresaber.ScoreSaberPlayerRespon
 import com.accsaber.backend.model.dto.platform.scoresaber.ScoreSaberScoreResponse;
 import com.accsaber.backend.model.dto.platform.scoresaber.ScoreSaberScoresPage;
 
-@Tag("integration")
+@Tag("external")
 class ScoreSaberClientIntegrationTest {
 
     private static final String SS_LEADERBOARD_ID = "680316";

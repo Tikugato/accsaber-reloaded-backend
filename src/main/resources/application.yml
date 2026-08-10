@@ -53,8 +53,12 @@ spring:
       max-file-size: 11MB
       max-request-size: 12MB
 
+  lifecycle:
+    timeout-per-shutdown-phase: 25s
+
 server:
   port: 8080
+  shutdown: graceful
   forward-headers-strategy: framework
   tomcat:
     remoteip:
@@ -68,6 +72,8 @@ management:
     health:
       show-details: when_authorized
       show-components: when_authorized
+      probes:
+        enabled: true
   metrics:
     distribution:
       percentiles-histogram:
@@ -112,6 +118,7 @@ accsaber:
       timeout-ms: 10000
       max-retries: 3
     gap-fill-window-seconds: 300
+    ws-start-delay-seconds: ${WS_START_DELAY_SECONDS:0}
     ws-reconnect-interval-ms: 10000
     ws-max-reconnect-interval-ms: 60000
   xp:
@@ -121,6 +128,7 @@ accsaber:
   backfill:
     on-startup: true
     startup-mode: gap-fill # full | gap-fill
+    startup-delay-seconds: ${BACKFILL_STARTUP_DELAY_SECONDS:0}
     gap-fill-days: 2
     gap-fill-page-delay-ms: 125
     scoresaber-enabled: true

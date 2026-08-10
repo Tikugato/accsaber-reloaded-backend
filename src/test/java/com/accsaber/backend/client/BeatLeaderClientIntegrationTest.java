@@ -16,7 +16,7 @@ import com.accsaber.backend.model.dto.platform.beatleader.BeatLeaderLeaderboardR
 import com.accsaber.backend.model.dto.platform.beatleader.BeatLeaderPlayerResponse;
 import com.accsaber.backend.model.dto.platform.beatleader.BeatLeaderScoreResponse;
 
-@Tag("integration")
+@Tag("external")
 class BeatLeaderClientIntegrationTest {
 
     private static final String BL_LEADERBOARD_ID = "4c2b591";

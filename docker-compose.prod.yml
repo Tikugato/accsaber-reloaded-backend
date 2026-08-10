@@ -39,10 +39,8 @@ services:
       retries: 5
       start_period: 60s
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: accsaber-backend
+    image: ghcr.io/accsaber/accsaber-reloaded-backend:${IMAGE_TAG:-latest}
+    pull_policy: always
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
@@ -70,6 +68,8 @@ services:
       CDN_BASE_URL: ${CDN_BASE_URL}
       ITEM_FILES_STORAGE_PATH: /var/item-files
       ITEM_FILES_SIGNING_KEY: ${ITEM_FILES_SIGNING_KEY}
+      WS_START_DELAY_SECONDS: ${WS_START_DELAY_SECONDS:-60}
+      BACKFILL_STARTUP_DELAY_SECONDS: ${BACKFILL_STARTUP_DELAY_SECONDS:-90}
       JAVA_OPTS: -Xms256m -Xmx768m
     volumes:
       - cdn-data:/var/cdn
@@ -78,11 +78,11 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/v1/health/ping || exit 1"]
-      interval: 15s
-      timeout: 10s
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 45s
   cdn:
     build:
       context: .

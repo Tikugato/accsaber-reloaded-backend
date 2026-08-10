@@ -1,0 +1,46 @@
+package com.accsaber.backend.schema;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.ApplicationContext;
+import org.springframework.test.context.ActiveProfiles;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+@Tag("integration")
+@Testcontainers
+@ActiveProfiles("prod")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+        "accsaber.jwt.secret=integration-test-signing-secret-that-is-long-enough-for-hmac-sha256",
+        "accsaber.service.api-key=integration-test-service-key",
+        "accsaber.complexity-estimate.ap-target=500",
+        "accsaber.complexity-estimate.accuracy-shift=67",
+        "accsaber.complexity-estimate.transform-offset=420",
+        "accsaber.complexity-estimate.transform-scale=69",
+        "accsaber.complexity-estimate.transform-base=1",
+        "accsaber.platforms.beatleader.websocket-url=",
+        "accsaber.platforms.scoresaber.websocket-url=",
+        "accsaber.backfill.on-startup=false"
+})
+class ApplicationContextTest {
+
+    @Container
+    @ServiceConnection
+    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18-alpine");
+
+    @Autowired
+    private ApplicationContext context;
+
+    @Test
+    @DisplayName("the production profile wires a complete application context")
+    void contextLoads() {
+        assertThat(context.getBeanDefinitionCount()).isPositive();
+    }
+}

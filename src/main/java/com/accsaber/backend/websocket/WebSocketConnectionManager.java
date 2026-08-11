@@ -24,6 +24,7 @@ public class WebSocketConnectionManager implements SmartLifecycle {
 
     private final PlatformProperties properties;
     private final ScoreIngestionService scoreIngestionService;
+    private final IngestionLeaderLock leaderLock;
     private final ObjectMapper objectMapper;
     private final ScheduledExecutorService reconnectScheduler = Executors.newSingleThreadScheduledExecutor();
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -34,9 +35,11 @@ public class WebSocketConnectionManager implements SmartLifecycle {
     private volatile ScoreSaberWebSocketListener ssListener;
 
     public WebSocketConnectionManager(PlatformProperties properties,
-            ScoreIngestionService scoreIngestionService) {
+            ScoreIngestionService scoreIngestionService,
+            IngestionLeaderLock leaderLock) {
         this.properties = properties;
         this.scoreIngestionService = scoreIngestionService;
+        this.leaderLock = leaderLock;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.configure(
                 com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -60,6 +63,10 @@ public class WebSocketConnectionManager implements SmartLifecycle {
         if (!running.get()) {
             return;
         }
+        if (!leaderLock.acquire()) {
+            log.info("Another instance owns score ingestion - standing by until it releases");
+            return;
+        }
         connectBeatLeader();
         connectScoreSaber();
     }
@@ -70,6 +77,7 @@ public class WebSocketConnectionManager implements SmartLifecycle {
             closeListener(blListener);
             closeListener(ssListener);
             reconnectScheduler.shutdown();
+            leaderLock.release();
             log.info("WebSocket connection manager stopped");
         }
     }
@@ -148,6 +156,16 @@ public class WebSocketConnectionManager implements SmartLifecycle {
     private void monitorConnections() {
         if (!running.get())
             return;
+        if (!leaderLock.acquire()) {
+            if (blListener != null || ssListener != null) {
+                log.warn("Lost score ingestion leadership - closing both sockets");
+                closeListener(blListener);
+                closeListener(ssListener);
+                blListener = null;
+                ssListener = null;
+            }
+            return;
+        }
         int maxMs = properties.getWsMaxReconnectIntervalMs();
         int baseMs = properties.getWsReconnectIntervalMs();
 

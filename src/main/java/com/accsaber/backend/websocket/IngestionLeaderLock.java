@@ -5,33 +5,24 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.jdbc.autoconfigure.JdbcConnectionDetails;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PreDestroy;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class IngestionLeaderLock {
 
     private static final int LOCK_CLASS = 8244;
     private static final int LOCK_KEY = 1;
 
-    private final String url;
-    private final String username;
-    private final String password;
+    private final JdbcConnectionDetails connectionDetails;
 
     private Connection held;
-
-    public IngestionLeaderLock(
-            @Value("${spring.datasource.url}") String url,
-            @Value("${spring.datasource.username}") String username,
-            @Value("${spring.datasource.password}") String password) {
-        this.url = url;
-        this.username = username;
-        this.password = password;
-    }
 
     public synchronized boolean acquire() {
         if (holdsValidConnection()) {
@@ -39,7 +30,10 @@ public class IngestionLeaderLock {
         }
         Connection connection = null;
         try {
-            connection = DriverManager.getConnection(url, username, password);
+            connection = DriverManager.getConnection(
+                    connectionDetails.getJdbcUrl(),
+                    connectionDetails.getUsername(),
+                    connectionDetails.getPassword());
             if (tryLock(connection)) {
                 held = connection;
                 log.info("Acquired score ingestion leadership");
@@ -48,7 +42,8 @@ public class IngestionLeaderLock {
             connection.close();
             return false;
         } catch (Exception e) {
-            log.warn("Could not acquire score ingestion leadership: {}", e.getMessage());
+            log.error("Score ingestion leadership is unreachable, so no scores are being ingested "
+                    + "by this instance. Check the database is reachable: {}", e.getMessage());
             closeQuietly(connection);
             return false;
         }

@@ -14,6 +14,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import com.accsaber.backend.websocket.IngestionLeaderLock;
+
 @Tag("integration")
 @Testcontainers
 @ActiveProfiles("prod")
@@ -38,9 +40,20 @@ class ApplicationContextTest {
     @Autowired
     private ApplicationContext context;
 
+    @Autowired
+    private IngestionLeaderLock leaderLock;
+
     @Test
     @DisplayName("the production profile wires a complete application context")
     void contextLoads() {
         assertThat(context.getBeanDefinitionCount()).isPositive();
+    }
+
+    @Test
+    @DisplayName("score ingestion leadership can be taken against a real database")
+    void leadershipIsObtainable() {
+        assertThat(leaderLock.acquire())
+                .as("a lone instance must win the advisory lock, or it would ingest nothing")
+                .isTrue();
     }
 }

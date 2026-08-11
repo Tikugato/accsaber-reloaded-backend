@@ -1,0 +1,18 @@
+# Staging Profile
+# Loads on top of prod via spring.profiles.group, so everything not listed here
+# is identical to production on purpose. Only add an override when staging
+# genuinely has to differ, otherwise staging stops predicting production.
+spring:
+  flyway:
+    clean-disabled: true
+
+logging:
+  level:
+    "[com.accsaber]": DEBUG
+
+accsaber:
+  backfill:
+    gap-fill-page-delay-ms: ${BACKFILL_GAP_FILL_PAGE_DELAY_MS:600}
+  cdn:
+    storage-path: ${CDN_STORAGE_PATH:/var/cdn}
+    base-url: ${CDN_BASE_URL:https://staging-cdn.accsaber.com}

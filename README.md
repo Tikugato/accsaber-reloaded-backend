@@ -129,7 +129,9 @@ src/main/resources/
 | `SONGSUGGEST_OUTPUT_PATH` | No   | Where the weekly SongSuggest leaderboard export gets written. |
 | `IMAGE_TAG`               | No   | Which published backend image the production compose file pulls. Defaults to `latest`; set it to a `v` tag to pin or roll back. |
 | `WS_START_DELAY_SECONDS`  | No   | How long to wait after boot before connecting the BeatLeader and ScoreSaber sockets. Defaults to 0 locally and 60 in production, which keeps a freshly started container quiet until the one it is replacing has gone, so the same score never gets ingested twice. |
-| `BACKFILL_STARTUP_DELAY_SECONDS` | No | How long to wait after boot before the startup gap-fill runs. Wants to be longer than `WS_START_DELAY_SECONDS`, so the gap-fill happens once the sockets are live and picks up anything missed during the handover. |
+| `BACKFILL_STARTUP_DELAY_SECONDS` | No | How long to wait after boot before the startup gap-fill runs. Gives the app a moment to come up and start serving before a couple of days of backfill lands on it. |
+| `IMPERSONATION_ENABLED`   | No   | Turns on the staff endpoint that mints a player token for any account, so you can browse as that player. Only works when the `staging` profile is active, and the app refuses to start if you enable it anywhere else. Defaults to off. |
+| `IMPERSONATION_TOKEN_TTL` | No   | How many seconds an impersonation token stays valid. Defaults to 3600. |
 | `CDN_UPLOAD_MAX_DIMENSION`| No   | Pixel cap for **uploaded** content (campaign bg/icon, item icon, user-uploaded avatar). Default 4096. Effectively unconstrained; admin/user controls dimension. |
 | `CDN_MAX_UPLOAD_BYTES`    | No   | Hard ceiling on uploaded file size in bytes. Default 10485760 (10 MB). |
 | `CDN_BACKFILL_DELAY_MS`   | No   | Throttle between tasks in the avatar/cover backfill loop. Default 0 (no throttle). Set higher to gentle the system or upstream APIs. |

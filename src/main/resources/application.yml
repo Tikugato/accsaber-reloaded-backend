@@ -2,6 +2,10 @@ spring:
   application:
     name: accsaber-backend
 
+  profiles:
+    group:
+      staging: prod
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/accsaber}
     username: ${SPRING_DATASOURCE_USERNAME:accsaber}
@@ -102,6 +106,9 @@ accsaber:
     player-refresh-token-ttl: 2592000
   service:
     api-key: ${SERVICE_API_KEY}
+  impersonation:
+    enabled: ${IMPERSONATION_ENABLED:false}
+    token-ttl: ${IMPERSONATION_TOKEN_TTL:3600}
   platforms:
     beatleader:
       base-url: https://api.beatleader.com

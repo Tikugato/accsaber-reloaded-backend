@@ -1,8 +1,5 @@
 package com.accsaber.backend.service.mission;
 
-import com.accsaber.backend.util.Rounding;
-
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -41,6 +38,7 @@ import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserCategorySkillRepository;
 import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.util.Rounding;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -176,8 +174,7 @@ public class MissionAssignmentService {
         List<MissionTemplate> daily = templateRepository.findByPoolAndActiveTrue(MissionPool.daily);
         List<MissionTemplate> weekly = templateRepository.findByPoolAndActiveTrue(MissionPool.weekly);
         List<Item> poolable = itemRepository.findByMissionPoolableTrueAndActiveTrueAndDeprecatedFalse();
-        Item eventCrate = itemRepository.findByType_KeyAndNameAndActiveTrue("crate", "Alpha Crate").orElse(null);
-        return new MissionPoolCache(daily, weekly, poolable, eventCrate, new ConcurrentHashMap<>());
+        return new MissionPoolCache(daily, weekly, poolable, new ConcurrentHashMap<>());
     }
 
     private void purgeAndRollPool(MissionPool pool, boolean freshSeed) {
@@ -245,8 +242,9 @@ public class MissionAssignmentService {
     }
 
     private List<UserMission> assignDaily(MissionAssignmentContext ctx, MissionPoolCache cache, boolean freshSeed) {
-        Random rng = freshSeed ? new Random() : new Random(rolloverService.deterministicSeed(
-                ctx.userId(), LocalDate.now(ZoneId.systemDefault()), MissionPool.daily));
+        Random rng = freshSeed ? new Random()
+                : new Random(rolloverService.deterministicSeed(
+                        ctx.userId(), LocalDate.now(ZoneId.systemDefault()), MissionPool.daily));
         Instant expiresAt = rolloverService.nextRollover(MissionPool.daily, Instant.now());
 
         Map<Boolean, List<MissionTemplate>> partitioned = cache.daily().stream()
@@ -278,8 +276,9 @@ public class MissionAssignmentService {
     }
 
     private List<UserMission> assignWeekly(MissionAssignmentContext ctx, MissionPoolCache cache, boolean freshSeed) {
-        Random rng = freshSeed ? new Random() : new Random(rolloverService.deterministicSeed(
-                ctx.userId(), LocalDate.now(ZoneId.systemDefault()), MissionPool.weekly));
+        Random rng = freshSeed ? new Random()
+                : new Random(rolloverService.deterministicSeed(
+                        ctx.userId(), LocalDate.now(ZoneId.systemDefault()), MissionPool.weekly));
         Instant expiresAt = rolloverService.nextRollover(MissionPool.weekly, Instant.now());
 
         List<UserMission> assigned = new ArrayList<>();

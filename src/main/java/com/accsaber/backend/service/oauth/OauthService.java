@@ -65,6 +65,9 @@ public class OauthService {
     @Value("${accsaber.jwt.player-refresh-token-ttl}")
     private long playerRefreshTokenTtl;
 
+    @Value("${accsaber.jwt.game-refresh-token-ttl:315360000}")
+    private long gameRefreshTokenTtl;
+
     public String buildStartUrl(String provider, String state, String steamReturnTo) {
         return switch (provider) {
             case PROVIDER_DISCORD -> discordClient.buildAuthorizeUrl(state);
@@ -305,6 +308,10 @@ public class OauthService {
         return onPrimary;
     }
 
+    private long refreshTtlFor(String scope) {
+        return JwtService.SCOPE_GAME.equals(scope) ? gameRefreshTokenTtl : playerRefreshTokenTtl;
+    }
+
     private PlayerAuthResponse issueSession(OauthConnection anchor, String scope) {
         Instant now = Instant.now();
         OauthSession session = OauthSession.builder()
@@ -312,7 +319,7 @@ public class OauthService {
                 .connection(anchor)
                 .tokenScope(scope)
                 .refreshToken(UUID.randomUUID().toString())
-                .refreshTokenExpiresAt(now.plusSeconds(playerRefreshTokenTtl))
+                .refreshTokenExpiresAt(now.plusSeconds(refreshTtlFor(scope)))
                 .lastUsedAt(now)
                 .build();
         OauthSession saved = oauthSessionRepository.save(session);
@@ -324,7 +331,7 @@ public class OauthService {
     private PlayerAuthResponse rotateSession(OauthSession session) {
         Instant now = Instant.now();
         session.setRefreshToken(UUID.randomUUID().toString());
-        session.setRefreshTokenExpiresAt(now.plusSeconds(playerRefreshTokenTtl));
+        session.setRefreshTokenExpiresAt(now.plusSeconds(refreshTtlFor(session.getTokenScope())));
         session.setLastUsedAt(now);
         return buildAuthResponse(oauthSessionRepository.save(session));
     }

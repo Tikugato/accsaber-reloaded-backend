@@ -104,6 +104,7 @@ accsaber:
     refresh-token-ttl: 2592000
     player-access-token-ttl: 604800
     player-refresh-token-ttl: 2592000
+    game-refresh-token-ttl: 315360000
   service:
     api-key: ${SERVICE_API_KEY}
   impersonation:

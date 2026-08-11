@@ -88,7 +88,8 @@ public class Event {
     }
 
     public int weekOf(Instant instant) {
-        return (int) (Duration.between(startsAt, instant).toDays() / 7) + 1;
+        int week = (int) (Duration.between(startsAt, instant).toDays() / 7) + 1;
+        return Math.min(week, totalWeeks());
     }
 
     public Integer currentWeek(Instant now) {
@@ -96,6 +97,6 @@ public class Event {
     }
 
     public int totalWeeks() {
-        return (int) Math.ceil(Duration.between(startsAt, endsAt).toSeconds() / (double) (7 * 86400));
+        return Math.max(1, (int) (Duration.between(startsAt, endsAt).toDays() / 7));
     }
 }

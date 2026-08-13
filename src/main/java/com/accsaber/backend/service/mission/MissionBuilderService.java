@@ -1,8 +1,5 @@
 package com.accsaber.backend.service.mission;
 
-import com.accsaber.backend.util.Rounding;
-
-import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -31,6 +28,7 @@ import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.UserCategorySkill;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.util.Rounding;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -122,7 +120,8 @@ public class MissionBuilderService {
             }
         }
         if (log.isDebugEnabled()) {
-            log.debug("Mission slot empty user={} pool={} category={} forcedBand={} reason=all-templates-exhausted attempts={}",
+            log.debug(
+                    "Mission slot empty user={} pool={} category={} forcedBand={} reason=all-templates-exhausted attempts={}",
                     ctx.userId(), poolType, category.getCode(), forcedBand, tried);
         }
         return null;
@@ -140,10 +139,12 @@ public class MissionBuilderService {
             case ACC_ON_MAP -> buildAccOnMap(ctx, template, category, expiresAt, pool, band, rng, cache, bandForced);
             case AP_ON_MAP -> buildApOnMap(ctx, template, category, expiresAt, pool, band, rng, cache, bandForced);
             case PB_SPECIFIC_MAP -> buildPbSpecificMap(ctx, template, category, expiresAt, pool, band, rng, cache);
-            case PB_ABOVE_THRESHOLD -> buildPbAboveThreshold(ctx, template, category, expiresAt, pool, band, rng, cache);
+            case PB_ABOVE_THRESHOLD ->
+                buildPbAboveThreshold(ctx, template, category, expiresAt, pool, band, rng, cache);
             case SNIPE_PLAYER_ON_MAP -> buildSnipe(ctx, template, category, expiresAt, pool, band, rng, cache);
             case STREAK_ON_MAP -> buildStreakOnMap(ctx, template, category, expiresAt, pool, band, rng, cache);
-            case STREAK_N_IN_CATEGORY -> buildStreakNInCategory(ctx, template, category, expiresAt, pool, band, rng, cache);
+            case STREAK_N_IN_CATEGORY ->
+                buildStreakNInCategory(ctx, template, category, expiresAt, pool, band, rng, cache);
             case STREAK_SUM_N, SNIPE_RIVAL_ANY_MAP, AP_GAIN_OVERALL, BATCH_PLAY_N, PB_RANKED_BEFORE_N,
                     CAMPAIGN_COMPLETE_N ->
                 failBuild("event-only-type");
@@ -170,7 +171,7 @@ public class MissionBuilderService {
         MissionBand effectiveBand = rng.nextBoolean() ? MissionBand.easy : MissionBand.medium;
         Double multiplier = calibrationService.bandMultiplier(template, effectiveBand);
         Double rolling = ctx.rollingDailyXp() == null ? (double) (500) : ctx.rollingDailyXp();
-        int targetXp =(int) (Rounding.round(Math.max((rolling * multiplier), (double) (100)), 0));
+        int targetXp = (int) (Rounding.round(Math.max((rolling * multiplier), (double) (100)), 0));
         int xp = Math.max(50, calibrationService.computeXpReward(template,
                 skillService.skillLevelFor(ctx, category), effectiveBand, null));
         return baseBuilder(ctx, template, category, expiresAt, pool, effectiveBand)
@@ -242,7 +243,8 @@ public class MissionBuilderService {
             if (!bandForced && existing.isPresent()) {
                 Double maxWeightedAp = scoreRepository.findMaxWeightedApByUserAndCategory(
                         ctx.userId(), category.getId());
-                MissionBand derived = targetService.bandFromWeightedRatio(existing.get().getWeightedAp(), maxWeightedAp);
+                MissionBand derived = targetService.bandFromWeightedRatio(existing.get().getWeightedAp(),
+                        maxWeightedAp);
                 effectiveBand = targetService.blendBands(band, derived);
             }
 
@@ -319,7 +321,6 @@ public class MissionBuilderService {
                 .build();
     }
 
-
     Double pbAboveThresholdAvailabilityCap(List<Score> scores, MissionBand band, Double threshold) {
         if (band == MissionBand.easy || band == MissionBand.medium || scores.size() < 50) {
             return threshold;
@@ -347,11 +348,11 @@ public class MissionBuilderService {
             case hard -> 1.015;
             case extreme -> 1.02;
         };
-        Double rawThreshold =Rounding.round((anchor * thresholdShift), 0);
+        Double rawThreshold = Rounding.round((anchor * thresholdShift), 0);
         Double topAp = scores.get(0).getAp();
         Double categorySkill = skillService.skillLevelFor(ctx, category);
         Double baseHardCap = (topAp * 0.97);
-        Double hardCap =Rounding.round((band == MissionBand.extreme
+        Double hardCap = Rounding.round((band == MissionBand.extreme
                 ? baseHardCap
                 : targetService.applySkillAwareTopApNerf(baseHardCap, categorySkill)), 0);
         Double threshold = rawThreshold.compareTo(hardCap) > 0 ? hardCap : rawThreshold;
@@ -427,7 +428,7 @@ public class MissionBuilderService {
         Double snipeDistance;
         if (mine.isPresent()) {
             Double effectiveUserAp = skillService.ageAdjustedUserAp(mine.get(), skill.getTopAp());
-            snipeDistance =Math.max((target.getAp() - effectiveUserAp), 0.0);
+            snipeDistance = Math.max((target.getAp() - effectiveUserAp), 0.0);
         } else {
             snipeDistance = bandEquivalentClimb(target.getAp(), pick.complexity(), scoreCurve, band);
         }
@@ -856,8 +857,6 @@ public class MissionBuilderService {
     private Item rollItemReward(MissionTemplate template, Random rng, MissionPoolCache cache) {
         if (template.getAwardsItem() != null)
             return template.getAwardsItem();
-        if (cache.eventCrate() != null && rng.nextInt(100) < 20)
-            return cache.eventCrate();
         List<Item> pool = cache.poolableItems();
         if (pool.isEmpty())
             return null;

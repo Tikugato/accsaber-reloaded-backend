@@ -1299,7 +1299,7 @@ public class ScoreImportService {
         ScoreSaberScoreStats stats = needsStats ? fetchScoreSaberStats(ssScore) : null;
         SubmitScoreRequest request = PlatformScoreMapper.fromScoreSaber(ssScore, stats, difficulty.getId(), userId,
                 modifiers);
-        if (!ScorePayloadFields.mergeNullOnly(score, request)) {
+        if (!ScorePayloadFields.merge(score, request)) {
             return;
         }
         score.setMapDifficulty(difficulty);

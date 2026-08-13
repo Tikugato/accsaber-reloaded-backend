@@ -233,7 +233,7 @@ public class ScoreService {
                 Optional<Score> attemptMatch = findRecentCampaignAttempt(user.getId(), difficulty.getId(), request);
                 if (attemptMatch.isPresent()) {
                         Score existing = attemptMatch.get();
-                        if (ScorePayloadFields.mergeNullOnly(existing, request)) {
+                        if (ScorePayloadFields.merge(existing, request)) {
                                 scoreRepository.saveAndFlush(existing);
                         }
                         campaignEvaluationService.evaluateAfterScore(user.getId(), existing);
@@ -924,7 +924,7 @@ public class ScoreService {
 
         private ScoreResponse backfillExistingScore(Score existing, SubmitScoreRequest request,
                         MapDifficulty difficulty) {
-                if (ScorePayloadFields.mergeNullOnly(existing, request)) {
+                if (ScorePayloadFields.merge(existing, request)) {
                         scoreRepository.saveAndFlush(existing);
                         Long userId = existing.getUser().getId();
                         var evaluation = milestoneEvaluationService.evaluateAfterScore(userId, existing);

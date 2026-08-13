@@ -1,7 +1,9 @@
 package com.accsaber.backend.service.score;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.BiConsumer;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 
 import com.accsaber.backend.model.dto.request.score.SubmitScoreRequest;
@@ -15,7 +17,13 @@ final class ScorePayloadFields {
     private record Binding<T>(
             Function<SubmitScoreRequest, T> fromRequest,
             Function<Score, T> fromScore,
-            BiConsumer<Score, T> setOnScore) {
+            BiConsumer<Score, T> setOnScore,
+            BinaryOperator<T> resolve) {
+
+        Binding(Function<SubmitScoreRequest, T> fromRequest, Function<Score, T> fromScore,
+                BiConsumer<Score, T> setOnScore) {
+            this(fromRequest, fromScore, setOnScore, (current, incoming) -> current);
+        }
     }
 
     private static final List<Binding<?>> BINDINGS = List.of(
@@ -27,7 +35,8 @@ final class ScorePayloadFields {
             new Binding<>(SubmitScoreRequest::getWallHits, Score::getWallHits, Score::setWallHits),
             new Binding<>(SubmitScoreRequest::getBombHits, Score::getBombHits, Score::setBombHits),
             new Binding<>(SubmitScoreRequest::getPauses, Score::getPauses, Score::setPauses),
-            new Binding<>(SubmitScoreRequest::getStreak115, Score::getStreak115, Score::setStreak115),
+            new Binding<Integer>(SubmitScoreRequest::getStreak115, Score::getStreak115, Score::setStreak115,
+                    BinaryOperator.maxBy(Comparator.naturalOrder())),
             new Binding<>(SubmitScoreRequest::getPlayCount, Score::getPlayCount, Score::setPlayCount),
             new Binding<>(SubmitScoreRequest::getHmd, Score::getHmd, Score::setHmd),
             new Binding<>(SubmitScoreRequest::getTimeSet, Score::getTimeSet, Score::setTimeSet));
@@ -38,7 +47,7 @@ final class ScorePayloadFields {
         }
     }
 
-    static boolean mergeNullOnly(Score target, SubmitScoreRequest source) {
+    static boolean merge(Score target, SubmitScoreRequest source) {
         boolean changed = false;
         for (Binding<?> b : BINDINGS) {
             changed |= mergeOne(b, target, source);
@@ -57,14 +66,16 @@ final class ScorePayloadFields {
     }
 
     private static <T> boolean mergeOne(Binding<T> b, Score target, SubmitScoreRequest source) {
-        if (b.fromScore().apply(target) != null) {
-            return false;
-        }
         T incoming = b.fromRequest().apply(source);
         if (incoming == null) {
             return false;
         }
-        b.setOnScore().accept(target, incoming);
+        T current = b.fromScore().apply(target);
+        T resolved = current == null ? incoming : b.resolve().apply(current, incoming);
+        if (resolved.equals(current)) {
+            return false;
+        }
+        b.setOnScore().accept(target, resolved);
         return true;
     }
 

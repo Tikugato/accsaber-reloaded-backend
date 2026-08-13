@@ -46,9 +46,9 @@ jobs:
           bump=patch
           [ "${{ github.event_name }}" != "push" ] && bump=none
           case "$COMMIT_MSG" in
-            *"[SKIP]"*)    bump=none ;;
-            *"[MAJOR]"*)   bump=major ;;
-            *"[FEATURE]"*) bump=minor ;;
+            *"[SKIP]"*)  bump=none ;;
+            *"[MAJOR]"*) bump=major ;;
+            *"[MINOR]"*) bump=minor ;;
           esac
           latest=$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)
           [ -z "$latest" ] && latest="v0.0.0"

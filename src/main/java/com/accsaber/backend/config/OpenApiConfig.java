@@ -2,7 +2,9 @@ package com.accsaber.backend.config;
 
 import java.util.List;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -47,16 +49,21 @@ public class OpenApiConfig {
                         """;
 
         @Bean
-        public OpenAPI openAPI(@Value("${accsaber.domains}") List<String> domains) {
+        public OpenAPI openAPI(@Value("${accsaber.domains}") List<String> domains,
+                        ObjectProvider<BuildProperties> buildProperties) {
                 String baseUrl = isProduction()
                                 ? "https://" + domains.get(0)
                                 : "https://localhost:8080";
+
+                String version = buildProperties.getIfAvailable() != null
+                                ? buildProperties.getIfAvailable().getVersion()
+                                : "dev";
 
                 return new OpenAPI()
                                 .info(new Info()
                                                 .title("AccSaber Reloaded API")
                                                 .description(INTRO)
-                                                .version("ALPHA-6.0.0")
+                                                .version(version)
                                                 .contact(new Contact()
                                                                 .name("AccSaber Reloaded")
                                                                 .url(baseUrl)))

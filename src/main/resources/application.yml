@@ -72,6 +72,9 @@ management:
     web:
       exposure:
         include: health,info,prometheus
+  info:
+    build:
+      enabled: true
   endpoint:
     health:
       show-details: when_authorized
@@ -92,6 +95,7 @@ springdoc:
 
 accsaber:
   domains: ${ACCSABER_DOMAINS:accsaber.com,accsaberreloaded.com}
+  release-channel: ${RELEASE_CHANNEL:BETA}
   missions:
     enabled: true
   voting:
@@ -114,6 +118,7 @@ accsaber:
     disallow-all: false
   staging-gate:
     enabled: false
+    key: ${STAGING_GATE_KEY:}
   platforms:
     beatleader:
       base-url: https://api.beatleader.com

@@ -11,6 +11,11 @@ logging:
     "[com.accsaber]": DEBUG
 
 accsaber:
+  # The nightly restore at 05:00 replaces staging's data with production's, so
+  # anything that generates data has to run after it or the restore eats it.
+  scheduler:
+    mission-daily-cron: "0 0 6 * * *"
+    mission-weekly-cron: "0 5 6 * * MON"
   robots:
     disallow-all: true
   staging-gate:

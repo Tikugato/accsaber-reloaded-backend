@@ -11,7 +11,7 @@
 
 	<groupId>com.accsaber</groupId>
 	<artifactId>backend</artifactId>
-	<version>ALPHA-5.0.0</version>
+	<version>0.0.0-SNAPSHOT</version>
 	<name>AccSaber Reloaded Backend</name>
 	<description>REST API for Beat Saber accuracy leaderboard platform</description>
 
@@ -231,6 +231,13 @@
 						</exclude>
 					</excludes>
 				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>build-info</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

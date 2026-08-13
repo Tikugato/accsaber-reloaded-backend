@@ -132,6 +132,8 @@ src/main/resources/
 | `BACKFILL_STARTUP_DELAY_SECONDS` | No | How long to wait after boot before the startup gap-fill runs. Gives the app a moment to come up and start serving before a couple of days of backfill lands on it. |
 | `IMPERSONATION_ENABLED`   | No   | Turns on the staff endpoint that mints a player token for any account, so you can browse as that player. Only works when the `staging` profile is active, and the app refuses to start if you enable it anywhere else. Defaults to off. |
 | `IMPERSONATION_TOKEN_TTL` | No   | How many seconds an impersonation token stays valid. Defaults to 3600. |
+| `STAGING_GATE_KEY`      | No   | Shared secret that opens the staging gate without a staff login. The frontend Worker sends it as an `X-Staging-Key` header when it proxies calls through, so the browser never sees it and it never collides with a player or staff `Authorization` header. Leave blank outside staging. |
+| `RELEASE_CHANNEL`         | No   | The label shown next to the version, like `BETA` or `RC`. It comes back from `/v1/health/ping` so the site can show which build people are on. Leave it blank once a version is a proper release and the label disappears. Defaults to `BETA`. |
 | `CDN_UPLOAD_MAX_DIMENSION`| No   | Pixel cap for **uploaded** content (campaign bg/icon, item icon, user-uploaded avatar). Default 4096. Effectively unconstrained; admin/user controls dimension. |
 | `CDN_MAX_UPLOAD_BYTES`    | No   | Hard ceiling on uploaded file size in bytes. Default 10485760 (10 MB). |
 | `CDN_BACKFILL_DELAY_MS`   | No   | Throttle between tasks in the avatar/cover backfill loop. Default 0 (no throttle). Set higher to gentle the system or upstream APIs. |

@@ -2,12 +2,14 @@ package com.accsaber.backend.security;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,9 +35,13 @@ public class StagingGateFilter extends OncePerRequestFilter {
 
     private static final Duration CACHE_TTL = Duration.ofMinutes(15);
     private static final String REALM = "AccSaber staging - sign in with your staff account";
+    public static final String KEY_HEADER = "X-Staging-Key";
 
     private final StaffUserRepository staffUserRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${accsaber.staging-gate.key:}")
+    private String gateKey;
 
     private final Map<String, Instant> accepted = new ConcurrentHashMap<>();
 
@@ -44,12 +50,17 @@ public class StagingGateFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         return path.startsWith("/actuator/health")
                 || path.equals("/v1/health/ping")
-                || path.equals("/robots.txt");
+                || path.equals("/robots.txt")
+                || path.startsWith("/ws/");
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+        if (hasValidKey(request)) {
+            chain.doFilter(request, response);
+            return;
+        }
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Basic ") && isStaff(header.substring(6))) {
             chain.doFilter(request, response);
@@ -57,6 +68,19 @@ public class StagingGateFilter extends OncePerRequestFilter {
         }
         response.setHeader("WWW-Authenticate", "Basic realm=\"" + REALM + "\", charset=\"UTF-8\"");
         response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Staging is restricted to AccSaber staff.");
+    }
+
+    private boolean hasValidKey(HttpServletRequest request) {
+        if (gateKey == null || gateKey.isBlank()) {
+            return false;
+        }
+        String presented = request.getHeader(KEY_HEADER);
+        if (presented == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                presented.getBytes(StandardCharsets.UTF_8),
+                gateKey.getBytes(StandardCharsets.UTF_8));
     }
 
     private boolean isStaff(String encoded) {

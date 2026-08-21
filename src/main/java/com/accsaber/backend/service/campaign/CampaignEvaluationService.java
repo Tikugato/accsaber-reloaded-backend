@@ -946,7 +946,8 @@ public class CampaignEvaluationService {
         for (CampaignDifficultyItem item : items) {
             itemService.awardSystem(userId, item.getItem().getId(), ItemSource.campaign_difficulty,
                     difficulty.getId().toString(),
-                    "Campaign difficulty cleared: " + difficulty.getCampaign().getName());
+                    "Campaign difficulty cleared: " + difficulty.getCampaign().getName(),
+                    item.getQuantity());
         }
     }
 
@@ -958,7 +959,8 @@ public class CampaignEvaluationService {
         List<CampaignCompletionItem> items = campaignCompletionItemRepository.findByCampaign_Id(campaign.getId());
         for (CampaignCompletionItem item : items) {
             itemService.awardSystem(userId, item.getItem().getId(), ItemSource.campaign_completion,
-                    campaign.getId().toString(), "Campaign completed: " + campaign.getName());
+                    campaign.getId().toString(), "Campaign completed: " + campaign.getName(),
+                    item.getQuantity());
         }
     }
 

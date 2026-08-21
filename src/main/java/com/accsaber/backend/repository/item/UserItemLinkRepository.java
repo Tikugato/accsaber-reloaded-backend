@@ -60,7 +60,7 @@ public interface UserItemLinkRepository extends JpaRepository<UserItemLink, UUID
 
         boolean existsByUser_IdAndItem_Id(Long userId, UUID itemId);
 
-        boolean existsByUser_IdAndItem_IdAndSourceAndSourceId(Long userId, UUID itemId, ItemSource source,
+        long countByUser_IdAndItem_IdAndSourceAndSourceId(Long userId, UUID itemId, ItemSource source,
                         String sourceId);
 
         @Query("""

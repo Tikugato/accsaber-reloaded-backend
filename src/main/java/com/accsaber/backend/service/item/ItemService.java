@@ -599,6 +599,15 @@ public class ItemService {
 
     @Transactional
     public void awardSystem(Long userId, UUID itemId, ItemSource source, String sourceId, String reason) {
+        awardSystem(userId, itemId, source, sourceId, reason, 1);
+    }
+
+    @Transactional
+    public void awardSystem(Long userId, UUID itemId, ItemSource source, String sourceId, String reason,
+            int quantity) {
+        if (quantity < 1)
+            return;
+
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
         if (!userRepository.existsById(resolved))
             return;
@@ -611,16 +620,16 @@ public class ItemService {
             if (item.isUniquePerUser() && userItemLinkRepository.existsByUser_IdAndItem_Id(resolved, itemId)) {
                 return;
             }
-            if (userItemLinkRepository.existsByUser_IdAndItem_IdAndSourceAndSourceId(
-                    resolved, itemId, source, sourceId)) {
+            long target = item.isUniquePerUser() ? 1L : quantity;
+            long shortfall = target - userItemLinkRepository
+                    .countByUser_IdAndItem_IdAndSourceAndSourceId(resolved, itemId, source, sourceId);
+            if (shortfall < 1)
                 return;
-            }
-            insertLink(resolved, item, Set.of(loadModifier(ItemModifier.NORMAL)),
-                    null, 1L, source, sourceId, null, reason);
+            awardOrMerge(resolved, item, null, shortfall, source, sourceId, null, reason);
             return;
         }
 
-        awardOrMerge(resolved, item, null, 1L, source, sourceId, null, reason);
+        awardOrMerge(resolved, item, null, quantity, source, sourceId, null, reason);
     }
 
     @Transactional
@@ -725,16 +734,21 @@ public class ItemService {
             return insertLink(userId, item, modifiers, null, quantity, source, sourceId, staff, reason);
         }
 
-        if (!item.isSerialized()) {
-            Set<ItemModifier> modifiers = explicitModifiers != null
-                    ? explicitModifiers
-                    : Set.of(loadModifier(ItemModifier.NORMAL));
-            return insertLink(userId, item, modifiers, null, 1L, source, sourceId, staff, reason);
-        }
+        return insertInstancedCopies(userId, item, explicitModifiers, quantity, source, sourceId, staff, reason);
+    }
 
-        long serial = issueSerial(item.getId());
-        Set<ItemModifier> modifiers = resolveInstancedModifiers(explicitModifiers, serial);
-        return insertLink(userId, item, modifiers, serial, 1L, source, sourceId, staff, reason);
+    private UserItemLink insertInstancedCopies(Long userId, Item item, Set<ItemModifier> explicitModifiers,
+            long quantity, ItemSource source, String sourceId, StaffUser staff, String reason) {
+        UserItemLink last = null;
+        for (long i = 0; i < quantity; i++) {
+            Long serial = item.isSerialized() ? issueSerial(item.getId()) : null;
+            Set<ItemModifier> modifiers = serial != null
+                    ? resolveInstancedModifiers(explicitModifiers, serial)
+                    : (explicitModifiers != null ? explicitModifiers : Set.of(loadModifier(ItemModifier.NORMAL)));
+            last = createLink(userId, item, modifiers, serial, 1L, source, sourceId, staff, reason);
+        }
+        notifyItemEarned(userId, last, quantity, source);
+        return last;
     }
 
     private Set<ItemModifier> resolveInstancedModifiers(Set<ItemModifier> explicit, long serial) {
@@ -753,6 +767,13 @@ public class ItemService {
 
     private UserItemLink insertLink(Long userId, Item item, Set<ItemModifier> modifiers, Long serial, long quantity,
             ItemSource source, String sourceId, StaffUser staff, String reason) {
+        UserItemLink saved = createLink(userId, item, modifiers, serial, quantity, source, sourceId, staff, reason);
+        notifyItemEarned(userId, saved, quantity, source);
+        return saved;
+    }
+
+    private UserItemLink createLink(Long userId, Item item, Set<ItemModifier> modifiers, Long serial, long quantity,
+            ItemSource source, String sourceId, StaffUser staff, String reason) {
         if (item.isUniquePerUser() && userItemLinkRepository.existsByUser_IdAndItem_Id(userId, item.getId())) {
             throw new ConflictException("Player already owns '" + item.getName() + "', which is a unique item");
         }
@@ -767,9 +788,7 @@ public class ItemService {
                 .awardedBy(staff)
                 .reason(reason)
                 .build();
-        UserItemLink saved = userItemLinkRepository.save(link);
-        notifyItemEarned(userId, saved, quantity, source);
-        return saved;
+        return userItemLinkRepository.save(link);
     }
 
     private void notifyItemEarned(Long userId, UserItemLink link, long quantity, ItemSource source) {

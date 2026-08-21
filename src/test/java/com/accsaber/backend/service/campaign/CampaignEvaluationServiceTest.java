@@ -788,6 +788,48 @@ class CampaignEvaluationServiceTest {
                 verify(userCampaignScoreRepository, never()).save(any());
         }
 
+        @Test
+        void maxPausesAcceptsAPauselessRun() {
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.PAUSES, null, 0.0);
+                stubNodeRecordable();
+
+                service.evaluateAfterScore(user.getId(), pauseScore(mdA, 0));
+
+                verifyNodeRecorded();
+        }
+
+        @Test
+        void maxPausesRejectsWhenOverTheLimit() {
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.PAUSES, null, 2.0);
+
+                service.evaluateAfterScore(user.getId(), pauseScore(mdA, 3));
+
+                verify(userCampaignScoreRepository, never()).save(any());
+        }
+
+        @Test
+        void pausesRangeRejectsBelowTheLowerBound() {
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.PAUSES, 1.0, 3.0);
+
+                service.evaluateAfterScore(user.getId(), pauseScore(mdA, 0));
+
+                verify(userCampaignScoreRepository, never()).save(any());
+        }
+
+        @Test
+        void pausesRequirementRejectsScoreSaberScoreWithNoPauseData() {
+                MapDifficulty mdA = stubBoundedNode(CampaignRequirementType.PAUSES, null, 2.0);
+
+                service.evaluateAfterScore(user.getId(), pauseScore(mdA, null));
+
+                verify(userCampaignScoreRepository, never()).save(any());
+        }
+
+        private Score pauseScore(MapDifficulty mdA, Integer pauses) {
+                return Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
+                                .score(900000).scoreNoMods(900000).pauses(pauses).timeSet(PLAYED).build();
+        }
+
         private Score bombScore(MapDifficulty mdA, Integer bombHits) {
                 return Score.builder().id(UUID.randomUUID()).user(user).mapDifficulty(mdA)
                                 .score(900000).scoreNoMods(900000).bombHits(bombHits).timeSet(PLAYED).build();

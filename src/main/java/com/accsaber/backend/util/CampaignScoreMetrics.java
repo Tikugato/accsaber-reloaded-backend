@@ -53,6 +53,7 @@ public final class CampaignScoreMetrics {
             case COMBO -> toDecimal(score.getMaxCombo());
             case BOMB_HITS -> toDecimal(score.getBombHits());
             case MISTAKES -> toDecimal(mistakes(score));
+            case PAUSES -> toDecimal(score.getPauses());
         };
     }
 
@@ -187,6 +188,7 @@ public final class CampaignScoreMetrics {
             case AVERAGE_COMBO -> toDecimal(bests.bestCombo());
             case AVERAGE_BOMB_HITS -> toDecimal(bests.fewestBombHits());
             case AVERAGE_MISTAKES -> toDecimal(bests.fewestMistakes());
+            case AVERAGE_PAUSES -> toDecimal(bests.fewestPauses());
             case FC, COMPLETION_COUNT, PASS -> null;
         };
     }
@@ -251,12 +253,14 @@ public final class CampaignScoreMetrics {
         Integer bestCombo = null;
         Integer fewestBombHits = null;
         Integer fewestMistakes = null;
+        Integer fewestPauses = null;
         int fcFlag = 0;
         int noNfFlag = 0;
         for (Score s : rows) {
             bestCombo = maxOf(bestCombo, s.getMaxCombo());
             fewestBombHits = minOf(fewestBombHits, s.getBombHits());
             fewestMistakes = minOf(fewestMistakes, mistakes(s));
+            fewestPauses = minOf(fewestPauses, s.getPauses());
             bestScore = maxOf(bestScore, s.getScore());
             bestScoreNoMods = maxOf(bestScoreNoMods, s.getScoreNoMods());
             if (bestAp == null || s.getAp() > bestAp) {
@@ -278,7 +282,7 @@ public final class CampaignScoreMetrics {
         }
         return new UserMapDifficultyBests(mapDifficultyId, maxScore, bestScore, bestScoreNoMods,
                 bestAp, bestStreak115, bestRank, fcFlag, noNfFlag, bestCombo, fewestBombHits,
-                fewestMistakes);
+                fewestMistakes, fewestPauses);
     }
 
     private static Integer maxOf(Integer current, Integer candidate) {

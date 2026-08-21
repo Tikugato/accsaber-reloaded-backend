@@ -10,7 +10,8 @@ public enum CampaignRequirementType {
     PASS,
     COMBO,
     BOMB_HITS,
-    MISTAKES;
+    MISTAKES,
+    PAUSES;
 
     public boolean isLowerBetter() {
         return this == RANK;

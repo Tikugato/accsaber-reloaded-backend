@@ -61,11 +61,9 @@ jobs:
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
           COOLIFY_UUID: ${{ secrets.COOLIFY_STAGING_UUID }}
         run: |
-          if [ -z "${COOLIFY_UUID}" ]; then
-            echo "COOLIFY_STAGING_UUID is not set, so the staging stack does not exist yet."
-            echo "The image was still pushed and is ready to pull once it does."
-            exit 0
-          fi
+          : "${COOLIFY_URL:?is empty, staging was not redeployed}"
+          : "${COOLIFY_TOKEN:?is empty, staging was not redeployed}"
+          : "${COOLIFY_UUID:?COOLIFY_STAGING_UUID is empty, staging was not redeployed}"
           curl --fail-with-body -sS -X GET \
             -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
             "${COOLIFY_URL%/}/api/v1/deploy?uuid=${COOLIFY_UUID}&force=false"

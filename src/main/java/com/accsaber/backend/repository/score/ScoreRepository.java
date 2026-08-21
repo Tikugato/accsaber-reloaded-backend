@@ -233,13 +233,13 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         JOIN FETCH s.user u
                         WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
                         AND u.active = true AND u.banned = false
-                        AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                        AND u.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """, countQuery = """
                         SELECT COUNT(s) FROM Score s
                         JOIN s.user u
                         WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
                         AND u.active = true AND u.banned = false
-                        AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                        AND u.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """)
         Page<Score> findByMapDifficultyIdAndActiveTrueWithUserAndSearch(
                         @Param("mapDifficultyId") UUID mapDifficultyId,
@@ -252,14 +252,14 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
                         AND u.active = true AND u.banned = false
                         AND u.country = :country
-                        AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                        AND u.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """, countQuery = """
                         SELECT COUNT(s) FROM Score s
                         JOIN s.user u
                         WHERE s.mapDifficulty.id = :mapDifficultyId AND s.active = true
                         AND u.active = true AND u.banned = false
                         AND u.country = :country
-                        AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                        AND u.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """)
         Page<Score> findByMapDifficultyIdAndActiveTrueWithUserAndCountryAndSearch(
                         @Param("mapDifficultyId") UUID mapDifficultyId,
@@ -274,7 +274,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         AND u.active = true AND u.banned = false
                         AND u.id IN :userIds
                         AND (CAST(:country AS string) IS NULL OR u.country = CAST(:country AS string))
-                        AND (CAST(:search AS string) IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
+                        AND (CAST(:search AS string) IS NULL OR u.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')))
                         """, countQuery = """
                         SELECT COUNT(s) FROM Score s
                         JOIN s.user u
@@ -282,7 +282,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         AND u.active = true AND u.banned = false
                         AND u.id IN :userIds
                         AND (CAST(:country AS string) IS NULL OR u.country = CAST(:country AS string))
-                        AND (CAST(:search AS string) IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
+                        AND (CAST(:search AS string) IS NULL OR u.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')))
                         """)
         Page<Score> findByMapDifficultyIdAndActiveTrueWithUserFilteredByUserIds(
                         @Param("mapDifficultyId") UUID mapDifficultyId,
@@ -509,7 +509,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         SELECT s FROM Score s
                         WHERE s.user.id = :userId
                         AND s.active = true
-                        AND LOWER(s.mapDifficulty.map.songName) LIKE LOWER(CONCAT('%', :search, '%'))
+                        AND search_normalize(s.mapDifficulty.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
                         """)
         Page<Score> findActiveByUserAndSongNameSearch(
                         @Param("userId") Long userId,
@@ -521,7 +521,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         WHERE s.user.id = :userId
                         AND s.mapDifficulty.category.id = :categoryId
                         AND s.active = true
-                        AND LOWER(s.mapDifficulty.map.songName) LIKE LOWER(CONCAT('%', :search, '%'))
+                        AND search_normalize(s.mapDifficulty.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
                         """)
         Page<Score> findActiveByUserAndCategoryAndSongNameSearch(
                         @Param("userId") Long userId,
@@ -556,7 +556,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         JOIN FETCH s.user u
                         WHERE s.user.id IN :userIds
                         AND s.active = true
-                        AND LOWER(s.mapDifficulty.map.songName) LIKE LOWER(CONCAT('%', :search, '%'))
+                        AND search_normalize(s.mapDifficulty.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
                         """)
         Page<Score> findActiveByUsersAndSongNameSearch(
                         @Param("userIds") java.util.Collection<Long> userIds,
@@ -569,7 +569,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         WHERE s.user.id IN :userIds
                         AND s.mapDifficulty.category.id = :categoryId
                         AND s.active = true
-                        AND LOWER(s.mapDifficulty.map.songName) LIKE LOWER(CONCAT('%', :search, '%'))
+                        AND search_normalize(s.mapDifficulty.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
                         """)
         Page<Score> findActiveByUsersAndCategoryAndSongNameSearch(
                         @Param("userIds") java.util.Collection<Long> userIds,

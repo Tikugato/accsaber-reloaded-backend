@@ -75,9 +75,9 @@ public interface MapRepository extends JpaRepository<Map, UUID> {
         @Query(value = """
                         SELECT m FROM Map m
                         WHERE m.active = true
-                        AND (LOWER(m.songName) LIKE LOWER(CONCAT('%', :search, '%'))
-                             OR LOWER(m.songAuthor) LIKE LOWER(CONCAT('%', :search, '%'))
-                             OR LOWER(m.mapAuthor) LIKE LOWER(CONCAT('%', :search, '%')))
+                        AND (search_normalize(m.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                             OR search_normalize(m.songAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                             OR search_normalize(m.mapAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         AND m.id IN (
                                 SELECT DISTINCT d.map.id FROM MapDifficulty d
                                 WHERE d.active = true
@@ -93,9 +93,9 @@ public interface MapRepository extends JpaRepository<Map, UUID> {
                         AND (:categoryId IS NULL OR d.category.id = :categoryId)
                         AND ((:status IS NULL AND d.status <> com.accsaber.backend.model.entity.map.MapDifficultyStatus.CAMPAIGN)
                              OR d.status = :status)
-                        AND (LOWER(m.songName) LIKE LOWER(CONCAT('%', :search, '%'))
-                             OR LOWER(m.songAuthor) LIKE LOWER(CONCAT('%', :search, '%'))
-                             OR LOWER(m.mapAuthor) LIKE LOWER(CONCAT('%', :search, '%')))
+                        AND (search_normalize(m.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                             OR search_normalize(m.songAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                             OR search_normalize(m.mapAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """)
         Page<Map> findByDifficultyFiltersWithSearch(
                         @Param("categoryId") UUID categoryId,

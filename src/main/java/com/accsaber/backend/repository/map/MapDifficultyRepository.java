@@ -267,9 +267,9 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         AND (:excludeUserId IS NULL OR NOT EXISTS (
                                 SELECT 1 FROM Score s
                                 WHERE s.mapDifficulty = d AND s.user.id = :excludeUserId AND s.active = true))
-                        AND (LOWER(d.map.songName) LIKE LOWER(CONCAT('%', :search, '%'))
-                        OR LOWER(d.map.songAuthor) LIKE LOWER(CONCAT('%', :search, '%'))
-                        OR LOWER(d.map.mapAuthor) LIKE LOWER(CONCAT('%', :search, '%')))
+                        AND (search_normalize(d.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        OR search_normalize(d.map.songAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        OR search_normalize(d.map.mapAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """, countQuery = """
                         SELECT COUNT(d) FROM MapDifficulty d
                         LEFT JOIN MapDifficultyComplexity c ON c.mapDifficulty = d AND c.active = true
@@ -284,9 +284,9 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         AND (:excludeUserId IS NULL OR NOT EXISTS (
                                 SELECT 1 FROM Score s
                                 WHERE s.mapDifficulty = d AND s.user.id = :excludeUserId AND s.active = true))
-                        AND (LOWER(d.map.songName) LIKE LOWER(CONCAT('%', :search, '%'))
-                        OR LOWER(d.map.songAuthor) LIKE LOWER(CONCAT('%', :search, '%'))
-                        OR LOWER(d.map.mapAuthor) LIKE LOWER(CONCAT('%', :search, '%')))
+                        AND (search_normalize(d.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        OR search_normalize(d.map.songAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        OR search_normalize(d.map.mapAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """)
         Page<MapDifficulty> findWithComplexityFiltersWithSearch(
                         @Param("categoryId") UUID categoryId,

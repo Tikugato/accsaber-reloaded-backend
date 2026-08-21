@@ -70,12 +70,12 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
                           AND (:official IS NULL OR c.official = :official)
                           AND (:loved IS NULL OR c.loved = :loved)
                           AND (CAST(:search AS string) IS NULL
-                              OR LOWER(c.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))
-                              OR LOWER(c.creator.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))
+                              OR search_normalize(c.name) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                              OR c.creator.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                               OR EXISTS (
                                   SELECT 1 FROM CampaignCollaborator sc
                                   WHERE sc.campaign = c AND sc.active = true AND sc.status = :collaboratorStatus
-                                    AND LOWER(sc.user.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))))
+                                    AND sc.user.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))))
                         """)
         Page<Campaign> findFiltered(
                         @Param("hasStatus") boolean hasStatus,

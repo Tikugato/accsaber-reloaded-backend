@@ -112,7 +112,8 @@ public interface CampaignLeaderboardRepository extends JpaRepository<UserCampaig
             WHERE uc.campaign_id = :campaignId AND uc.active = true AND uc.status <> 'abandoned'
               AND u.active = true AND u.banned = false
               AND (CAST(:search AS text) IS NULL
-                   OR LOWER(u.name) LIKE LOWER('%' || CAST(:search AS text) || '%'))
+                   OR u.id IN (SELECT sn.user_id FROM user_search_names sn
+                              WHERE sn.search_name LIKE '%' || search_normalize(CAST(:search AS text)) || '%'))
             ORDER BY (uc.status = 'completed') DESC, completed_nodes DESC, uc.completed_at ASC NULLS LAST
             """,
             countQuery = """
@@ -121,7 +122,8 @@ public interface CampaignLeaderboardRepository extends JpaRepository<UserCampaig
             WHERE uc.campaign_id = :campaignId AND uc.active = true AND uc.status <> 'abandoned'
               AND u.active = true AND u.banned = false
               AND (CAST(:search AS text) IS NULL
-                   OR LOWER(u.name) LIKE LOWER('%' || CAST(:search AS text) || '%'))
+                   OR u.id IN (SELECT sn.user_id FROM user_search_names sn
+                              WHERE sn.search_name LIKE '%' || search_normalize(CAST(:search AS text)) || '%'))
             """,
             nativeQuery = true)
     Page<Object[]> progress(@Param("campaignId") UUID campaignId, @Param("search") String search, Pageable pageable);

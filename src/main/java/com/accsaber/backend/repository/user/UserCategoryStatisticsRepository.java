@@ -186,14 +186,14 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                         SELECT s FROM UserCategoryStatistics s
                         JOIN FETCH s.user u
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
-                        AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                        AND u.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         AND (:includeInactive = true OR u.playerInactive = false)
                         AND (:hmd IS NULL OR EXISTS (SELECT 1 FROM Score sc WHERE sc.user = u AND sc.active = true AND sc.hmd = :hmd AND NOT EXISTS (SELECT 1 FROM Score sc3 WHERE sc3.user = u AND sc3.active = true AND sc3.timeSet > sc.timeSet)))
                         """, countQuery = """
                         SELECT COUNT(s) FROM UserCategoryStatistics s
                         JOIN s.user u
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
-                        AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                        AND u.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         AND (:includeInactive = true OR u.playerInactive = false)
                         AND (:hmd IS NULL OR EXISTS (SELECT 1 FROM Score sc WHERE sc.user = u AND sc.active = true AND sc.hmd = :hmd AND NOT EXISTS (SELECT 1 FROM Score sc3 WHERE sc3.user = u AND sc3.active = true AND sc3.timeSet > sc.timeSet)))
                         """)
@@ -231,7 +231,7 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                         JOIN FETCH s.user u
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
                         AND LOWER(u.country) = LOWER(:country)
-                        AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                        AND u.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         AND (:includeInactive = true OR u.playerInactive = false)
                         AND (:hmd IS NULL OR EXISTS (SELECT 1 FROM Score sc WHERE sc.user = u AND sc.active = true AND sc.hmd = :hmd AND NOT EXISTS (SELECT 1 FROM Score sc3 WHERE sc3.user = u AND sc3.active = true AND sc3.timeSet > sc.timeSet)))
                         """, countQuery = """
@@ -239,7 +239,7 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                         JOIN s.user u
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
                         AND LOWER(u.country) = LOWER(:country)
-                        AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                        AND u.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         AND (:includeInactive = true OR u.playerInactive = false)
                         AND (:hmd IS NULL OR EXISTS (SELECT 1 FROM Score sc WHERE sc.user = u AND sc.active = true AND sc.hmd = :hmd AND NOT EXISTS (SELECT 1 FROM Score sc3 WHERE sc3.user = u AND sc3.active = true AND sc3.timeSet > sc.timeSet)))
                         """)
@@ -257,7 +257,7 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
                         AND u.id IN :userIds
                         AND (CAST(:country AS string) IS NULL OR LOWER(u.country) = LOWER(CAST(:country AS string)))
-                        AND (CAST(:search AS string) IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
+                        AND (CAST(:search AS string) IS NULL OR u.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')))
                         AND (:includeInactive = true OR u.playerInactive = false)
                         AND (CAST(:hmd AS string) IS NULL OR EXISTS (SELECT 1 FROM Score sc WHERE sc.user = u AND sc.active = true AND sc.hmd = CAST(:hmd AS string) AND NOT EXISTS (SELECT 1 FROM Score sc3 WHERE sc3.user = u AND sc3.active = true AND sc3.timeSet > sc.timeSet)))
                         """, countQuery = """
@@ -266,7 +266,7 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                         WHERE s.category.id = :categoryId AND s.active = true AND u.active = true AND u.banned = false
                         AND u.id IN :userIds
                         AND (CAST(:country AS string) IS NULL OR LOWER(u.country) = LOWER(CAST(:country AS string)))
-                        AND (CAST(:search AS string) IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
+                        AND (CAST(:search AS string) IS NULL OR u.id IN (SELECT sn.userId FROM UserSearchName sn WHERE sn.searchName LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')))
                         AND (:includeInactive = true OR u.playerInactive = false)
                         AND (CAST(:hmd AS string) IS NULL OR EXISTS (SELECT 1 FROM Score sc WHERE sc.user = u AND sc.active = true AND sc.hmd = CAST(:hmd AS string) AND NOT EXISTS (SELECT 1 FROM Score sc3 WHERE sc3.user = u AND sc3.active = true AND sc3.timeSet > sc.timeSet)))
                         """)

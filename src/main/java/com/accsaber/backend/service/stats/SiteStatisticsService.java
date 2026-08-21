@@ -735,7 +735,8 @@ public class SiteStatisticsService {
                                     + " WHERE lm.user_item_link_id = l.id AND im.key IN (:modifiers)) = :modifierCount";
             }
             if (search != null && !search.isBlank()) {
-                    sql += " AND LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))";
+                    sql += " AND u.id IN (SELECT sn.user_id FROM user_search_names sn"
+                                    + " WHERE sn.search_name LIKE CONCAT('%', search_normalize(:search), '%'))";
             }
             sql += " GROUP BY u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country ORDER BY " + holderOrderBy(sort);
 

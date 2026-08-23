@@ -39,6 +39,8 @@ public interface StaffUserRepository extends JpaRepository<StaffUser, UUID> {
     List<StaffUser> findByUserIdAndRoleInAndStatusAndActiveTrue(
             Long userId, Collection<StaffRole> roles, StaffUserStatus status);
 
+    List<StaffUser> findByUserIdAndStatusAndActiveTrue(Long userId, StaffUserStatus status);
+
     boolean existsByUserIdAndActiveTrue(Long userId);
 
     List<StaffUser> findAllByActiveTrue();

@@ -134,7 +134,9 @@ public class OauthController {
     @Operation(summary = "Sign in from inside the game", description = "How the game plugin authenticates, since it has no "
             + "browser to run a redirect flow in. It hands over a platform ticket from Steam or Oculus and gets a player token "
             + "back. Tokens minted here are the only ones allowed to submit scores, so a token from the website will be turned "
-            + "away by the submit route.")
+            + "away by the submit route. The answer also carries roles, every staff role the player holds, so a build of the "
+            + "plugin can show staff only options. It is a hint for the interface and nothing more, the roles it lists do not "
+            + "grant the token any extra power on its own.")
     @PostMapping("/ingame")
     public ResponseEntity<PlayerAuthResponse> ingame(@Valid @RequestBody IngameAuthRequest request) {
         if (!INGAME_TICKET_PROVIDERS.contains(request.getProvider())) {

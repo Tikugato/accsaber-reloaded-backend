@@ -338,9 +338,10 @@ public class OauthService {
 
     private PlayerAuthResponse buildAuthResponse(OauthSession session) {
         Long userId = session.getUser().getId();
-        StaffUser oauthStaff = staffUserRepository
-                .findByUserIdAndRoleInAndStatusAndActiveTrue(userId, OAUTH_ELIGIBLE_ROLES, StaffUserStatus.ACCEPTED)
-                .stream()
+        List<StaffUser> staffRows = staffUserRepository
+                .findByUserIdAndStatusAndActiveTrue(userId, StaffUserStatus.ACCEPTED);
+        StaffUser oauthStaff = staffRows.stream()
+                .filter(staff -> OAUTH_ELIGIBLE_ROLES.contains(staff.getRole()))
                 .min(HIGHEST_ROLE_FIRST)
                 .orElse(null);
 
@@ -354,6 +355,7 @@ public class OauthService {
                 .refreshToken(session.getRefreshToken())
                 .expiresIn(jwtService.getPlayerAccessTokenTtl())
                 .userId(String.valueOf(userId))
+                .roles(staffRows.stream().map(StaffUser::getRole).distinct().sorted().toList())
                 .build();
     }
 

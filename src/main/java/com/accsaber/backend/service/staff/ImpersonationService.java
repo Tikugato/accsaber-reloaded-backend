@@ -7,7 +7,10 @@ import org.springframework.stereotype.Service;
 
 import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.response.PlayerAuthResponse;
+import com.accsaber.backend.model.entity.staff.StaffUser;
+import com.accsaber.backend.model.entity.staff.StaffUserStatus;
 import com.accsaber.backend.model.entity.user.User;
+import com.accsaber.backend.repository.staff.StaffUserRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 
 import jakarta.annotation.PostConstruct;
@@ -21,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ImpersonationService {
 
     private final UserRepository userRepository;
+    private final StaffUserRepository staffUserRepository;
     private final JwtService jwtService;
     private final Environment environment;
 
@@ -52,6 +56,13 @@ public class ImpersonationService {
                 .accessToken(jwtService.generatePlayerAccessToken(user.getId(), "impersonation"))
                 .expiresIn(tokenTtl)
                 .userId(String.valueOf(user.getId()))
+                .roles(staffUserRepository
+                        .findByUserIdAndStatusAndActiveTrue(user.getId(), StaffUserStatus.ACCEPTED)
+                        .stream()
+                        .map(StaffUser::getRole)
+                        .distinct()
+                        .sorted()
+                        .toList())
                 .build();
     }
 }

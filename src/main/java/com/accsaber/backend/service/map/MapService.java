@@ -81,10 +81,10 @@ public class MapService {
     record VoteSummary(int rankUpvotes, int rankDownvotes, int rankNeutrals, int criteriaUpvotes,
             int criteriaDownvotes,
             VoteType headCriteriaVote, int reweightUpvotes, int reweightDownvotes,
-            int unrankUpvotes, int unrankDownvotes, Double averageVoteComplexity) {
+            int unrankUpvotes, int unrankDownvotes, Double averageVoteComplexity, int commentCount) {
     }
 
-    private static final VoteSummary EMPTY_SUMMARY = new VoteSummary(0, 0, 0, 0, 0, null, 0, 0, 0, 0, null);
+    private static final VoteSummary EMPTY_SUMMARY = new VoteSummary(0, 0, 0, 0, 0, null, 0, 0, 0, 0, null, 0);
 
     public Page<PublicMapResponse> findAllPublic(UUID categoryId, MapDifficultyStatus status, String search,
             Pageable pageable) {
@@ -229,6 +229,10 @@ public class MapService {
             + " - (SELECT COUNT(v2) FROM StaffMapVote v2 WHERE v2.mapDifficulty = d"
             + " AND v2.type = 'rank' AND v2.vote = 'downvote' AND v2.active = true))";
 
+    private static final String COMMENT_COUNT_SUBQUERY = "(SELECT COUNT(v3) FROM StaffMapVote v3"
+            + " WHERE v3.mapDifficulty = d AND v3.active = true"
+            + " AND v3.reason IS NOT NULL AND TRIM(v3.reason) <> '')";
+
     private Pageable resolveDifficultySort(Pageable pageable) {
         if (!pageable.getSort().isSorted()) {
             return pageable;
@@ -237,6 +241,8 @@ public class MapService {
         for (Sort.Order order : pageable.getSort()) {
             if ("rating".equals(order.getProperty())) {
                 resolved = resolved.and(JpaSort.unsafe(order.getDirection(), RANK_RATING_SUBQUERY));
+            } else if ("commentCount".equals(order.getProperty())) {
+                resolved = resolved.and(JpaSort.unsafe(order.getDirection(), COMMENT_COUNT_SUBQUERY));
             } else {
                 String mapped = JPQL_SORT_MAPPING.get(order.getProperty());
                 if (mapped != null) {
@@ -562,7 +568,7 @@ public class MapService {
         MapDifficultyStatisticsResponse stats = statisticsService.findActive(difficultyId).orElse(null);
         StaffInfo info = resolveStaffInfo(difficulty.getLastUpdatedBy());
         Double avgComplexity = loadAvgReweightComplexity(List.of(difficultyId)).get(difficultyId);
-        VoteSummary votes = new VoteSummary(0, 0, 0, 0, 0, null, 0, 0, 0, 0, avgComplexity);
+        VoteSummary votes = new VoteSummary(0, 0, 0, 0, 0, null, 0, 0, 0, 0, avgComplexity, 0);
         return toDifficultyResponse(difficulty, complexity, stats, info, null, votes);
     }
 
@@ -686,6 +692,11 @@ public class MapService {
 
         java.util.Map<UUID, Double> avgComplexities = loadAvgReweightComplexity(difficultyIds);
 
+        java.util.Map<UUID, Integer> commentCounts = new java.util.HashMap<>();
+        for (Object[] row : voteRepository.countCommentsByDifficultyIds(difficultyIds)) {
+            commentCounts.put((UUID) row[0], ((Long) row[1]).intValue());
+        }
+
         java.util.Map<UUID, VoteSummary> result = new java.util.HashMap<>();
         for (UUID id : difficultyIds) {
             int[] rank = rankCounts.getOrDefault(id, new int[] { 0, 0, 0 });
@@ -693,7 +704,8 @@ public class MapService {
             int[] reweight = reweightCounts.getOrDefault(id, new int[] { 0, 0 });
             int[] unrank = unrankCounts.getOrDefault(id, new int[] { 0, 0 });
             result.put(id, new VoteSummary(rank[0], rank[1], rank[2], crit[0], crit[1], headVotes.get(id),
-                    reweight[0], reweight[1], unrank[0], unrank[1], avgComplexities.get(id)));
+                    reweight[0], reweight[1], unrank[0], unrank[1], avgComplexities.get(id),
+                    commentCounts.getOrDefault(id, 0)));
         }
         return result;
     }
@@ -784,6 +796,7 @@ public class MapService {
                 .unrankUpvotes(d.getStatus() == MapDifficultyStatus.RANKED ? votes.unrankUpvotes() : 0)
                 .unrankDownvotes(d.getStatus() == MapDifficultyStatus.RANKED ? votes.unrankDownvotes() : 0)
                 .averageVoteComplexity(d.getStatus() == MapDifficultyStatus.RANKED ? votes.averageVoteComplexity() : null)
+                .commentCount(votes.commentCount())
                 .statistics(stats)
                 .build();
     }

@@ -59,5 +59,6 @@ public class MapDifficultyResponse {
     int unrankUpvotes;
     int unrankDownvotes;
     Double averageVoteComplexity;
+    int commentCount;
     MapDifficultyStatisticsResponse statistics;
 }

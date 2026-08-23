@@ -40,6 +40,7 @@ public class PublicMapDifficultyResponse {
     Double complexity;
     Integer rankUpvotes;
     Integer rankDownvotes;
+    Integer rankNeutrals;
     CriteriaStatus criteriaStatus;
     AutoCriteriaStatus autoCriteriaStatus;
     MapDifficultyStatisticsResponse statistics;

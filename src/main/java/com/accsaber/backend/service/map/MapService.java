@@ -78,12 +78,13 @@ public class MapService {
     record StaffInfo(String username, String avatarUrl) {
     }
 
-    record VoteSummary(int rankUpvotes, int rankDownvotes, int criteriaUpvotes, int criteriaDownvotes,
+    record VoteSummary(int rankUpvotes, int rankDownvotes, int rankNeutrals, int criteriaUpvotes,
+            int criteriaDownvotes,
             VoteType headCriteriaVote, int reweightUpvotes, int reweightDownvotes,
             int unrankUpvotes, int unrankDownvotes, Double averageVoteComplexity) {
     }
 
-    private static final VoteSummary EMPTY_SUMMARY = new VoteSummary(0, 0, 0, 0, null, 0, 0, 0, 0, null);
+    private static final VoteSummary EMPTY_SUMMARY = new VoteSummary(0, 0, 0, 0, 0, null, 0, 0, 0, 0, null);
 
     public Page<PublicMapResponse> findAllPublic(UUID categoryId, MapDifficultyStatus status, String search,
             Pageable pageable) {
@@ -561,7 +562,7 @@ public class MapService {
         MapDifficultyStatisticsResponse stats = statisticsService.findActive(difficultyId).orElse(null);
         StaffInfo info = resolveStaffInfo(difficulty.getLastUpdatedBy());
         Double avgComplexity = loadAvgReweightComplexity(List.of(difficultyId)).get(difficultyId);
-        VoteSummary votes = new VoteSummary(0, 0, 0, 0, null, 0, 0, 0, 0, avgComplexity);
+        VoteSummary votes = new VoteSummary(0, 0, 0, 0, 0, null, 0, 0, 0, 0, avgComplexity);
         return toDifficultyResponse(difficulty, complexity, stats, info, null, votes);
     }
 
@@ -642,11 +643,13 @@ public class MapService {
             UUID diffId = (UUID) row[0];
             VoteType voteType = (VoteType) row[1];
             int count = ((Long) row[2]).intValue();
-            int[] pair = rankCounts.computeIfAbsent(diffId, k -> new int[] { 0, 0 });
+            int[] counts = rankCounts.computeIfAbsent(diffId, k -> new int[] { 0, 0, 0 });
             if (voteType == VoteType.UPVOTE)
-                pair[0] = count;
+                counts[0] = count;
             else if (voteType == VoteType.DOWNVOTE)
-                pair[1] = count;
+                counts[1] = count;
+            else if (voteType == VoteType.NEUTRAL)
+                counts[2] = count;
         }
 
         java.util.Map<UUID, int[]> critCounts = new java.util.HashMap<>();
@@ -685,11 +688,11 @@ public class MapService {
 
         java.util.Map<UUID, VoteSummary> result = new java.util.HashMap<>();
         for (UUID id : difficultyIds) {
-            int[] rank = rankCounts.getOrDefault(id, new int[] { 0, 0 });
+            int[] rank = rankCounts.getOrDefault(id, new int[] { 0, 0, 0 });
             int[] crit = critCounts.getOrDefault(id, new int[] { 0, 0 });
             int[] reweight = reweightCounts.getOrDefault(id, new int[] { 0, 0 });
             int[] unrank = unrankCounts.getOrDefault(id, new int[] { 0, 0 });
-            result.put(id, new VoteSummary(rank[0], rank[1], crit[0], crit[1], headVotes.get(id),
+            result.put(id, new VoteSummary(rank[0], rank[1], rank[2], crit[0], crit[1], headVotes.get(id),
                     reweight[0], reweight[1], unrank[0], unrank[1], avgComplexities.get(id)));
         }
         return result;
@@ -772,6 +775,7 @@ public class MapService {
                 .lastUpdatedByUsername(lastUpdatedByInfo != null ? lastUpdatedByInfo.username() : null)
                 .rankUpvotes(d.getStatus() != MapDifficultyStatus.RANKED ? votes.rankUpvotes() : 0)
                 .rankDownvotes(d.getStatus() != MapDifficultyStatus.RANKED ? votes.rankDownvotes() : 0)
+                .rankNeutrals(d.getStatus() != MapDifficultyStatus.RANKED ? votes.rankNeutrals() : 0)
                 .criteriaUpvotes(d.getStatus() != MapDifficultyStatus.RANKED ? votes.criteriaUpvotes() : 0)
                 .criteriaDownvotes(d.getStatus() != MapDifficultyStatus.RANKED ? votes.criteriaDownvotes() : 0)
                 .headCriteriaVote(d.getStatus() != MapDifficultyStatus.RANKED ? votes.headCriteriaVote() : null)
@@ -834,6 +838,7 @@ public class MapService {
                 .complexity(ranked ? d.getComplexity() : null)
                 .rankUpvotes(ranked ? null : d.getRankUpvotes())
                 .rankDownvotes(ranked ? null : d.getRankDownvotes())
+                .rankNeutrals(ranked ? null : d.getRankNeutrals())
                 .criteriaStatus(ranked ? null : d.getCriteriaStatus())
                 .autoCriteriaStatus(ranked ? null : d.getAutoCriteriaStatus())
                 .statistics(d.getStatistics())

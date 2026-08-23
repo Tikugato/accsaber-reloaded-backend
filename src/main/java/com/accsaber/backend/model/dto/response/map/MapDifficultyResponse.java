@@ -50,6 +50,7 @@ public class MapDifficultyResponse {
     String lastUpdatedByUsername;
     int rankUpvotes;
     int rankDownvotes;
+    int rankNeutrals;
     int criteriaUpvotes;
     int criteriaDownvotes;
     VoteType headCriteriaVote;

@@ -1,10 +1,13 @@
 package com.accsaber.backend.model.dto.request.milestone;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.accsaber.backend.model.dto.MilestoneQuerySpec;
+import com.accsaber.backend.model.entity.milestone.MilestoneProgressModel;
 import com.accsaber.backend.model.entity.milestone.MilestoneTier;
 
+import jakarta.validation.Valid;
 import lombok.Data;
 
 @Data
@@ -24,5 +27,16 @@ public class UpdateMilestoneRequest {
 
     private String comparison;
 
-    private UUID awardsItemId;
+    @Valid
+    private List<MilestoneRewardRequest> rewards;
+
+    private Double positionX;
+
+    private Double positionY;
+
+    private MilestoneProgressModel progressModel;
+
+    private UUID progressCurveId;
+
+    private Double progressFloor;
 }

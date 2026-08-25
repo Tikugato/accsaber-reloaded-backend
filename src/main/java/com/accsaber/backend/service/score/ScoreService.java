@@ -6,7 +6,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,8 +31,6 @@ import com.accsaber.backend.model.entity.Modifier;
 import com.accsaber.backend.model.entity.map.Difficulty;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
-import com.accsaber.backend.model.entity.milestone.Milestone;
-import com.accsaber.backend.model.entity.milestone.MilestoneSet;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.score.ScoreModifierLink;
 import com.accsaber.backend.model.entity.user.User;
@@ -135,11 +132,7 @@ public class ScoreService {
                         saveModifierLinks(history, modifiers);
                         updateUserXp(user.getId(), xpGained);
 
-                        var evaluation = milestoneEvaluationService.evaluateAfterScore(user.getId(), history);
-                        if (!evaluation.completedMilestones().isEmpty()
-                                        || !evaluation.completedSets().isEmpty()) {
-                                awardMilestoneXp(user.getId(), evaluation);
-                        }
+                        milestoneEvaluationService.evaluateAfterScore(user.getId(), history);
                         campaignEvaluationService.evaluateAfterScore(user.getId(), history);
 
                         ScoreResponse worseResponse = toResponse(history,
@@ -188,12 +181,7 @@ public class ScoreService {
                         transactionTemplate.executeWithoutResult(status -> {
                                 Score freshScore = scoreRepository.findById(scoreId).orElse(null);
                                 if (freshScore != null) {
-                                        var evaluation = milestoneEvaluationService.evaluateAfterScore(userId,
-                                                        freshScore);
-                                        if (!evaluation.completedMilestones().isEmpty()
-                                                        || !evaluation.completedSets().isEmpty()) {
-                                                awardMilestoneXp(userId, evaluation);
-                                        }
+                                        milestoneEvaluationService.evaluateAfterScore(userId, freshScore);
                                         campaignEvaluationService.evaluateAfterScore(userId, freshScore);
                                 }
                                 eventPublisher.publishEvent(
@@ -831,24 +819,6 @@ public class ScoreService {
                 levelUpAwardService.addXp(userId, xpGained);
         }
 
-        private void awardMilestoneXp(Long userId, MilestoneEvaluationService.EvaluationResult evaluation) {
-                if (evaluation.completedMilestones().isEmpty() && evaluation.completedSets().isEmpty())
-                        return;
-
-                Double milestoneXp = evaluation.completedMilestones().stream()
-                                .map(Milestone::getXp)
-                                .filter(Objects::nonNull)
-                                .reduce(0.0, Double::sum);
-                Double setXp = evaluation.completedSets().stream()
-                                .map(MilestoneSet::getSetBonusXp)
-                                .filter(Objects::nonNull)
-                                .reduce(0.0, Double::sum);
-
-                Double total = (milestoneXp + setXp);
-                if (total.compareTo(0.0) > 0) {
-                        updateUserXp(userId, total);
-                }
-        }
 
         private ScoreResponse withMapMetadata(ScoreResponse response, MapDifficulty difficulty) {
                 return response.toBuilder()
@@ -926,12 +896,7 @@ public class ScoreService {
                         MapDifficulty difficulty) {
                 if (ScorePayloadFields.merge(existing, request)) {
                         scoreRepository.saveAndFlush(existing);
-                        Long userId = existing.getUser().getId();
-                        var evaluation = milestoneEvaluationService.evaluateAfterScore(userId, existing);
-                        if (!evaluation.completedMilestones().isEmpty()
-                                        || !evaluation.completedSets().isEmpty()) {
-                                awardMilestoneXp(userId, evaluation);
-                        }
+                        milestoneEvaluationService.evaluateAfterScore(existing.getUser().getId(), existing);
                 }
                 return toResponse(existing,
                                 computeAccuracy(existing.getScore(), difficulty.getMaxScore()),

@@ -8,7 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import com.accsaber.backend.model.dto.MilestoneQuerySpec;
 import com.accsaber.backend.model.entity.Category;
-import com.accsaber.backend.model.entity.item.Item;
+import com.accsaber.backend.model.entity.Curve;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -48,10 +48,6 @@ public class Milestone {
     @JoinColumn(name = "category_id")
     private Category category;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "awards_item_id")
-    private Item awardsItem;
-
     @Column(nullable = false)
     private String title;
 
@@ -80,9 +76,23 @@ public class Milestone {
     @Builder.Default
     private String comparison = "GTE";
 
-    @Column(name = "bl_exclusive", nullable = false)
+    @Column(name = "progress_model", nullable = false)
+    @Enumerated(EnumType.STRING)
     @Builder.Default
-    private boolean blExclusive = false;
+    private MilestoneProgressModel progressModel = MilestoneProgressModel.LINEAR;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "progress_curve_id")
+    private Curve progressCurve;
+
+    @Column(name = "progress_floor")
+    private Double progressFloor;
+
+    @Column(name = "position_x", nullable = false)
+    private double positionX;
+
+    @Column(name = "position_y", nullable = false)
+    private double positionY;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)

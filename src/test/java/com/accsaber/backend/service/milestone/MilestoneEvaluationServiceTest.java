@@ -2,6 +2,7 @@ package com.accsaber.backend.service.milestone;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -29,12 +30,15 @@ import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.milestone.Milestone;
 import com.accsaber.backend.model.entity.milestone.MilestoneSet;
+import com.accsaber.backend.model.entity.milestone.MilestoneSetItem;
 import com.accsaber.backend.model.entity.milestone.MilestoneTier;
 import com.accsaber.backend.model.entity.milestone.UserMilestoneLink;
 import com.accsaber.backend.model.entity.milestone.UserMilestoneSetBonus;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.User;
+import com.accsaber.backend.repository.milestone.MilestoneItemRepository;
 import com.accsaber.backend.repository.milestone.MilestoneRepository;
+import com.accsaber.backend.repository.milestone.MilestoneSetItemRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneSetBonusRepository;
 import com.accsaber.backend.model.entity.item.Item;
@@ -61,6 +65,10 @@ class MilestoneEvaluationServiceTest {
         private ItemService itemService;
         @Mock
         private LevelUpAwardService levelUpAwardService;
+        @Mock
+        private MilestoneItemRepository milestoneItemRepository;
+        @Mock
+        private MilestoneSetItemRepository milestoneSetItemRepository;
         @Mock
         private ApplicationEventPublisher eventPublisher;
 
@@ -275,46 +283,9 @@ class MilestoneEvaluationServiceTest {
                 }
 
                 @Test
-                void blExclusiveMilestone_skippedForScoreSaberScore() {
-                        Milestone milestone = Milestone.builder()
-                                        .id(UUID.randomUUID())
-                                        .milestoneSet(milestoneSet)
-                                        .title("BL Only")
-                                        .type("achievement")
-                                        .tier(MilestoneTier.gold)
-                                        .xp((double) (200))
-                                        .querySpec(querySpec)
-                                        .targetValue((double) (10))
-                                        .comparison("GTE")
-                                        .blExclusive(true)
-                                        .active(true)
-                                        .build();
+                void scoreSaberScore_evaluatesEveryMilestone() {
+                        Milestone milestone = buildMilestone((double) (10), "GTE");
                         Score ssScore = buildScoreWithMapDifficulty(null);
-
-                        mockScopedQuery(List.of(milestone));
-
-                        var result = service.evaluateAfterScore(USER_ID, ssScore);
-
-                        assertThat(result.completedMilestones()).isEmpty();
-                        verify(queryBuilderService, never()).evaluateBatch(any(), any());
-                }
-
-                @Test
-                void blExclusiveMilestone_evaluatedForBeatLeaderScore() {
-                        Milestone milestone = Milestone.builder()
-                                        .id(UUID.randomUUID())
-                                        .milestoneSet(milestoneSet)
-                                        .title("BL Only")
-                                        .type("achievement")
-                                        .tier(MilestoneTier.gold)
-                                        .xp((double) (200))
-                                        .querySpec(querySpec)
-                                        .targetValue((double) (10))
-                                        .comparison("GTE")
-                                        .blExclusive(true)
-                                        .active(true)
-                                        .build();
-                        Score blScore = buildScoreWithMapDifficulty(99999L);
                         User user = User.builder().id(USER_ID).build();
 
                         mockScopedQuery(List.of(milestone));
@@ -323,7 +294,7 @@ class MilestoneEvaluationServiceTest {
                         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
                         when(userMilestoneLinkRepository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
 
-                        service.evaluateAfterScore(USER_ID, blScore);
+                        service.evaluateAfterScore(USER_ID, ssScore);
 
                         verify(queryBuilderService).evaluateBatch(any(), eq(USER_ID));
                 }
@@ -543,8 +514,8 @@ class MilestoneEvaluationServiceTest {
 
                         service.evaluateSingleMilestoneForUser(USER_ID, milestone);
 
-                        assertThat(user.getTotalXp()).isEqualByComparingTo((double) (800));
-                        verify(userRepository).save(user);
+                        verify(levelUpAwardService).addXp(USER_ID, (double) (300));
+                        verify(userRepository, never()).save(any(User.class));
                 }
 
                 @Test
@@ -597,7 +568,7 @@ class MilestoneEvaluationServiceTest {
 
                         service.evaluateSingleMilestoneForUser(USER_ID, milestone);
 
-                        assertThat(user.getTotalXp()).isEqualByComparingTo((double) (300));
+                        verify(levelUpAwardService).addXp(USER_ID, (double) (300));
                 }
 
                 @Test
@@ -772,7 +743,6 @@ class MilestoneEvaluationServiceTest {
                         MilestoneSet setWithItem = MilestoneSet.builder()
                                         .id(UUID.randomUUID())
                                         .title("Item Set")
-                                        .awardsItem(item)
                                         .build();
                         Milestone milestone = Milestone.builder()
                                         .id(UUID.randomUUID())
@@ -799,11 +769,15 @@ class MilestoneEvaluationServiceTest {
                         when(milestoneRepository.countActiveBySetId(setWithItem.getId())).thenReturn(1L);
                         when(userMilestoneLinkRepository.countCompletedByUserAndSet(USER_ID, setWithItem.getId()))
                                         .thenReturn(1L);
+                        when(milestoneSetItemRepository.findBySetIds(List.of(setWithItem.getId())))
+                                        .thenReturn(List.of(MilestoneSetItem.builder()
+                                                        .milestoneSet(setWithItem).item(item).quantity(3).build()));
 
                         service.evaluateAfterScore(USER_ID, newScore);
 
                         verify(itemService).awardSystem(eq(USER_ID), eq(itemId), eq(ItemSource.milestone_set),
-                                        eq(setWithItem.getId().toString()), eq("Completed milestone set: Item Set"));
+                                        eq(setWithItem.getId().toString()), eq("Completed milestone set: Item Set"),
+                                        eq(3));
                 }
 
                 @Test
@@ -826,19 +800,14 @@ class MilestoneEvaluationServiceTest {
                         service.evaluateAfterScore(USER_ID, newScore);
 
                         verify(itemService, never()).awardSystem(any(), any(), eq(ItemSource.milestone_set), any(),
-                                        any());
+                                        any(), anyInt());
                 }
 
                 @Test
                 void itemNotAwarded_whenSetIncomplete() {
-                        UUID itemId = UUID.randomUUID();
-                        ItemType badgeType = ItemType.builder().id(UUID.randomUUID()).key("badge").name("Badge")
-                                        .build();
-                        Item item = Item.builder().id(itemId).type(badgeType).name("Unreachable Item").build();
                         MilestoneSet setWithItem = MilestoneSet.builder()
                                         .id(UUID.randomUUID())
                                         .title("Incomplete Set")
-                                        .awardsItem(item)
                                         .build();
                         Milestone milestone = Milestone.builder()
                                         .id(UUID.randomUUID())
@@ -869,7 +838,7 @@ class MilestoneEvaluationServiceTest {
                         service.evaluateAfterScore(USER_ID, newScore);
 
                         verify(itemService, never()).awardSystem(any(), any(), eq(ItemSource.milestone_set), any(),
-                                        any());
+                                        any(), anyInt());
                 }
         }
 

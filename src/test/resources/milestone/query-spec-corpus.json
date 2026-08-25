@@ -1,0 +1,4034 @@
+[
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "First Door Opened",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "At least you uploaded it",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "misses",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "Rock Bottom",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "misses",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "streak_115",
+          "operator": "=",
+          "value": 0
+        },
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "Quick Learner",
+    "categoryCode": null,
+    "targetValue": 0.95,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "Firm Grip",
+    "categoryCode": null,
+    "targetValue": 0.97,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "Bronze Crown",
+    "categoryCode": null,
+    "targetValue": 700,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "AP Enthusiast",
+    "categoryCode": null,
+    "targetValue": 5000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "ap"
+      },
+      "from": "user_category_statistics",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "So Proud of You",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "streak_115"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "We're getting somewhere",
+    "categoryCode": null,
+    "targetValue": 3,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "streak_115"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "Not So Proud of You",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "streak_115",
+          "operator": "=",
+          "value": 0
+        }
+      ]
+    }
+  },
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "That's Cheating",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "pauses"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "If my rank were in dollars...",
+    "categoryCode": null,
+    "targetValue": 10000,
+    "comparison": "LTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ranking"
+      },
+      "from": "user_category_statistics",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ranking",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "category_code",
+          "operator": "=",
+          "value": "overall"
+        }
+      ]
+    }
+  },
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "Making Moves",
+    "categoryCode": null,
+    "targetValue": 5000,
+    "comparison": "LTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ranking"
+      },
+      "from": "user_category_statistics",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ranking",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "category_code",
+          "operator": "=",
+          "value": "overall"
+        }
+      ]
+    }
+  },
+  {
+    "source": "general_i_first_steps.sql",
+    "title": "Like a kid on Christmas",
+    "categoryCode": null,
+    "targetValue": 1000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "total_xp"
+      },
+      "from": "users",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "Moving Up",
+    "categoryCode": null,
+    "targetValue": 0.98,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "Silver Crown",
+    "categoryCode": null,
+    "targetValue": 800,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "Golden Crown",
+    "categoryCode": null,
+    "targetValue": 900,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "AP Collector",
+    "categoryCode": null,
+    "targetValue": 10000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "ap"
+      },
+      "from": "user_category_statistics",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "AP Hoarder",
+    "categoryCode": null,
+    "targetValue": 15000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "ap"
+      },
+      "from": "user_category_statistics",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "This is the Way",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "streak_115"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "Unstoppable 115-Force",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "streak_115"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "Getting Serious",
+    "categoryCode": null,
+    "targetValue": 1000,
+    "comparison": "LTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ranking"
+      },
+      "from": "user_category_statistics",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ranking",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "category_code",
+          "operator": "=",
+          "value": "overall"
+        }
+      ]
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "I would walk these",
+    "categoryCode": null,
+    "targetValue": 500,
+    "comparison": "LTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ranking"
+      },
+      "from": "user_category_statistics",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ranking",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "category_code",
+          "operator": "=",
+          "value": "overall"
+        }
+      ]
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "Like a certain motorspeed",
+    "categoryCode": null,
+    "targetValue": 300,
+    "comparison": "LTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ranking"
+      },
+      "from": "user_category_statistics",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ranking",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "category_code",
+          "operator": "=",
+          "value": "overall"
+        }
+      ]
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "Contributing to the call",
+    "categoryCode": null,
+    "targetValue": 0.05,
+    "comparison": "LTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "country_ranking",
+        "offset": -1
+      },
+      "from": "user_category_statistics",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "country_ranking",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "category_code",
+          "operator": "=",
+          "value": "overall"
+        }
+      ],
+      "divisor": {
+        "select": {
+          "function": "COUNT",
+          "column": "id"
+        },
+        "from": "user_category_statistics",
+        "scope": "COUNTRY",
+        "filters": [
+          {
+            "column": "active",
+            "operator": "=",
+            "value": true
+          },
+          {
+            "column": "country_ranking",
+            "operator": ">=",
+            "value": 1
+          },
+          {
+            "column": "category_code",
+            "operator": "=",
+            "value": "overall"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "Representing.",
+    "categoryCode": null,
+    "targetValue": 0.01,
+    "comparison": "LTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "country_ranking",
+        "offset": -1
+      },
+      "from": "user_category_statistics",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "country_ranking",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "category_code",
+          "operator": "=",
+          "value": "overall"
+        }
+      ],
+      "divisor": {
+        "select": {
+          "function": "COUNT",
+          "column": "id"
+        },
+        "from": "user_category_statistics",
+        "scope": "COUNTRY",
+        "filters": [
+          {
+            "column": "active",
+            "operator": "=",
+            "value": true
+          },
+          {
+            "column": "country_ranking",
+            "operator": ">=",
+            "value": 1
+          },
+          {
+            "column": "category_code",
+            "operator": "=",
+            "value": "overall"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "I mean business with this.",
+    "categoryCode": null,
+    "targetValue": 5000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "total_xp"
+      },
+      "from": "users",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_ii_climbing.sql",
+    "title": "Hoarder",
+    "categoryCode": null,
+    "targetValue": 25000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "total_xp"
+      },
+      "from": "users",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "The Big Leagues are Calling",
+    "categoryCode": null,
+    "targetValue": 0.99,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "Platinum Crown",
+    "categoryCode": null,
+    "targetValue": 1000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "Diamond Crown",
+    "categoryCode": null,
+    "targetValue": 1100,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "AP Maniac",
+    "categoryCode": null,
+    "targetValue": 25000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "ap"
+      },
+      "from": "user_category_statistics",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "Lend us some?",
+    "categoryCode": null,
+    "targetValue": 30000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "ap"
+      },
+      "from": "user_category_statistics",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "The Way of the 115.",
+    "categoryCode": null,
+    "targetValue": 15,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "streak_115"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "...how?",
+    "categoryCode": null,
+    "targetValue": 20,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "streak_115"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "200cc",
+    "categoryCode": null,
+    "targetValue": 200,
+    "comparison": "LTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ranking"
+      },
+      "from": "user_category_statistics",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ranking",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "category_code",
+          "operator": "=",
+          "value": "overall"
+        }
+      ]
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "All grown up now",
+    "categoryCode": null,
+    "targetValue": 100,
+    "comparison": "LTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ranking"
+      },
+      "from": "user_category_statistics",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ranking",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "category_code",
+          "operator": "=",
+          "value": "overall"
+        }
+      ]
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "Paparazzis got my outfit on the",
+    "categoryCode": null,
+    "targetValue": 50,
+    "comparison": "LTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ranking"
+      },
+      "from": "user_category_statistics",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ranking",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "category_code",
+          "operator": "=",
+          "value": "overall"
+        }
+      ]
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "Always on Top Top Top",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "LTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "rank"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "map_difficulty_status",
+          "operator": "=",
+          "value": "RANKED"
+        }
+      ]
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "Addicted to the experience",
+    "categoryCode": null,
+    "targetValue": 100000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "total_xp"
+      },
+      "from": "users",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "Quarter Million Club",
+    "categoryCode": null,
+    "targetValue": 250000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "total_xp"
+      },
+      "from": "users",
+      "filters": []
+    }
+  },
+  {
+    "source": "general_iii_elite.sql",
+    "title": "Half a Million Reasons to Play",
+    "categoryCode": null,
+    "targetValue": 500000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "total_xp"
+      },
+      "from": "users",
+      "filters": []
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "AccSaber Rookie",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Accsaber Veteran",
+    "categoryCode": null,
+    "targetValue": 50,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Averaging it out",
+    "categoryCode": null,
+    "targetValue": 0.95,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 20
+      }
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Consistently Decent",
+    "categoryCode": null,
+    "targetValue": 0.96,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 50
+      }
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Standard Acc Initiative",
+    "categoryCode": "standard_acc",
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Standard Acc Apprentice",
+    "categoryCode": "standard_acc",
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "True Acc Initiative",
+    "categoryCode": "true_acc",
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "True Acc Apprentice",
+    "categoryCode": "true_acc",
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Tech Acc Initiative",
+    "categoryCode": "tech_acc",
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Tech Acc Apprentice",
+    "categoryCode": "tech_acc",
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Purification begins",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "id",
+          "operator": "NOT IN",
+          "subquery": {
+            "select": {
+              "function": "PLAIN",
+              "column": "score_id"
+            },
+            "from": "score_modifier_links",
+            "filters": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Hahaha... again!",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "supersedes_reason",
+          "operator": "=",
+          "value": "Score improved"
+        }
+      ],
+      "group_by": [
+        {
+          "column": "map_difficulty_id"
+        }
+      ],
+      "outer_function": "MAX"
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "One of Each",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_difficulty"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Training Wheels",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "id",
+          "operator": "IN",
+          "subquery": {
+            "select": {
+              "function": "PLAIN",
+              "column": "score_id"
+            },
+            "from": "score_modifier_links",
+            "filters": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Showing Up",
+    "categoryCode": null,
+    "targetValue": 2,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "rank",
+          "operator": "<=",
+          "value": 50
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Decently True",
+    "categoryCode": "true_acc",
+    "targetValue": 0.96,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 15
+      }
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Standardly Decent",
+    "categoryCode": "standard_acc",
+    "targetValue": 0.95,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 15
+      }
+    }
+  },
+  {
+    "source": "completionist_i_getting_started.sql",
+    "title": "Technically Decent",
+    "categoryCode": "tech_acc",
+    "targetValue": 0.95,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 15
+      }
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Accsaber Master",
+    "categoryCode": null,
+    "targetValue": 100,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Stamina Legend",
+    "categoryCode": null,
+    "targetValue": 0.7,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "pauses",
+          "operator": "=",
+          "value": 0
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 100
+      },
+      "divisor": {
+        "select": {
+          "function": "COUNT",
+          "column": "id"
+        },
+        "from": "scores",
+        "filters": [
+          {
+            "column": "active",
+            "operator": "=",
+            "value": true
+          },
+          {
+            "column": "pauses",
+            "operator": ">=",
+            "value": 0
+          }
+        ]
+      }
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "No Bad Days",
+    "categoryCode": null,
+    "targetValue": 0.97,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 100
+      }
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Built Different",
+    "categoryCode": null,
+    "targetValue": 0.98,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 200
+      }
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Standard Acc Expert",
+    "categoryCode": "standard_acc",
+    "targetValue": 30,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Standard Acc Master",
+    "categoryCode": "standard_acc",
+    "targetValue": 100,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "True Acc Expert",
+    "categoryCode": "true_acc",
+    "targetValue": 30,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "True Acc Master",
+    "categoryCode": "true_acc",
+    "targetValue": 100,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Tech Acc Expert",
+    "categoryCode": "tech_acc",
+    "targetValue": 30,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Tech Acc Master",
+    "categoryCode": "tech_acc",
+    "targetValue": 100,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Like an angel",
+    "categoryCode": null,
+    "targetValue": 50,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "id",
+          "operator": "NOT IN",
+          "subquery": {
+            "select": {
+              "function": "PLAIN",
+              "column": "score_id"
+            },
+            "from": "score_modifier_links",
+            "filters": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Hahaha... AGAIN!!!",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "supersedes_reason",
+          "operator": "=",
+          "value": "Score improved"
+        }
+      ],
+      "group_by": [
+        {
+          "column": "map_difficulty_id"
+        }
+      ],
+      "outer_function": "MAX"
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Speed Runner",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "group_by": [
+        {
+          "column": "time_set",
+          "cast": "DATE"
+        }
+      ],
+      "outer_function": "MAX"
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Chemical Warfare",
+    "categoryCode": null,
+    "targetValue": 25,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "id",
+          "operator": "IN",
+          "subquery": {
+            "select": {
+              "function": "PLAIN",
+              "column": "score_id"
+            },
+            "from": "score_modifier_links",
+            "filters": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Making Waves",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "rank",
+          "operator": "<=",
+          "value": 25
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Truly Different",
+    "categoryCode": "true_acc",
+    "targetValue": 0.98,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 30
+      }
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Above the Standard",
+    "categoryCode": "standard_acc",
+    "targetValue": 0.975,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 30
+      }
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Technically Superior",
+    "categoryCode": "tech_acc",
+    "targetValue": 0.97,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 30
+      }
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "True 700 Grinder",
+    "categoryCode": "true_acc",
+    "targetValue": 20,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ap",
+          "operator": ">=",
+          "value": 700
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Standard 700 Grinder",
+    "categoryCode": "standard_acc",
+    "targetValue": 20,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ap",
+          "operator": ">=",
+          "value": 700
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_ii_dedication.sql",
+    "title": "Tech 700 Grinder",
+    "categoryCode": "tech_acc",
+    "targetValue": 20,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ap",
+          "operator": ">=",
+          "value": 700
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Accsaber Legend",
+    "categoryCode": null,
+    "targetValue": 250,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Accsaber Addict",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "divisor": {
+        "select": {
+          "function": "COUNT",
+          "column": "id"
+        },
+        "from": "map_difficulties",
+        "filters": [
+          {
+            "column": "active",
+            "operator": "=",
+            "value": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Allergic to Missing",
+    "categoryCode": null,
+    "targetValue": 0.99,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 150
+      }
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Standard Acc Addict",
+    "categoryCode": "standard_acc",
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "divisor": {
+        "select": {
+          "function": "COUNT",
+          "column": "id"
+        },
+        "from": "map_difficulties",
+        "filters": [
+          {
+            "column": "active",
+            "operator": "=",
+            "value": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "True Acc Addict",
+    "categoryCode": "true_acc",
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "divisor": {
+        "select": {
+          "function": "COUNT",
+          "column": "id"
+        },
+        "from": "map_difficulties",
+        "filters": [
+          {
+            "column": "active",
+            "operator": "=",
+            "value": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Tech Acc Addict",
+    "categoryCode": "tech_acc",
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "divisor": {
+        "select": {
+          "function": "COUNT",
+          "column": "id"
+        },
+        "from": "map_difficulties",
+        "filters": [
+          {
+            "column": "active",
+            "operator": "=",
+            "value": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Deja Vu",
+    "categoryCode": null,
+    "targetValue": 2,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [],
+      "group_by": [
+        {
+          "column": "map_difficulty_id"
+        },
+        {
+          "column": "time_set",
+          "cast": "DATE"
+        }
+      ],
+      "outer_function": "MAX"
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Full House",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "rank",
+          "operator": "<=",
+          "value": 10
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "My Favorite",
+    "categoryCode": null,
+    "targetValue": 3,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "group_by": [
+        {
+          "column": "map_author"
+        },
+        {
+          "column": "time_set",
+          "cast": "DATE"
+        }
+      ],
+      "outer_function": "MAX"
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Leave it to Luck",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "score",
+          "operator": "=",
+          "value": 115,
+          "transform": {
+            "function": "MOD",
+            "argument": 1000
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Ghost of Accsaber Past",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "supersedes_time_set",
+          "operator": "<",
+          "column_ref": "time_set",
+          "column_ref_transform": {
+            "function": "INTERVAL_SUBTRACT",
+            "argument": "90 days"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "True Perfection",
+    "categoryCode": "true_acc",
+    "targetValue": 0.993,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 80
+      }
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Bringing Out Your True Shine",
+    "categoryCode": "true_acc",
+    "targetValue": 0.996,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 100
+      }
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Standard Perfection",
+    "categoryCode": "standard_acc",
+    "targetValue": 0.987,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 80
+      }
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Technical Perfection",
+    "categoryCode": "tech_acc",
+    "targetValue": 0.98,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "AVG",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT",
+        "column": "rank",
+        "operator": ">=",
+        "value": 80
+      }
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "True 800 Grinder",
+    "categoryCode": "true_acc",
+    "targetValue": 20,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ap",
+          "operator": ">=",
+          "value": 800
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "True 900 Grinder",
+    "categoryCode": "true_acc",
+    "targetValue": 20,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ap",
+          "operator": ">=",
+          "value": 900
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Standard 800 Grinder",
+    "categoryCode": "standard_acc",
+    "targetValue": 20,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ap",
+          "operator": ">=",
+          "value": 800
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Standard 900 Grinder",
+    "categoryCode": "standard_acc",
+    "targetValue": 20,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ap",
+          "operator": ">=",
+          "value": 900
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Tech 800 Grinder",
+    "categoryCode": "tech_acc",
+    "targetValue": 20,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ap",
+          "operator": ">=",
+          "value": 800
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Tech 900 Grinder",
+    "categoryCode": "tech_acc",
+    "targetValue": 20,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ap",
+          "operator": ">=",
+          "value": 900
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "True 1K Grinder",
+    "categoryCode": "true_acc",
+    "targetValue": 20,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ap",
+          "operator": ">=",
+          "value": 1000
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Standard 1K Grinder",
+    "categoryCode": "standard_acc",
+    "targetValue": 20,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ap",
+          "operator": ">=",
+          "value": 1000
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_iii_obsession.sql",
+    "title": "Tech 1K Grinder",
+    "categoryCode": "tech_acc",
+    "targetValue": 20,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "ap",
+          "operator": ">=",
+          "value": 1000
+        }
+      ]
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Mostly Honest",
+    "categoryCode": "true_acc",
+    "targetValue": 0.96,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Truth Serum",
+    "categoryCode": "true_acc",
+    "targetValue": 0.97,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Nothing but the straightest swings",
+    "categoryCode": "true_acc",
+    "targetValue": 0.98,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "True to the Core",
+    "categoryCode": "true_acc",
+    "targetValue": 0.99,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Truth NUKE!",
+    "categoryCode": "true_acc",
+    "targetValue": 0.9935,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Just the Standard",
+    "categoryCode": "standard_acc",
+    "targetValue": 0.95,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Above Average, Actually",
+    "categoryCode": "standard_acc",
+    "targetValue": 0.96,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Standard? Sure.",
+    "categoryCode": "standard_acc",
+    "targetValue": 0.97,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "The New Normal",
+    "categoryCode": "standard_acc",
+    "targetValue": 0.98,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Defining New Standards.",
+    "categoryCode": "standard_acc",
+    "targetValue": 0.99,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Is this thing on?",
+    "categoryCode": "tech_acc",
+    "targetValue": 0.95,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Allow Me",
+    "categoryCode": "tech_acc",
+    "targetValue": 0.96,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Overclocked",
+    "categoryCode": "tech_acc",
+    "targetValue": 0.97,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "What are Angles?",
+    "categoryCode": "tech_acc",
+    "targetValue": 0.98,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Tech Insanity",
+    "categoryCode": "tech_acc",
+    "targetValue": 0.987,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Across the Board",
+    "categoryCode": null,
+    "targetValue": 0.95,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "No Map Left Behind",
+    "categoryCode": null,
+    "targetValue": 0.96,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Perfectionist's Burden",
+    "categoryCode": null,
+    "targetValue": 0.97,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Touch Grass...?",
+    "categoryCode": null,
+    "targetValue": 0.98,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "accuracy"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Out of This World",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "or_groups": [
+        [
+          {
+            "column": "map_difficulty_category_id",
+            "operator": "=",
+            "value": "b0000000-0000-0000-0000-000000000001"
+          },
+          {
+            "column": "accuracy",
+            "operator": ">=",
+            "value": 0.995
+          }
+        ],
+        [
+          {
+            "column": "map_difficulty_category_id",
+            "operator": "=",
+            "value": "b0000000-0000-0000-0000-000000000002"
+          },
+          {
+            "column": "accuracy",
+            "operator": ">=",
+            "value": 0.9915
+          }
+        ],
+        [
+          {
+            "column": "map_difficulty_category_id",
+            "operator": "=",
+            "value": "b0000000-0000-0000-0000-000000000003"
+          },
+          {
+            "column": "accuracy",
+            "operator": ">=",
+            "value": 0.99
+          }
+        ]
+      ],
+      "divisor": {
+        "select": {
+          "function": "COUNT",
+          "column": "id"
+        },
+        "from": "map_difficulties",
+        "filters": [
+          {
+            "column": "active",
+            "operator": "=",
+            "value": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "True AP Foundation",
+    "categoryCode": "true_acc",
+    "targetValue": 700,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "True AP Domination",
+    "categoryCode": "true_acc",
+    "targetValue": 800,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "True AP Supremacy",
+    "categoryCode": "true_acc",
+    "targetValue": 900,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "True AP Perfection",
+    "categoryCode": "true_acc",
+    "targetValue": 1000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Standard AP Foundation",
+    "categoryCode": "standard_acc",
+    "targetValue": 700,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Standard AP Domination",
+    "categoryCode": "standard_acc",
+    "targetValue": 800,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Standard AP Supremacy",
+    "categoryCode": "standard_acc",
+    "targetValue": 900,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Standard AP Perfection",
+    "categoryCode": "standard_acc",
+    "targetValue": 1000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Tech AP Foundation",
+    "categoryCode": "tech_acc",
+    "targetValue": 700,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Tech AP Domination",
+    "categoryCode": "tech_acc",
+    "targetValue": 800,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Tech AP Supremacy",
+    "categoryCode": "tech_acc",
+    "targetValue": 900,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Tech AP Perfection",
+    "categoryCode": "tech_acc",
+    "targetValue": 1000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "AP's Across the Board",
+    "categoryCode": null,
+    "targetValue": 700,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "No AP Left Behind",
+    "categoryCode": null,
+    "targetValue": 800,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Perfectionist's AP Burden",
+    "categoryCode": null,
+    "targetValue": 900,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "source": "completionist_x.sql",
+    "title": "Touch AP, Touch Grass...?",
+    "categoryCode": null,
+    "targetValue": 1000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "ap"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "having": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id",
+        "operator": ">=",
+        "value_query": {
+          "select": {
+            "function": "COUNT",
+            "column": "id"
+          },
+          "from": "map_difficulties",
+          "filters": [
+            {
+              "column": "active",
+              "operator": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    }
+  }
+]

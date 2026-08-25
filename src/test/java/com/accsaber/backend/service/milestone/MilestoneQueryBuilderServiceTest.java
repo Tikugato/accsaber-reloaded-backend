@@ -3,6 +3,7 @@ package com.accsaber.backend.service.milestone;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -14,38 +15,54 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.MilestoneQuerySpec;
 import com.accsaber.backend.model.dto.MilestoneQuerySpec.FilterSpec;
 import com.accsaber.backend.model.dto.MilestoneQuerySpec.SelectSpec;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSchemaResponse;
-import com.accsaber.backend.model.entity.map.Difficulty;
-import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
+import com.accsaber.backend.service.milestone.source.MapSources;
+import com.accsaber.backend.service.milestone.source.MilestoneSourceRegistry;
+import com.accsaber.backend.service.milestone.source.PlayerSources;
+import com.accsaber.backend.service.milestone.source.ProgressionSources;
+import com.accsaber.backend.service.milestone.source.ScoreSources;
+import com.accsaber.backend.service.milestone.sql.MilestoneSqlCompiler;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 
-@ExtendWith(MockitoExtension.class)
 class MilestoneQueryBuilderServiceTest {
 
-        @Mock
         private EntityManager entityManager;
-
-        @InjectMocks
         private MilestoneQueryBuilderService service;
-
         private Query mockQuery;
 
         @BeforeEach
         void setUp() {
+                entityManager = mock(EntityManager.class);
                 mockQuery = mock(Query.class);
-                lenient().when(entityManager.createQuery(anyString())).thenReturn(mockQuery);
+                lenient().when(entityManager.createNativeQuery(anyString())).thenReturn(mockQuery);
+
+                MilestoneSourceRegistry registry = new MilestoneSourceRegistry(List.of(
+                                new ScoreSources(), new MapSources(), new PlayerSources(), new ProgressionSources()));
+                service = new MilestoneQueryBuilderService(entityManager, registry, new MilestoneSqlCompiler(registry));
+        }
+
+        private String capturedSql() {
+                ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+                verify(entityManager, atLeastOnce()).createNativeQuery(captor.capture());
+                return captor.getValue();
+        }
+
+        private void assertRankedFilterApplied() {
+                assertThat(String.join(" ", allCapturedSql())).contains("status = 'ranked'");
+        }
+
+        private List<String> allCapturedSql() {
+                ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+                verify(entityManager, atLeastOnce()).createNativeQuery(captor.capture());
+                return captor.getAllValues();
         }
 
         @Nested
@@ -285,7 +302,7 @@ class MilestoneQueryBuilderServiceTest {
         class Evaluate {
 
                 @Test
-                void simpleMaxAp_buildsCorrectJpql() {
+                void simpleMaxAp_buildsCorrectSql() {
                         MilestoneQuerySpec spec = new MilestoneQuerySpec(
                                         new SelectSpec("MAX", "ap"),
                                         "scores",
@@ -297,15 +314,13 @@ class MilestoneQueryBuilderServiceTest {
 
                         assertThat(result).isEqualByComparingTo((double) (850));
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        String jpql = jpqlCaptor.getValue();
-                        assertThat(jpql).contains("MAX(s.ap)");
-                        assertThat(jpql).contains("FROM Score s");
-                        assertThat(jpql).contains("s.user.id = :userId");
-                        assertThat(jpql).contains("s.mapDifficulty.status = :rankedStatus");
-                        assertThat(jpql).contains(":p0");
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        String sql = capturedSql();
+                        assertThat(sql).contains("MAX(s.ap)");
+                        assertThat(sql).contains("FROM scores s");
+                        assertThat(sql).contains("s.user_id = :userId");
+                        assertThat(sql).contains("md.status = 'ranked'");
+                        assertThat(sql).contains(":p0");
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -319,10 +334,9 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 123L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).contains(
-                                        "(s.supersedesReason IS NULL OR s.supersedesReason <> 'Campaign attempt')");
+                        String sql = capturedSql();
+                        assertThat(sql).contains(
+                                        "(s.supersedes_reason IS NULL OR s.supersedes_reason <> 'Campaign attempt')");
                 }
 
                 @Test
@@ -336,9 +350,8 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 999L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).doesNotContain("Campaign attempt");
+                        String sql = capturedSql();
+                        assertThat(sql).doesNotContain("Campaign attempt");
                 }
 
                 @Test
@@ -369,7 +382,7 @@ class MilestoneQueryBuilderServiceTest {
 
                         verify(mockQuery).setParameter("userId", 42L);
                         verify(mockQuery).setParameter("categoryId", categoryId);
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -384,10 +397,9 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, categoryId);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).doesNotContain(":categoryId");
-                        assertThat(jpqlCaptor.getValue()).doesNotContain(":rankedStatus");
+                        String sql = capturedSql();
+                        assertThat(sql).doesNotContain(":categoryId");
+                        assertThat(sql).doesNotContain("'ranked'");
                 }
 
                 @Test
@@ -401,10 +413,9 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).contains("s.mapDifficulty.status = :rankedStatus");
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        String sql = capturedSql();
+                        assertThat(sql).contains("md.status = 'ranked'");
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -418,9 +429,8 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).doesNotContain(":rankedStatus");
+                        String sql = capturedSql();
+                        assertThat(sql).doesNotContain("'ranked'");
                 }
 
                 @Test
@@ -434,9 +444,8 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).doesNotContain(":rankedStatus");
+                        String sql = capturedSql();
+                        assertThat(sql).doesNotContain("'ranked'");
                 }
 
                 @Test
@@ -465,9 +474,8 @@ class MilestoneQueryBuilderServiceTest {
                         Double result = service.evaluate(spec, 5L, null);
 
                         assertThat(result).isEqualByComparingTo((double) (4));
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).contains("(MIN(ucs.countryRanking) - 1)");
+                        String sql = capturedSql();
+                        assertThat(sql).contains("(MIN(ucs.country_ranking) - 1)");
                 }
 
                 @Test
@@ -482,12 +490,10 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 5L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        String jpql = jpqlCaptor.getValue();
-                        assertThat(jpql).contains(
-                                        "ucs.user.country = (SELECT u_sc.country FROM User u_sc WHERE u_sc.id = :userId)");
-                        assertThat(jpql).doesNotContain("ucs.user.id = :userId");
+                        String sql = capturedSql();
+                        assertThat(sql).contains(
+                                        "usr.country = (SELECT country FROM users WHERE id = :userId)");
+                        assertThat(sql).doesNotContain("ucs.user_id = :userId");
                         verify(mockQuery).setParameter("userId", 5L);
                 }
 
@@ -527,7 +533,7 @@ class MilestoneQueryBuilderServiceTest {
                 }
 
                 @Test
-                void countDistinct_generatesCorrectJpql() {
+                void countDistinct_generatesCorrectSql() {
                         MilestoneQuerySpec spec = new MilestoneQuerySpec(
                                         new SelectSpec("COUNT_DISTINCT", "map_difficulty_id"),
                                         "scores",
@@ -537,11 +543,10 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 7L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).contains("COUNT(DISTINCT s.mapDifficulty)");
-                        assertThat(jpqlCaptor.getValue()).contains("s.mapDifficulty.status = :rankedStatus");
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        String sql = capturedSql();
+                        assertThat(sql).contains("COUNT(DISTINCT s.map_difficulty_id)");
+                        assertThat(sql).contains("md.status = 'ranked'");
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -555,12 +560,11 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).contains("s.mapDifficulty.status");
+                        String sql = capturedSql();
+                        assertThat(sql).contains("md.status");
 
-                        verify(mockQuery).setParameter("p0", MapDifficultyStatus.RANKED);
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        verify(mockQuery).setParameter("p0", "ranked");
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -574,8 +578,8 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, null);
 
-                        verify(mockQuery).setParameter("p0", MapDifficultyStatus.RANKED);
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        verify(mockQuery).setParameter("p0", "ranked");
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -589,8 +593,8 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, null);
 
-                        verify(mockQuery).setParameter("p0", Difficulty.EXPERT_PLUS);
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        verify(mockQuery).setParameter("p0", "ExpertPlus");
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -604,12 +608,11 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue())
-                                        .contains("CAST(s.score AS Double) / s.mapDifficulty.maxScore");
-                        assertThat(jpqlCaptor.getValue()).contains("s.mapDifficulty.status = :rankedStatus");
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        String sql = capturedSql();
+                        assertThat(sql)
+                                        .contains("CAST(s.score AS DOUBLE PRECISION) / md.max_score");
+                        assertThat(sql).contains("md.status = 'ranked'");
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -623,11 +626,10 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).contains("s.mapDifficulty.map.songName");
-                        assertThat(jpqlCaptor.getValue()).contains("s.mapDifficulty.status = :rankedStatus");
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        String sql = capturedSql();
+                        assertThat(sql).contains("mp.song_name");
+                        assertThat(sql).contains("md.status = 'ranked'");
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -642,7 +644,7 @@ class MilestoneQueryBuilderServiceTest {
                         service.evaluate(spec, 1L, null);
 
                         verify(mockQuery).setParameter("p0", 999.0);
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -662,7 +664,7 @@ class MilestoneQueryBuilderServiceTest {
                         verify(mockQuery).setParameter("p0", true);
                         verify(mockQuery).setParameter("p1", 0);
                         verify(mockQuery).setParameter("p2", 0);
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -678,11 +680,10 @@ class MilestoneQueryBuilderServiceTest {
 
                         assertThat(result).isEqualByComparingTo((double) (8_500_000));
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).contains("SUM(s.score)");
-                        assertThat(jpqlCaptor.getValue()).contains("s.mapDifficulty.status = :rankedStatus");
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        String sql = capturedSql();
+                        assertThat(sql).contains("SUM(s.score)");
+                        assertThat(sql).contains("md.status = 'ranked'");
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -697,11 +698,10 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, categoryId);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).contains("MAX(ucs.rankedPlays)");
-                        assertThat(jpqlCaptor.getValue()).contains("ucs.user.id = :userId");
-                        assertThat(jpqlCaptor.getValue()).contains("ucs.category.id = :categoryId");
+                        String sql = capturedSql();
+                        assertThat(sql).contains("MAX(ucs.ranked_plays)");
+                        assertThat(sql).contains("ucs.user_id = :userId");
+                        assertThat(sql).contains("ucs.category_id = :categoryId");
                 }
 
                 @Test
@@ -719,17 +719,15 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 42L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        String jpql = jpqlCaptor.getValue();
+                        String sql = capturedSql();
 
-                        assertThat(jpql).contains("FROM User u_1");
-                        assertThat(jpql).contains("u_1.id = :userId");
-                        assertThat(jpql).doesNotContain(":p0");
+                        assertThat(sql).contains("FROM users u_1");
+                        assertThat(sql).contains("u_1.id = :userId");
+                        assertThat(sql).doesNotContain(":p0");
                 }
 
                 @Test
-                void bestScoreInCountryForMap_generatesCorrectJpql() {
+                void bestScoreInCountryForMap_generatesCorrectSql() {
                         UUID mapDiffId = UUID.randomUUID();
 
                         MilestoneQuerySpec userCountrySubquery = new MilestoneQuerySpec(
@@ -760,23 +758,21 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 42L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        String jpql = jpqlCaptor.getValue();
+                        String sql = capturedSql();
 
-                        assertThat(jpql).contains("MAX(s.ap)");
-                        assertThat(jpql).contains("s.mapDifficulty.id = :p0");
-                        assertThat(jpql).contains("s.ap >= (");
-                        assertThat(jpql).contains("FROM Score s_1");
-                        assertThat(jpql).contains("s_1.mapDifficulty.id = :p1");
-                        assertThat(jpql).contains("s_1.active = :p2");
-                        assertThat(jpql).contains("s_1.user.country = (");
-                        assertThat(jpql).contains("FROM User u_2");
-                        assertThat(jpql).contains("u_2.id = :userId");
-                        assertThat(jpql).contains("s_1.mapDifficulty.status = :rankedStatus");
-                        assertThat(jpql).doesNotContain("s_1.user.id = :userId");
+                        assertThat(sql).contains("MAX(s.ap)");
+                        assertThat(sql).contains("s.map_difficulty_id = :p0");
+                        assertThat(sql).contains("s.ap >= (");
+                        assertThat(sql).contains("FROM scores s_1");
+                        assertThat(sql).contains("s_1.map_difficulty_id = :p1");
+                        assertThat(sql).contains("s_1.active = :p2");
+                        assertThat(sql).contains("usr_1.country = (");
+                        assertThat(sql).contains("FROM users u_2");
+                        assertThat(sql).contains("u_2.id = :userId");
+                        assertThat(sql).contains("md_1.status = 'ranked'");
+                        assertThat(sql).doesNotContain("s_1.user_id = :userId");
 
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        assertRankedFilterApplied();
                         verify(mockQuery).setParameter("userId", 42L);
                 }
 
@@ -798,19 +794,17 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 5L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        String jpql = jpqlCaptor.getValue();
+                        String sql = capturedSql();
 
-                        assertThat(jpql).contains("s.mapDifficulty.id IN (");
-                        assertThat(jpql).contains("FROM MapDifficultyComplexity mdc_1");
-                        assertThat(jpql).contains("mdc_1.mapDifficulty.id");
-                        assertThat(jpql).contains("mdc_1.mapDifficulty.status = :rankedStatus");
-                        assertThat(jpql).doesNotContain(" mdc ");
+                        assertThat(sql).contains("s.map_difficulty_id IN (");
+                        assertThat(sql).contains("FROM map_difficulty_complexities mdc_1");
+                        assertThat(sql).contains("mdc_1.map_difficulty_id");
+                        assertThat(sql).contains("md_1.status = 'ranked'");
+                        assertThat(sql).doesNotContain(" mdc ");
 
                         verify(mockQuery).setParameter("p0", true);
                         verify(mockQuery).setParameter("p1", 8.0);
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -836,26 +830,24 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 42L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        String jpql = jpqlCaptor.getValue();
+                        String sql = capturedSql();
 
-                        assertThat(jpql).contains("MAX(s.ap)");
-                        assertThat(jpql).contains("s.misses = :p0");
-                        assertThat(jpql).contains("s.badCuts = :p1");
-                        assertThat(jpql).contains("s.mapDifficulty.id IN (");
-                        assertThat(jpql).contains("FROM MapDifficultyComplexity mdc_1");
-                        assertThat(jpql).contains("mdc_1.mapDifficulty.id");
-                        assertThat(jpql).contains("mdc_1.complexity = (");
-                        assertThat(jpql).contains("FROM MapDifficultyComplexity mdc_2");
-                        assertThat(jpql).contains("MAX(mdc_2.complexity)");
-                        assertThat(jpql).contains("mdc_1.mapDifficulty.status = :rankedStatus");
-                        assertThat(jpql).contains("mdc_2.mapDifficulty.status = :rankedStatus");
-                        assertThat(jpql).doesNotContain(" mdc ");
+                        assertThat(sql).contains("MAX(s.ap)");
+                        assertThat(sql).contains("s.misses = :p0");
+                        assertThat(sql).contains("s.bad_cuts = :p1");
+                        assertThat(sql).contains("s.map_difficulty_id IN (");
+                        assertThat(sql).contains("FROM map_difficulty_complexities mdc_1");
+                        assertThat(sql).contains("mdc_1.map_difficulty_id");
+                        assertThat(sql).contains("mdc_1.complexity = (");
+                        assertThat(sql).contains("FROM map_difficulty_complexities mdc_2");
+                        assertThat(sql).contains("MAX(mdc_2.complexity)");
+                        assertThat(sql).contains("md_1.status = 'ranked'");
+                        assertThat(sql).contains("md_2.status = 'ranked'");
+                        assertThat(sql).doesNotContain(" mdc ");
 
                         verify(mockQuery).setParameter("p0", 0);
                         verify(mockQuery).setParameter("p1", 0);
-                        verify(mockQuery).setParameter("rankedStatus", MapDifficultyStatus.RANKED);
+                        assertRankedFilterApplied();
                 }
 
                 @Test
@@ -871,9 +863,8 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 5L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).contains("ucs.category.code");
+                        String sql = capturedSql();
+                        assertThat(sql).contains("cat.code");
                         verify(mockQuery).setParameter("p1", "true-acc");
                 }
         }
@@ -1027,12 +1018,10 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        String jpql = jpqlCaptor.getValue();
-                        assertThat(jpql).contains("CASE WHEN COUNT(s.rank) >=");
-                        assertThat(jpql).contains("THEN AVG(");
-                        assertThat(jpql).contains("ELSE NULL END");
+                        String sql = capturedSql();
+                        assertThat(sql).contains("CASE WHEN COUNT(s.rank) >=");
+                        assertThat(sql).contains("THEN AVG(");
+                        assertThat(sql).contains("ELSE NULL END");
                 }
         }
 
@@ -1114,7 +1103,7 @@ class MilestoneQueryBuilderServiceTest {
                 }
 
                 @Test
-                void modTransform_generatesCorrectJpql() {
+                void modTransform_generatesCorrectSql() {
                         MilestoneQuerySpec spec = new MilestoneQuerySpec(
                                         new SelectSpec("COUNT", "id"),
                                         "scores",
@@ -1125,9 +1114,8 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        assertThat(jpqlCaptor.getValue()).contains("MOD(s.score, 1000)");
+                        String sql = capturedSql();
+                        assertThat(sql).contains("MOD(s.score, 1000)");
                 }
         }
 
@@ -1249,10 +1237,8 @@ class MilestoneQueryBuilderServiceTest {
 
                         service.evaluate(spec, 1L, null);
 
-                        ArgumentCaptor<String> jpqlCaptor = ArgumentCaptor.forClass(String.class);
-                        verify(entityManager).createQuery(jpqlCaptor.capture());
-                        String jpql = jpqlCaptor.getValue();
-                        assertThat(jpql).contains("NOT EXISTS (SELECT COUNT(s_1.id)");
+                        String sql = capturedSql();
+                        assertThat(sql).contains("NOT EXISTS (SELECT COUNT(s_1.id)");
                 }
         }
 

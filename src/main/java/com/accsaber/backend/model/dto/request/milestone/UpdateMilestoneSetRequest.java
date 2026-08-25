@@ -1,7 +1,8 @@
 package com.accsaber.backend.model.dto.request.milestone;
 
-import java.util.UUID;
+import java.util.List;
 
+import jakarta.validation.Valid;
 import lombok.Data;
 
 @Data
@@ -13,5 +14,6 @@ public class UpdateMilestoneSetRequest {
 
     private Double setBonusXp;
 
-    private UUID awardsItemId;
+    @Valid
+    private List<MilestoneRewardRequest> rewards;
 }

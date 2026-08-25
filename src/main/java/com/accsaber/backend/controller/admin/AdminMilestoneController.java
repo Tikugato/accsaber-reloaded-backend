@@ -1,6 +1,7 @@
 package com.accsaber.backend.controller.admin;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -38,6 +39,7 @@ import com.accsaber.backend.model.dto.response.milestone.MilestoneSetLinkRespons
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSetResponse;
 import com.accsaber.backend.model.dto.response.milestone.PrerequisiteLinkResponse;
 import com.accsaber.backend.model.entity.milestone.MilestoneStatus;
+import com.accsaber.backend.service.milestone.MilestoneLayoutService;
 import com.accsaber.backend.service.milestone.MilestoneQueryBuilderService;
 import com.accsaber.backend.service.milestone.MilestoneService;
 
@@ -55,6 +57,7 @@ public class AdminMilestoneController {
 
     private final MilestoneService milestoneService;
     private final MilestoneQueryBuilderService queryBuilderService;
+    private final MilestoneLayoutService layoutService;
 
     @Operation(summary = "Get milestone query schema")
     @GetMapping("/schema")
@@ -158,6 +161,12 @@ public class AdminMilestoneController {
     public ResponseEntity<Void> refreshStats() {
         milestoneService.refreshCompletionStats();
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "Recompute canvas positions for every milestone in a set", description = "Runs the layout over the set's prerequisite graph and overwrites each milestone's position_x / position_y.")
+    @PostMapping("/sets/{setId}/relayout")
+    public ResponseEntity<Map<UUID, MilestoneLayoutService.Point>> relayoutSet(@PathVariable UUID setId) {
+        return ResponseEntity.ok(layoutService.relayoutSet(setId));
     }
 
     @Operation(summary = "Create a prerequisite link between milestones")

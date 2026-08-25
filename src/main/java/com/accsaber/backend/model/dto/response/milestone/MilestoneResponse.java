@@ -1,6 +1,7 @@
 package com.accsaber.backend.model.dto.response.milestone;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import com.accsaber.backend.model.dto.MilestoneQuerySpec;
@@ -23,11 +24,15 @@ public class MilestoneResponse {
     private MilestoneQuerySpec querySpec;
     private Double targetValue;
     private String comparison;
-    private boolean blExclusive;
     private String status;
     private Double completionPercentage;
     private Long completions;
     private Long totalPlayers;
-    private UUID awardsItemId;
+    private List<MilestoneRewardResponse> rewards;
+    private double positionX;
+    private double positionY;
+    private String progressModel;
+    private UUID progressCurveId;
+    private Double progressFloor;
     private Instant createdAt;
 }

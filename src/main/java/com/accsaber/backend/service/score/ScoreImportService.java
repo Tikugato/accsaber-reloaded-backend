@@ -35,8 +35,6 @@ import com.accsaber.backend.model.entity.campaign.UserCampaignStatus;
 import com.accsaber.backend.model.entity.map.LeaderboardPlatform;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
-import com.accsaber.backend.model.entity.milestone.Milestone;
-import com.accsaber.backend.model.entity.milestone.MilestoneSet;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.score.ScoreModifierLink;
 import com.accsaber.backend.repository.ModifierRepository;
@@ -92,7 +90,6 @@ public class ScoreImportService {
     private final DuplicateUserService duplicateUserService;
     private final SkillService skillService;
     private final SongSuggestService songSuggestService;
-    private final com.accsaber.backend.service.item.LevelUpAwardService levelUpAwardService;
 
     @Autowired
     @Qualifier("backfillExecutor")
@@ -635,8 +632,7 @@ public class ScoreImportService {
         }
 
         try {
-            var evaluation = milestoneEvaluationService.evaluateAllForUser(userId);
-            awardMilestoneXp(userId, evaluation);
+            milestoneEvaluationService.evaluateAllForUser(userId);
         } catch (Exception e) {
             log.error("Milestone evaluation failed during user {} backfill: {}", userId, e.getMessage());
         }
@@ -971,8 +967,7 @@ public class ScoreImportService {
                         if (Boolean.TRUE.equals(userTouchesOverall.get(userId))) {
                             overallStatisticsService.recalculate(userId, false);
                         }
-                        var evaluation = milestoneEvaluationService.evaluateAllForUser(userId);
-                        awardMilestoneXp(userId, evaluation);
+                        milestoneEvaluationService.evaluateAllForUser(userId);
                         campaignEvaluationService.evaluateParticipatingForUser(userId);
                     } catch (Exception ex) {
                         log.error("Per-user post-backfill work failed for user {}: {}",
@@ -1017,8 +1012,7 @@ public class ScoreImportService {
                 .map(userId -> CompletableFuture.runAsync(() -> {
                     try {
                         statisticsService.recalculate(userId, categoryId, false);
-                        var evaluation = milestoneEvaluationService.evaluateAllForUser(userId);
-                        awardMilestoneXp(userId, evaluation);
+                        milestoneEvaluationService.evaluateAllForUser(userId);
                         campaignEvaluationService.evaluateParticipatingForUser(userId);
                     } catch (Exception e) {
                         log.error("Batch recalc failed for user {} on difficulty {}: {}", userId, difficulty.getId(),
@@ -1040,25 +1034,6 @@ public class ScoreImportService {
             overallStatisticsService.updateOverallRankings();
         }
         log.info("Batch recalc complete for difficulty {}", difficulty.getId());
-    }
-
-    private void awardMilestoneXp(Long userId, MilestoneEvaluationService.EvaluationResult evaluation) {
-        if (evaluation.completedMilestones().isEmpty() && evaluation.completedSets().isEmpty())
-            return;
-
-        Double milestoneXp = evaluation.completedMilestones().stream()
-                .map(Milestone::getXp)
-                .filter(Objects::nonNull)
-                .reduce(0.0, Double::sum);
-        Double setXp = evaluation.completedSets().stream()
-                .map(MilestoneSet::getSetBonusXp)
-                .filter(Objects::nonNull)
-                .reduce(0.0, Double::sum);
-
-        Double total = (milestoneXp + setXp);
-        if (total.compareTo(0.0) > 0) {
-            levelUpAwardService.addXp(userId, total);
-        }
     }
 
     private Set<Long> backfillFromBeatLeader(MapDifficulty difficulty, String blLeaderboardId, Double complexity,
@@ -1305,8 +1280,7 @@ public class ScoreImportService {
         score.setMapDifficulty(difficulty);
         scoreRepository.save(score);
         if (needsStats && score.getStreak115() != null) {
-            var evaluation = milestoneEvaluationService.evaluateAfterScore(userId, score);
-            awardMilestoneXp(userId, evaluation);
+            milestoneEvaluationService.evaluateAfterScore(userId, score);
         }
         log.debug("Enriched existing score {} with ScoreSaber data", score.getId());
     }

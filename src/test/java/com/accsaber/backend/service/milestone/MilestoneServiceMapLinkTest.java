@@ -36,7 +36,9 @@ import com.accsaber.backend.repository.CategoryRepository;
 import com.accsaber.backend.repository.map.MapDifficultyMilestoneLinkRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.milestone.MilestoneCompletionStatsRepository;
+import com.accsaber.backend.repository.milestone.MilestoneItemRepository;
 import com.accsaber.backend.repository.milestone.MilestoneRepository;
+import com.accsaber.backend.repository.milestone.MilestoneSetItemRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
@@ -67,6 +69,10 @@ class MilestoneServiceMapLinkTest {
         private MilestoneQueryBuilderService queryBuilderService;
         @Mock
         private DuplicateUserService duplicateUserService;
+        @Mock
+        private MilestoneItemRepository milestoneItemRepository;
+        @Mock
+        private MilestoneSetItemRepository milestoneSetItemRepository;
 
         @InjectMocks
         private MilestoneService service;

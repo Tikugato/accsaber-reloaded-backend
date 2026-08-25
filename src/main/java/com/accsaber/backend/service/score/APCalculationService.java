@@ -172,12 +172,16 @@ public class APCalculationService {
             throw new IllegalArgumentException(
                     "Cannot interpolate a FORMULA type curve; use calculateWeightedAP instead");
         }
-        CurveTable table = getOrLoadPoints(curve.getId());
+        return interpolate(curve.getId(), accuracy);
+    }
+
+    public double interpolate(UUID curveId, double x) {
+        CurveTable table = getOrLoadPoints(curveId);
         if (table.xs().length == 0) {
             throw new IllegalStateException(
-                    "No curve points loaded for curve: " + curve.getId());
+                    "No curve points loaded for curve: " + curveId);
         }
-        return table.interpolate(accuracy);
+        return table.interpolate(x);
     }
 
     private CurveTable getOrLoadPoints(UUID curveId) {

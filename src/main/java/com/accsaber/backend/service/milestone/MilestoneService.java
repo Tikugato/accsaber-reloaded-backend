@@ -1,5 +1,7 @@
 package com.accsaber.backend.service.milestone;
 
+import java.time.Instant;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -17,11 +19,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.accsaber.backend.exception.ConflictException;
 import com.accsaber.backend.exception.ResourceNotFoundException;
+import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneRequest;
 import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneSetGroupRequest;
 import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneSetLinkRequest;
 import com.accsaber.backend.model.dto.request.milestone.CreateMilestoneSetRequest;
 import com.accsaber.backend.model.dto.request.milestone.CreatePrerequisiteLinkRequest;
+import com.accsaber.backend.model.dto.request.milestone.MilestoneRewardRequest;
 import com.accsaber.backend.model.dto.request.milestone.UpdateMilestoneSetLinkRequest;
 import com.accsaber.backend.model.dto.request.milestone.UpdatePrerequisiteLinkRequest;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneCompletionResponse;
@@ -29,17 +33,24 @@ import com.accsaber.backend.model.dto.response.milestone.MilestoneHolderResponse
 import com.accsaber.backend.model.dto.response.milestone.MilestoneResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSetGroupResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSetLinkResponse;
+import com.accsaber.backend.model.dto.response.milestone.MilestoneRewardResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSetResponse;
 import com.accsaber.backend.model.dto.response.milestone.PrerequisiteLinkResponse;
 import com.accsaber.backend.model.dto.response.milestone.UserMilestoneProgressResponse;
 import com.accsaber.backend.model.entity.Category;
+import com.accsaber.backend.model.entity.Curve;
+import com.accsaber.backend.model.entity.CurveType;
+import com.accsaber.backend.model.entity.item.Item;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyMilestoneLink;
 import com.accsaber.backend.model.entity.milestone.Milestone;
 import com.accsaber.backend.model.entity.milestone.MilestoneCompletionStats;
+import com.accsaber.backend.model.entity.milestone.MilestoneItem;
 import com.accsaber.backend.model.entity.milestone.MilestonePrerequisiteLink;
+import com.accsaber.backend.model.entity.milestone.MilestoneProgressModel;
 import com.accsaber.backend.model.entity.milestone.MilestoneSet;
 import com.accsaber.backend.model.entity.milestone.MilestoneSetGroup;
+import com.accsaber.backend.model.entity.milestone.MilestoneSetItem;
 import com.accsaber.backend.model.entity.milestone.MilestoneSetLink;
 import com.accsaber.backend.model.entity.milestone.MilestoneStatus;
 import com.accsaber.backend.model.entity.milestone.MilestoneTier;
@@ -47,17 +58,21 @@ import com.accsaber.backend.model.entity.milestone.UserMilestoneLink;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.CategoryRepository;
+import com.accsaber.backend.repository.CurveRepository;
 import com.accsaber.backend.repository.item.ItemRepository;
 import com.accsaber.backend.repository.map.MapDifficultyMilestoneLinkRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.milestone.MilestoneCompletionStatsRepository;
 import com.accsaber.backend.repository.milestone.MilestonePrerequisiteLinkRepository;
+import com.accsaber.backend.repository.milestone.MilestoneItemRepository;
 import com.accsaber.backend.repository.milestone.MilestoneRepository;
+import com.accsaber.backend.repository.milestone.MilestoneSetItemRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetGroupRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetLinkRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
+import com.accsaber.backend.service.item.ItemMapper;
 import com.accsaber.backend.service.player.DuplicateUserService;
 import com.accsaber.backend.util.Rounding;
 
@@ -84,8 +99,11 @@ public class MilestoneService {
     private final MilestoneEvaluationService milestoneEvaluationService;
     private final MilestoneQueryBuilderService queryBuilderService;
     private final DuplicateUserService duplicateUserService;
-    private final com.accsaber.backend.service.item.LevelUpAwardService levelUpAwardService;
     private final ItemRepository itemRepository;
+    private final CurveRepository curveRepository;
+    private final MilestoneItemRepository milestoneItemRepository;
+    private final MilestoneSetItemRepository milestoneSetItemRepository;
+    private final MilestoneProgressCalculator progressCalculator;
 
     public Page<MilestoneResponse> findAllActive(UUID setId, UUID categoryId, String type, Pageable pageable) {
         return findAllByStatus(setId, categoryId, type, MilestoneStatus.ACTIVE, pageable);
@@ -99,14 +117,16 @@ public class MilestoneService {
         Map<UUID, MilestoneCompletionStats> statsMap = completionStatsRepository.findAll().stream()
                 .collect(Collectors.toMap(MilestoneCompletionStats::getMilestoneId, Function.identity()));
 
-        return milestones.map(m -> toResponse(m, statsMap.get(m.getId())));
+        Map<UUID, List<MilestoneRewardResponse>> rewards = loadRewards(
+                milestones.map(Milestone::getId).toList());
+        return milestones.map(m -> toResponse(m, statsMap.get(m.getId()), rewards.get(m.getId())));
     }
 
     public MilestoneResponse findById(UUID id) {
         Milestone milestone = milestoneRepository.findByIdAndActiveTrueAndStatusActive(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Milestone", id));
         MilestoneCompletionStats stats = completionStatsRepository.findByMilestoneId(id).orElse(null);
-        return toResponse(milestone, stats);
+        return toResponse(milestone, stats, loadRewards(List.of(id)).get(id));
     }
 
     public List<MilestoneResponse> findBySet(UUID setId) {
@@ -116,7 +136,10 @@ public class MilestoneService {
                 MilestoneStatus.ACTIVE);
         Map<UUID, MilestoneCompletionStats> statsMap = completionStatsRepository.findAll().stream()
                 .collect(Collectors.toMap(MilestoneCompletionStats::getMilestoneId, Function.identity()));
-        return milestones.stream().map(m -> toResponse(m, statsMap.get(m.getId()))).toList();
+        Map<UUID, List<MilestoneRewardResponse>> rewards = loadRewards(
+                milestones.stream().map(Milestone::getId).toList());
+        return milestones.stream()
+                .map(m -> toResponse(m, statsMap.get(m.getId()), rewards.get(m.getId()))).toList();
     }
 
     public List<UserMilestoneProgressResponse> findCompletedByUser(Long userId) {
@@ -138,7 +161,7 @@ public class MilestoneService {
                     .xp(m.getXp())
                     .targetValue(m.getTargetValue())
                     .progress(link.getProgress())
-                    .normalizedProgress(normalizeProgress(link.getProgress(), m.getTargetValue(), m.getComparison()))
+                    .normalizedProgress(progressCalculator.normalize(m, link.getProgress()))
                     .completed(true)
                     .completedAt(link.getCompletedAt())
                     .completionPercentage(stats != null ? stats.getCompletionPercentage() : 0.0)
@@ -171,7 +194,7 @@ public class MilestoneService {
                     .xp(m.getXp())
                     .targetValue(m.getTargetValue())
                     .progress(rawProgress)
-                    .normalizedProgress(normalizeProgress(rawProgress, m.getTargetValue(), m.getComparison()))
+                    .normalizedProgress(progressCalculator.normalize(m, rawProgress))
                     .completed(false)
                     .completedAt(null)
                     .completionPercentage(stats != null ? stats.getCompletionPercentage() : 0.0)
@@ -226,7 +249,7 @@ public class MilestoneService {
 
     public Page<MilestoneSetResponse> findAllSetsAdmin(Pageable pageable) {
         return milestoneSetRepository.findAll(pageable)
-                .map(s -> toSetResponse(s, null));
+                .map(s -> toSetResponse(s, null, null));
     }
 
     public Page<MilestoneSetResponse> findAllSets(Long userId, Pageable pageable) {
@@ -254,7 +277,9 @@ public class MilestoneService {
         }
 
         Map<UUID, Double> finalPcts = userPercentages;
-        return sets.map(s -> toSetResponse(s, finalPcts.get(s.getId())));
+        Map<UUID, List<MilestoneRewardResponse>> setRewards = loadSetRewards(
+                sets.map(MilestoneSet::getId).toList());
+        return sets.map(s -> toSetResponse(s, finalPcts.get(s.getId()), setRewards.get(s.getId())));
     }
 
     public Page<UserMilestoneProgressResponse> findUserProgress(Long userId, Pageable pageable) {
@@ -281,7 +306,7 @@ public class MilestoneService {
                     .xp(m.getXp())
                     .targetValue(m.getTargetValue())
                     .progress(rawProgress)
-                    .normalizedProgress(normalizeProgress(rawProgress, m.getTargetValue(), m.getComparison()))
+                    .normalizedProgress(progressCalculator.normalize(m, rawProgress))
                     .completed(link != null && link.isCompleted())
                     .completedAt(link != null ? link.getCompletedAt() : null)
                     .completionPercentage(stats != null ? stats.getCompletionPercentage() : 0.0)
@@ -304,9 +329,10 @@ public class MilestoneService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .setBonusXp(request.getSetBonusXp() != null ? request.getSetBonusXp() : 0.0)
-                .awardsItem(loadItem(request.getAwardsItemId()))
                 .build();
-        return toSetResponse(milestoneSetRepository.save(set), null);
+        MilestoneSet persisted = milestoneSetRepository.save(set);
+        replaceSetRewards(persisted, request.getRewards());
+        return toSetResponse(persisted, null, loadSetRewards(List.of(persisted.getId())).get(persisted.getId()));
     }
 
     @Transactional
@@ -320,16 +346,48 @@ public class MilestoneService {
             set.setDescription(request.getDescription());
         if (request.getSetBonusXp() != null)
             set.setSetBonusXp(request.getSetBonusXp());
-        if (request.getAwardsItemId() != null)
-            set.setAwardsItem(loadItem(request.getAwardsItemId()));
-        return toSetResponse(milestoneSetRepository.save(set), null);
+        MilestoneSet persisted = milestoneSetRepository.save(set);
+        replaceSetRewards(persisted, request.getRewards());
+        return toSetResponse(persisted, null, loadSetRewards(List.of(persisted.getId())).get(persisted.getId()));
     }
 
-    private com.accsaber.backend.model.entity.item.Item loadItem(UUID itemId) {
-        if (itemId == null)
+    private Curve loadCurve(UUID curveId) {
+        if (curveId == null) {
             return null;
-        return itemRepository.findByIdAndActiveTrue(itemId)
-                .orElseThrow(() -> new ResourceNotFoundException("Item", itemId));
+        }
+        Curve curve = curveRepository.findById(curveId)
+                .orElseThrow(() -> new ResourceNotFoundException("Curve", curveId));
+        if (curve.getType() != CurveType.POINT_LOOKUP) {
+            throw new ValidationException("progressCurveId must reference a POINT_LOOKUP curve");
+        }
+        return curve;
+    }
+
+    private void assertProgressModelIsUsable(Milestone milestone) {
+        if (milestone.getProgressModel() == MilestoneProgressModel.CURVE && milestone.getProgressCurve() == null) {
+            throw new ValidationException("progressCurveId is required when progressModel is CURVE");
+        }
+    }
+
+    private Map<UUID, Item> loadRewardItems(List<MilestoneRewardRequest> rewards) {
+        List<UUID> ids = rewards.stream().map(MilestoneRewardRequest::getItemId).toList();
+        if (ids.size() != ids.stream().distinct().count()) {
+            throw new ValidationException("A reward item can only be listed once");
+        }
+        Map<UUID, Item> items = itemRepository.findAllById(ids).stream()
+                .filter(Item::isActive)
+                .collect(Collectors.toMap(Item::getId, Function.identity()));
+        Instant now = Instant.now();
+        for (UUID id : ids) {
+            Item item = items.get(id);
+            if (item == null) {
+                throw new ResourceNotFoundException("Item", id);
+            }
+            if (!item.isObtainableAt(now)) {
+                throw new ValidationException("'" + item.getName() + "' can no longer be handed out as a reward");
+            }
+        }
+        return items;
     }
 
     @Transactional
@@ -356,14 +414,21 @@ public class MilestoneService {
                 .querySpec(request.getQuerySpec())
                 .targetValue(request.getTargetValue())
                 .comparison(request.getComparison() != null ? request.getComparison() : "GTE")
-                .blExclusive(request.isBlExclusive())
-                .awardsItem(loadItem(request.getAwardsItemId()))
+                .positionX(request.getPositionX() != null ? request.getPositionX() : 0.0)
+                .positionY(request.getPositionY() != null ? request.getPositionY() : 0.0)
+                .progressModel(request.getProgressModel() != null
+                        ? request.getProgressModel()
+                        : MilestoneProgressModel.LINEAR)
+                .progressCurve(loadCurve(request.getProgressCurveId()))
+                .progressFloor(request.getProgressFloor())
                 .build();
+        assertProgressModelIsUsable(milestone);
         Milestone saved = milestoneRepository.save(milestone);
 
         createMapDifficultyLinks(saved, request.getMapDifficultyIds());
+        replaceMilestoneRewards(saved, request.getRewards());
 
-        return toResponse(saved, null);
+        return toResponse(saved, null, loadRewards(List.of(saved.getId())).get(saved.getId()));
     }
 
     @Transactional
@@ -375,7 +440,7 @@ public class MilestoneService {
         }
         milestone.setStatus(MilestoneStatus.ACTIVE);
         Milestone saved = milestoneRepository.save(milestone);
-        return toResponse(saved, null);
+        return toResponse(saved, null, loadRewards(List.of(saved.getId())).get(saved.getId()));
     }
 
     @Transactional
@@ -397,7 +462,9 @@ public class MilestoneService {
             milestone.setStatus(MilestoneStatus.ACTIVE);
         }
         List<Milestone> saved = milestoneRepository.saveAll(milestones);
-        return saved.stream().map(m -> toResponse(m, null)).toList();
+        Map<UUID, List<MilestoneRewardResponse>> rewards = loadRewards(
+                saved.stream().map(Milestone::getId).toList());
+        return saved.stream().map(m -> toResponse(m, null, rewards.get(m.getId()))).toList();
     }
 
     @Transactional
@@ -426,12 +493,26 @@ public class MilestoneService {
         if (request.getComparison() != null) {
             milestone.setComparison(request.getComparison());
         }
-        if (request.getAwardsItemId() != null) {
-            milestone.setAwardsItem(loadItem(request.getAwardsItemId()));
+        if (request.getPositionX() != null) {
+            milestone.setPositionX(request.getPositionX());
         }
+        if (request.getPositionY() != null) {
+            milestone.setPositionY(request.getPositionY());
+        }
+        if (request.getProgressModel() != null) {
+            milestone.setProgressModel(request.getProgressModel());
+        }
+        if (request.getProgressCurveId() != null) {
+            milestone.setProgressCurve(loadCurve(request.getProgressCurveId()));
+        }
+        if (request.getProgressFloor() != null) {
+            milestone.setProgressFloor(request.getProgressFloor());
+        }
+        assertProgressModelIsUsable(milestone);
         Milestone saved = milestoneRepository.save(milestone);
+        replaceMilestoneRewards(saved, request.getRewards());
         MilestoneCompletionStats stats = completionStatsRepository.findByMilestoneId(id).orElse(null);
-        return toResponse(saved, stats);
+        return toResponse(saved, stats, loadRewards(List.of(saved.getId())).get(saved.getId()));
     }
 
     @Transactional
@@ -490,7 +571,6 @@ public class MilestoneService {
         }
         log.info("Milestone backfill started for user {}", resolvedUserId);
         var evaluation = milestoneEvaluationService.evaluateAllForUser(resolvedUserId);
-        awardMilestoneXp(resolvedUserId, evaluation);
         log.info("Milestone backfill complete for user {} - {} milestones, {} sets completed",
                 resolvedUserId, evaluation.completedMilestones().size(), evaluation.completedSets().size());
         return CompletableFuture.completedFuture(null);
@@ -509,7 +589,6 @@ public class MilestoneService {
             try {
                 var evaluation = milestoneEvaluationService.evaluateAllForUser(userId);
                 totalCompleted += evaluation.completedMilestones().size();
-                awardMilestoneXp(userId, evaluation);
             } catch (Exception e) {
                 log.error("Bulk backfill failed for user {}: {}", userId, e.getMessage(), e);
             }
@@ -522,19 +601,6 @@ public class MilestoneService {
         log.info("Bulk milestone backfill complete - {} users processed, {} milestones completed", processed,
                 totalCompleted);
         return CompletableFuture.completedFuture(null);
-    }
-
-    private void awardMilestoneXp(Long userId, MilestoneEvaluationService.EvaluationResult evaluation) {
-        double xp = 0.0;
-        for (var m : evaluation.completedMilestones()) {
-            xp += m.getXp();
-        }
-        for (var s : evaluation.completedSets()) {
-            xp += s.getSetBonusXp();
-        }
-        if (xp > 0) {
-            levelUpAwardService.addXp(userId, xp);
-        }
     }
 
     @Transactional
@@ -735,23 +801,60 @@ public class MilestoneService {
         }
     }
 
-    private Double normalizeProgress(Double progress, Double targetValue, String comparison) {
-        if (progress == null || targetValue == null) {
-            return null;
+    private void replaceMilestoneRewards(Milestone milestone, List<MilestoneRewardRequest> rewards) {
+        if (rewards == null) {
+            return;
         }
-        if ("LTE".equals(comparison)) {
-            if (progress.compareTo(0.0) <= 0) {
-                return null;
-            }
-            return Math.min(Rounding.round(targetValue / progress, 6), 1.0);
-        }
-        if (targetValue.compareTo(0.0) == 0) {
-            return 1.0;
-        }
-        return Math.min(Rounding.round(progress / targetValue, 6), 1.0);
+        Map<UUID, Item> items = loadRewardItems(rewards);
+        milestoneItemRepository.deleteByMilestone_Id(milestone.getId());
+        milestoneItemRepository.saveAll(rewards.stream()
+                .map(reward -> MilestoneItem.builder()
+                        .id(new MilestoneItem.MilestoneItemId(milestone.getId(), reward.getItemId()))
+                        .milestone(milestone)
+                        .item(items.get(reward.getItemId()))
+                        .quantity(reward.getQuantity())
+                        .build())
+                .toList());
     }
 
-    private MilestoneResponse toResponse(Milestone m, MilestoneCompletionStats stats) {
+    private void replaceSetRewards(MilestoneSet set, List<MilestoneRewardRequest> rewards) {
+        if (rewards == null) {
+            return;
+        }
+        Map<UUID, Item> items = loadRewardItems(rewards);
+        milestoneSetItemRepository.deleteByMilestoneSet_Id(set.getId());
+        milestoneSetItemRepository.saveAll(rewards.stream()
+                .map(reward -> MilestoneSetItem.builder()
+                        .id(new MilestoneSetItem.MilestoneSetItemId(set.getId(), reward.getItemId()))
+                        .milestoneSet(set)
+                        .item(items.get(reward.getItemId()))
+                        .quantity(reward.getQuantity())
+                        .build())
+                .toList());
+    }
+
+    private Map<UUID, List<MilestoneRewardResponse>> loadRewards(Collection<UUID> milestoneIds) {
+        if (milestoneIds.isEmpty()) {
+            return Map.of();
+        }
+        return milestoneItemRepository.findByMilestoneIds(milestoneIds).stream()
+                .collect(Collectors.groupingBy(link -> link.getMilestone().getId(),
+                        Collectors.mapping(link -> ItemMapper.toRewardResponse(link.getItem(), link.getQuantity()),
+                                Collectors.toList())));
+    }
+
+    private Map<UUID, List<MilestoneRewardResponse>> loadSetRewards(Collection<UUID> setIds) {
+        if (setIds.isEmpty()) {
+            return Map.of();
+        }
+        return milestoneSetItemRepository.findBySetIds(setIds).stream()
+                .collect(Collectors.groupingBy(link -> link.getMilestoneSet().getId(),
+                        Collectors.mapping(link -> ItemMapper.toRewardResponse(link.getItem(), link.getQuantity()),
+                                Collectors.toList())));
+    }
+
+    private MilestoneResponse toResponse(Milestone m, MilestoneCompletionStats stats,
+            List<MilestoneRewardResponse> rewards) {
         return MilestoneResponse.builder()
                 .id(m.getId())
                 .setId(m.getMilestoneSet().getId())
@@ -764,12 +867,16 @@ public class MilestoneService {
                 .querySpec(m.getQuerySpec())
                 .targetValue(m.getTargetValue())
                 .comparison(m.getComparison())
-                .blExclusive(m.isBlExclusive())
                 .status(m.getStatus().name())
                 .completionPercentage(stats != null ? stats.getCompletionPercentage() : 0.0)
                 .completions(stats != null ? stats.getCompletions() : 0L)
                 .totalPlayers(stats != null ? stats.getTotalPlayers() : 0L)
-                .awardsItemId(m.getAwardsItem() != null ? m.getAwardsItem().getId() : null)
+                .rewards(rewards)
+                .positionX(m.getPositionX())
+                .positionY(m.getPositionY())
+                .progressModel(m.getProgressModel().name())
+                .progressCurveId(m.getProgressCurve() != null ? m.getProgressCurve().getId() : null)
+                .progressFloor(m.getProgressFloor())
                 .createdAt(m.getCreatedAt())
                 .build();
     }
@@ -785,7 +892,6 @@ public class MilestoneService {
                 .xp(m.getXp())
                 .targetValue(m.getTargetValue())
                 .comparison(m.getComparison())
-                .blExclusive(m.isBlExclusive())
                 .setId(m.getMilestoneSet().getId())
                 .categoryId(m.getCategory() != null ? m.getCategory().getId() : null)
                 .completions(stats != null ? stats.getCompletions() : 0L)
@@ -795,7 +901,7 @@ public class MilestoneService {
         if (userLink != null) {
             builder.userProgress(userLink.getProgress())
                     .userNormalizedProgress(
-                            normalizeProgress(userLink.getProgress(), m.getTargetValue(), m.getComparison()))
+                            progressCalculator.normalize(m, userLink.getProgress()))
                     .userCompleted(userLink.isCompleted())
                     .userCompletedAt(userLink.getCompletedAt());
             Score score = userLink.getAchievedWithScore();
@@ -821,13 +927,14 @@ public class MilestoneService {
         return builder.build();
     }
 
-    private MilestoneSetResponse toSetResponse(MilestoneSet s, Double userCompletionPercentage) {
+    private MilestoneSetResponse toSetResponse(MilestoneSet s, Double userCompletionPercentage,
+            List<MilestoneRewardResponse> rewards) {
         return MilestoneSetResponse.builder()
                 .id(s.getId())
                 .title(s.getTitle())
                 .description(s.getDescription())
                 .setBonusXp(s.getSetBonusXp())
-                .awardsItemId(s.getAwardsItem() != null ? s.getAwardsItem().getId() : null)
+                .rewards(rewards)
                 .createdAt(s.getCreatedAt())
                 .userCompletionPercentage(userCompletionPercentage)
                 .build();

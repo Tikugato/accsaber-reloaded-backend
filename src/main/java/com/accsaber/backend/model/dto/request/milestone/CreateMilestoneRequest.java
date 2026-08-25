@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.accsaber.backend.model.dto.MilestoneQuerySpec;
+import com.accsaber.backend.model.entity.milestone.MilestoneProgressModel;
 import com.accsaber.backend.model.entity.milestone.MilestoneTier;
 
 import jakarta.validation.Valid;
@@ -43,9 +44,18 @@ public class CreateMilestoneRequest {
     @NotNull
     private String comparison = "GTE";
 
-    private boolean blExclusive = false;
-
     private List<UUID> mapDifficultyIds;
 
-    private UUID awardsItemId;
+    @Valid
+    private List<MilestoneRewardRequest> rewards;
+
+    private Double positionX;
+
+    private Double positionY;
+
+    private MilestoneProgressModel progressModel;
+
+    private UUID progressCurveId;
+
+    private Double progressFloor;
 }

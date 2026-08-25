@@ -2,7 +2,6 @@ package com.accsaber.backend.service.score;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -19,8 +18,6 @@ import com.accsaber.backend.model.dto.APResult;
 import com.accsaber.backend.model.entity.Curve;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
-import com.accsaber.backend.model.entity.milestone.Milestone;
-import com.accsaber.backend.model.entity.milestone.MilestoneSet;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.UserCategoryStatistics;
 import com.accsaber.backend.repository.CategoryRepository;
@@ -61,7 +58,6 @@ public class ScoreRecalculationService {
     private final UserCategoryStatisticsRepository userCategoryStatisticsRepository;
     private final ScoreRankingService scoreRankingService;
     private final SongSuggestService songSuggestService;
-    private final com.accsaber.backend.service.item.LevelUpAwardService levelUpAwardService;
 
     @Autowired
     @Qualifier("backfillExecutor")
@@ -337,8 +333,7 @@ public class ScoreRecalculationService {
                         if (overallUsers.contains(userId)) {
                             overallStatisticsService.recalculate(userId, false);
                         }
-                        var evaluation = milestoneEvaluationService.evaluateAllForUser(userId);
-                        awardMilestoneXp(userId, evaluation);
+                        milestoneEvaluationService.evaluateAllForUser(userId);
                     } catch (Exception ex) {
                         log.error("Per-user post-recalc failed for user {}: {}",
                                 userId, ex.getMessage());
@@ -371,8 +366,7 @@ public class ScoreRecalculationService {
                 .map(userId -> CompletableFuture.runAsync(() -> {
                     try {
                         statisticsService.recalculate(userId, categoryId, false);
-                        var evaluation = milestoneEvaluationService.evaluateAllForUser(userId);
-                        awardMilestoneXp(userId, evaluation);
+                        milestoneEvaluationService.evaluateAllForUser(userId);
                     } catch (Exception e) {
                         log.error("Stats recalc failed for user {}: {}", userId, e.getMessage());
                     }
@@ -380,24 +374,5 @@ public class ScoreRecalculationService {
                 .toList();
 
         futures.forEach(CompletableFuture::join);
-    }
-
-    private void awardMilestoneXp(Long userId, MilestoneEvaluationService.EvaluationResult evaluation) {
-        if (evaluation.completedMilestones().isEmpty() && evaluation.completedSets().isEmpty())
-            return;
-
-        Double milestoneXp = evaluation.completedMilestones().stream()
-                .map(Milestone::getXp)
-                .filter(Objects::nonNull)
-                .reduce(0.0, Double::sum);
-        Double setXp = evaluation.completedSets().stream()
-                .map(MilestoneSet::getSetBonusXp)
-                .filter(Objects::nonNull)
-                .reduce(0.0, Double::sum);
-
-        Double total = (milestoneXp + setXp);
-        if (total.compareTo(0.0) > 0) {
-            levelUpAwardService.addXp(userId, total);
-        }
     }
 }

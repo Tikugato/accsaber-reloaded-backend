@@ -16,6 +16,7 @@ import com.accsaber.backend.model.dto.response.item.ItemTypeResponse;
 import com.accsaber.backend.model.dto.response.item.TradeResponse;
 import com.accsaber.backend.model.dto.response.item.UnusualEffectResponse;
 import com.accsaber.backend.model.dto.response.item.UserItemResponse;
+import com.accsaber.backend.model.dto.response.milestone.MilestoneRewardResponse;
 import com.accsaber.backend.model.entity.item.CrateContent;
 import com.accsaber.backend.model.entity.item.CrateModifier;
 import com.accsaber.backend.model.entity.item.Item;
@@ -48,6 +49,13 @@ public final class ItemMapper {
                 .valueSchema(toObject(type.getValueSchema()))
                 .active(type.isActive())
                 .createdAt(type.getCreatedAt())
+                .build();
+    }
+
+    public static MilestoneRewardResponse toRewardResponse(Item item, Integer quantity) {
+        return MilestoneRewardResponse.builder()
+                .item(toItemResponse(item))
+                .quantity(quantity)
                 .build();
     }
 

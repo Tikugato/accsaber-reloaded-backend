@@ -38,7 +38,7 @@ public class MilestoneCompletedResponse {
         private String type;
         private String tier;
         private Double xp;
-        private UUID awardsItemId;
+        private List<MilestoneRewardResponse> rewards;
     }
 
     @Getter
@@ -49,6 +49,6 @@ public class MilestoneCompletedResponse {
         private String title;
         private String description;
         private Double bonusXp;
-        private UUID awardsItemId;
+        private List<MilestoneRewardResponse> rewards;
     }
 }

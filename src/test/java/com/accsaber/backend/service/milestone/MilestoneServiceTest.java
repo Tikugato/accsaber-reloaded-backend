@@ -46,11 +46,14 @@ import com.accsaber.backend.model.entity.milestone.MilestoneStatus;
 import com.accsaber.backend.model.entity.milestone.MilestoneTier;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.CategoryRepository;
+import com.accsaber.backend.repository.CurveRepository;
 import com.accsaber.backend.repository.map.MapDifficultyMilestoneLinkRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.milestone.MilestoneCompletionStatsRepository;
 import com.accsaber.backend.repository.milestone.MilestonePrerequisiteLinkRepository;
+import com.accsaber.backend.repository.milestone.MilestoneItemRepository;
 import com.accsaber.backend.repository.milestone.MilestoneRepository;
+import com.accsaber.backend.repository.milestone.MilestoneSetItemRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
@@ -83,6 +86,14 @@ class MilestoneServiceTest {
     private MilestoneQueryBuilderService queryBuilderService;
     @Mock
     private DuplicateUserService duplicateUserService;
+    @Mock
+    private CurveRepository curveRepository;
+    @Mock
+    private MilestoneProgressCalculator progressCalculator;
+    @Mock
+    private MilestoneItemRepository milestoneItemRepository;
+    @Mock
+    private MilestoneSetItemRepository milestoneSetItemRepository;
 
     @InjectMocks
     private MilestoneService service;

@@ -22,7 +22,6 @@ public class MilestoneCompletionResponse {
     private Double xp;
     private Double targetValue;
     private String comparison;
-    private boolean blExclusive;
     private UUID setId;
     private UUID categoryId;
     private Long completions;

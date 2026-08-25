@@ -1,0 +1,31 @@
+ALTER TABLE milestones
+    ADD COLUMN progress_model VARCHAR(8) NOT NULL DEFAULT 'LINEAR'
+        CHECK (progress_model IN ('LINEAR', 'CURVE', 'LOG')),
+    ADD COLUMN progress_curve_id UUID REFERENCES curves(id),
+    ADD COLUMN progress_floor DOUBLE PRECISION;
+
+ALTER TABLE milestones
+    ADD CONSTRAINT chk_milestones_progress_curve
+        CHECK (progress_model <> 'CURVE' OR progress_curve_id IS NOT NULL);
+
+INSERT INTO curves (id, name, type, scale, shift, formula,
+                    x_parameter_name, x_parameter_value,
+                    y_parameter_name, y_parameter_value,
+                    z_parameter_name, z_parameter_value)
+VALUES ('acc00000-0000-0000-0000-000000000020', 'Milestone Streak Effort Curve', 'POINT_LOOKUP',
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+
+INSERT INTO curve_points (curve_id, x, y) VALUES
+    ('acc00000-0000-0000-0000-000000000020', 0, 0.00),
+    ('acc00000-0000-0000-0000-000000000020', 1, 0.04),
+    ('acc00000-0000-0000-0000-000000000020', 2, 0.07),
+    ('acc00000-0000-0000-0000-000000000020', 3, 0.10),
+    ('acc00000-0000-0000-0000-000000000020', 5, 0.15),
+    ('acc00000-0000-0000-0000-000000000020', 7, 0.26),
+    ('acc00000-0000-0000-0000-000000000020', 10, 0.40),
+    ('acc00000-0000-0000-0000-000000000020', 12, 0.50),
+    ('acc00000-0000-0000-0000-000000000020', 15, 0.70),
+    ('acc00000-0000-0000-0000-000000000020', 17, 0.83),
+    ('acc00000-0000-0000-0000-000000000020', 20, 1.00),
+    ('acc00000-0000-0000-0000-000000000020', 25, 1.30),
+    ('acc00000-0000-0000-0000-000000000020', 30, 1.60);

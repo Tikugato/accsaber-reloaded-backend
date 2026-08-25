@@ -1,6 +1,7 @@
 package com.accsaber.backend.model.dto.response.milestone;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -17,7 +18,7 @@ public class MilestoneSetResponse {
     private String title;
     private String description;
     private Double setBonusXp;
-    private UUID awardsItemId;
+    private List<MilestoneRewardResponse> rewards;
     private Instant createdAt;
     private Double userCompletionPercentage;
 }

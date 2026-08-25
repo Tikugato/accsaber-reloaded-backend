@@ -1,5 +1,6 @@
 package com.accsaber.backend.repository.milestone;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -97,6 +98,18 @@ public interface MilestoneRepository extends JpaRepository<Milestone, UUID> {
                         WHERE m.milestoneSet.id = :setId AND m.active = true AND m.status = 'ACTIVE'
                         """)
         long countActiveBySetId(@Param("setId") UUID setId);
+
+        @Query(value = """
+                        SELECT m.* FROM milestones m
+                        WHERE m.active = true AND m.status = 'ACTIVE'
+                        AND m.query_spec ->> 'from' IN (:sources)
+                        AND NOT EXISTS (
+                                SELECT 1 FROM user_milestone_links uml
+                                WHERE uml.milestone_id = m.id AND uml.user_id = :userId AND uml.completed = true
+                        )
+                        """, nativeQuery = true)
+        List<Milestone> findActiveUncompletedForUserBySources(@Param("userId") Long userId,
+                        @Param("sources") Collection<String> sources);
 
         @Query("""
                         SELECT m FROM Milestone m

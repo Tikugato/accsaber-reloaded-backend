@@ -8,12 +8,11 @@ ALTER TABLE milestones
     ADD CONSTRAINT chk_milestones_progress_curve
         CHECK (progress_model <> 'CURVE' OR progress_curve_id IS NOT NULL);
 
-INSERT INTO curves (id, name, type, scale, shift, formula,
-                    x_parameter_name, x_parameter_value,
-                    y_parameter_name, y_parameter_value,
-                    z_parameter_name, z_parameter_value)
-VALUES ('acc00000-0000-0000-0000-000000000020', 'Milestone Streak Effort Curve', 'POINT_LOOKUP',
-        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO curves (id, name, type)
+VALUES ('acc00000-0000-0000-0000-000000000020', 'Milestone Streak Effort Curve', 'POINT_LOOKUP')
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, active = true;
+
+DELETE FROM curve_points WHERE curve_id = 'acc00000-0000-0000-0000-000000000020';
 
 INSERT INTO curve_points (curve_id, x, y) VALUES
     ('acc00000-0000-0000-0000-000000000020', 0, 0.00),

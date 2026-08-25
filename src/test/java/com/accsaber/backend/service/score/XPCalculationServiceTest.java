@@ -191,7 +191,7 @@ class XPCalculationServiceTest {
             service.calculateXpForWorseScore();
 
             verify(curveRepository, times(0)).findById(any());
-            verify(apCalculationService, times(0)).interpolate(any(), anyDouble());
+            verify(apCalculationService, times(0)).interpolate(any(Curve.class), anyDouble());
         }
     }
 
@@ -201,7 +201,7 @@ class XPCalculationServiceTest {
         @Test
         void xpCurveLoadedOnce_cachedOnSubsequentCalls() {
             when(curveRepository.findById(XP_CURVE_ID)).thenReturn(Optional.of(xpCurve));
-            when(apCalculationService.interpolate(any(), anyDouble())).thenReturn(0.0);
+            when(apCalculationService.interpolate(any(Curve.class), anyDouble())).thenReturn(0.0);
 
             service.calculateXpForNewMap(0.0, COMPLEXITY_10);
             service.calculateXpForNewMap(0.0, COMPLEXITY_10);
@@ -213,7 +213,7 @@ class XPCalculationServiceTest {
         @Test
         void evictCache_forcesReloadOnNextCall() {
             when(curveRepository.findById(XP_CURVE_ID)).thenReturn(Optional.of(xpCurve));
-            when(apCalculationService.interpolate(any(), anyDouble())).thenReturn(0.0);
+            when(apCalculationService.interpolate(any(Curve.class), anyDouble())).thenReturn(0.0);
 
             service.calculateXpForNewMap(0.0, COMPLEXITY_10);
             service.evictXpCurveCache();

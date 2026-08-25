@@ -42,7 +42,7 @@ public class MilestoneProgressCalculator {
 
         Double fraction = switch (milestone.getProgressModel()) {
             case CURVE -> curveFraction(milestone, value, target, lowerIsBetter);
-            case LOG -> logFraction(milestone, value, target);
+            case LOG -> logFraction(milestone, value, target, lowerIsBetter);
             case LINEAR -> linearFraction(milestone, value, target, lowerIsBetter);
         };
         return fraction == null ? null : clamp(fraction);
@@ -81,17 +81,21 @@ public class MilestoneProgressCalculator {
         return mappedTarget == 0 ? 1.0 : mappedValue / mappedTarget;
     }
 
-    private Double logFraction(Milestone milestone, double value, double target) {
+    private Double logFraction(Milestone milestone, double value, double target, boolean lowerIsBetter) {
+        if (!lowerIsBetter) {
+            Double floor = milestone.getProgressFloor();
+            if (floor == null || floor <= 0 || target <= floor) {
+                return null;
+            }
+            return value <= floor ? 0.0 : Math.log(value / floor) / Math.log(target / floor);
+        }
         Double floor = milestone.getProgressFloor() != null
                 ? milestone.getProgressFloor()
                 : population(milestone);
         if (floor == null || value <= 0 || target <= 0 || floor <= target) {
             return null;
         }
-        if (value >= floor) {
-            return 0.0;
-        }
-        return Math.log(floor / value) / Math.log(floor / target);
+        return value >= floor ? 0.0 : Math.log(floor / value) / Math.log(floor / target);
     }
 
     private Double anchored(double value, double target, double floor) {

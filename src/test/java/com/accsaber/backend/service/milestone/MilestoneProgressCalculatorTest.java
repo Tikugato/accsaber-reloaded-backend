@@ -217,6 +217,25 @@ class MilestoneProgressCalculatorTest {
         }
 
         @Test
+        void higherIsBetterUsesLogDistanceFromTheFloor() {
+            Milestone m = milestone(MilestoneProgressModel.LOG, 30000, "GTE");
+            m.setProgressFloor(1000.0);
+
+            assertThat(calculator.normalize(m, 20000.0)).isCloseTo(0.881, within(TOLERANCE));
+            assertThat(calculator.normalize(m, 1000.0)).isEqualTo(0.0);
+            assertThat(calculator.normalize(m, 30000.0)).isEqualTo(1.0);
+        }
+
+        @Test
+        void higherIsBetterWithoutAFloorNeverReadsComplete() {
+            withPopulation(130000);
+            Milestone m = milestone(MilestoneProgressModel.LOG, 30000, "GTE");
+
+            assertThat(calculator.normalize(m, 20000.0)).isNull();
+            verify(statisticsRepository, never()).countActivePlayersInCategory(any(UUID.class));
+        }
+
+        @Test
         void resolvesPopulationOncePerCategory() {
             withPopulation(130000);
             Milestone m = milestone(MilestoneProgressModel.LOG, 50, "LTE");

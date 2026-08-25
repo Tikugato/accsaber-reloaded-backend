@@ -367,6 +367,10 @@ public class MilestoneService {
         if (milestone.getProgressModel() == MilestoneProgressModel.CURVE && milestone.getProgressCurve() == null) {
             throw new ValidationException("progressCurveId is required when progressModel is CURVE");
         }
+        if (milestone.getProgressModel() == MilestoneProgressModel.LOG && !"LTE".equals(milestone.getComparison())
+                && milestone.getProgressFloor() == null) {
+            throw new ValidationException("progressFloor is required for a LOG progress model on a GTE milestone");
+        }
     }
 
     private Map<UUID, Item> loadRewardItems(List<MilestoneRewardRequest> rewards) {

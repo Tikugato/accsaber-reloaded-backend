@@ -65,6 +65,7 @@ public class ScoreSources implements MilestoneSourceProvider {
                 .enumeration("map_difficulty_difficulty", "{md}.difficulty", Difficulty.class)
                 .integer("map_difficulty_max_score", "{md}.max_score")
                 .timestamp("map_difficulty_ranked_at", "{md}.ranked_at")
+                .uuid("map_difficulty_batch_id", "{md}.batch_id")
                 .uuid("map_difficulty_category_id", "{md}.category_id")
                 .text("song_name", "{mp}.song_name")
                 .text("song_author", "{mp}.song_author")
@@ -78,9 +79,12 @@ public class ScoreSources implements MilestoneSourceProvider {
 
     private MilestoneSource scoreModifierLinks() {
         return MilestoneSource.named("score_modifier_links", "score_modifier_links", "sml")
+                .join("mod", "JOIN modifiers {mod} ON {base}.modifier_id = {mod}.id")
                 .uuid("id", "{base}.id")
                 .uuid("score_id", "{base}.score_id")
                 .uuid("modifier_id", "{base}.modifier_id")
+                .text("modifier_code", "{mod}.code")
+                .text("modifier_name", "{mod}.name")
                 .build();
     }
 }

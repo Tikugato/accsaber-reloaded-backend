@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,7 @@ public class MilestoneQueryBuilderService {
             "AVG", "PLAIN");
     private static final Set<String> OPERATORS = Set.of(">", ">=", "<", "<=", "=", "!=");
     private static final Set<String> SUBQUERY_OPERATORS = Set.of("IN", "NOT IN", "EXISTS", "NOT EXISTS");
+    private static final Set<String> NULL_OPERATORS = Set.of("IS NULL", "IS NOT NULL");
     private static final Set<String> TRANSFORM_FUNCTIONS = Set.of("MOD", "INTERVAL_SUBTRACT");
     private static final Set<String> SCOPES = Set.of("USER", "COUNTRY");
 
@@ -57,7 +59,7 @@ public class MilestoneQueryBuilderService {
     private final MilestoneSqlCompiler compiler;
 
     public void validate(MilestoneQuerySpec spec) {
-        validateSpec(spec, false);
+        validateSpec(spec, null);
     }
 
     public Double evaluate(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
@@ -128,7 +130,7 @@ public class MilestoneQueryBuilderService {
         }
         return new MilestoneSchemaResponse(tables,
                 AGGREGATE_FUNCTIONS.stream().sorted().toList(),
-                OPERATORS.stream().sorted().toList());
+                Stream.concat(OPERATORS.stream(), NULL_OPERATORS.stream()).sorted().toList());
     }
 
     private ColumnInfo toColumnInfo(MilestoneSourceColumn column) {
@@ -257,7 +259,7 @@ public class MilestoneQueryBuilderService {
                 .append(',').append(transform.argument()).append('|');
     }
 
-    private void validateSpec(MilestoneQuerySpec spec, boolean isSubquery) {
+    private void validateSpec(MilestoneQuerySpec spec, MilestoneSource parent) {
         if (spec == null || spec.select() == null || spec.from() == null) {
             throw new ValidationException("query_spec must include select and from fields");
         }
@@ -270,13 +272,13 @@ public class MilestoneQueryBuilderService {
             throw new ValidationException("Unsupported function: " + spec.select().function()
                     + ". Allowed: " + AGGREGATE_FUNCTIONS);
         }
-        if ("PLAIN".equals(function) && !isSubquery) {
+        if ("PLAIN".equals(function) && parent == null) {
             throw new ValidationException("PLAIN function is only valid in subqueries");
         }
         requireColumn(source, spec.select().column(), "select column");
 
         for (FilterSpec filter : spec.filters() != null ? spec.filters() : List.<FilterSpec>of()) {
-            validateFilter(filter, source);
+            validateFilter(filter, source, parent);
         }
         if (spec.orGroups() != null) {
             for (List<FilterSpec> group : spec.orGroups()) {
@@ -284,13 +286,13 @@ public class MilestoneQueryBuilderService {
                     throw new ValidationException("or_groups entries must not be null or empty");
                 }
                 for (FilterSpec filter : group) {
-                    validateFilter(filter, source);
+                    validateFilter(filter, source, parent);
                 }
             }
         }
         validateHaving(spec, source);
         if (spec.divisor() != null) {
-            validateSpec(spec.divisor(), false);
+            validateSpec(spec.divisor(), null);
         }
         validateGrouping(spec, source);
         validateOrdering(spec, source);
@@ -313,7 +315,7 @@ public class MilestoneQueryBuilderService {
             throw new ValidationException("Having must have either value or value_query");
         }
         if (having.valueQuery() != null) {
-            validateSpec(having.valueQuery(), false);
+            validateSpec(having.valueQuery(), null);
         }
     }
 
@@ -363,22 +365,35 @@ public class MilestoneQueryBuilderService {
         }
     }
 
-    private void validateFilter(FilterSpec filter, MilestoneSource source) {
+    private void validateFilter(FilterSpec filter, MilestoneSource source, MilestoneSource parent) {
         requireColumn(source, filter.column(), "filter column");
         boolean subqueryOperator = SUBQUERY_OPERATORS.contains(filter.operator());
-        if (!OPERATORS.contains(filter.operator()) && !subqueryOperator) {
+        boolean nullOperator = NULL_OPERATORS.contains(filter.operator());
+        if (!OPERATORS.contains(filter.operator()) && !subqueryOperator && !nullOperator) {
             throw new ValidationException("Unsupported operator: " + filter.operator()
-                    + ". Allowed: " + OPERATORS + " or subquery operators: " + SUBQUERY_OPERATORS);
+                    + ". Allowed: " + OPERATORS + ", null checks: " + NULL_OPERATORS
+                    + " or subquery operators: " + SUBQUERY_OPERATORS);
+        }
+        if (nullOperator) {
+            if (filter.value() != null || filter.subquery() != null || filter.columnRef() != null) {
+                throw new ValidationException(
+                        "Operator '" + filter.operator() + "' takes no value on column: " + filter.column());
+            }
+            validateTransform(filter.transform());
+            return;
         }
         if (filter.subquery() != null) {
-            validateSpec(filter.subquery(), true);
+            validateSpec(filter.subquery(), source);
         } else if (subqueryOperator) {
             throw new ValidationException(
                     "Operator '" + filter.operator() + "' requires a subquery on column: " + filter.column());
         } else if (filter.columnRef() != null) {
             String reference = filter.columnRef();
-            requireColumn(source, reference.startsWith("OUTER.") ? reference.substring(6) : reference,
-                    "column_ref");
+            if (reference.startsWith("OUTER.")) {
+                requireColumn(parent != null ? parent : source, reference.substring(6), "column_ref");
+            } else {
+                requireColumn(source, reference, "column_ref");
+            }
         } else if (filter.value() == null) {
             throw new ValidationException("Filter value must not be null for column: " + filter.column());
         }

@@ -35,6 +35,7 @@ public class MilestoneSqlCompiler {
     private static final Pattern INTERVAL_ARGUMENT = Pattern.compile(
             "^\\d{1,9} (second|minute|hour|day|week|month|year)s?$");
     private static final String OUTER_PREFIX = "OUTER.";
+    private static final Set<String> NULL_OPERATORS = Set.of("IS NULL", "IS NOT NULL");
 
     private final MilestoneSourceRegistry registry;
 
@@ -182,6 +183,9 @@ public class MilestoneSqlCompiler {
             return operator + " (" + subquery(filter.subquery(), scope, context) + ")";
         }
         String left = transform(scope.column(filter.column()), filter.transform());
+        if (NULL_OPERATORS.contains(operator)) {
+            return left + " " + operator;
+        }
         if (filter.subquery() != null) {
             return left + " " + operator + " (" + subquery(filter.subquery(), scope, context) + ")";
         }
@@ -194,7 +198,8 @@ public class MilestoneSqlCompiler {
 
     private String subquery(MilestoneQuerySpec spec, Scope parent, Context context) {
         Scope scope = parent.child(source(spec.from()));
-        List<String> conditions = conditions(spec, scope, context, "users".equals(spec.from()), false);
+        boolean userScoped = "users".equals(spec.from()) || "USER".equalsIgnoreCase(spec.scope());
+        List<String> conditions = conditions(spec, scope, context, userScoped, false);
         return "SELECT " + apply(spec.select().function(), scope.column(spec.select().column()))
                 + " FROM " + scope.from() + where(conditions);
     }
@@ -264,8 +269,8 @@ public class MilestoneSqlCompiler {
         try {
             return switch (column.type()) {
                 case STRING -> value.toString();
-                case INTEGER -> value instanceof Integer i ? i : Integer.parseInt(value.toString());
-                case LONG -> value instanceof Long l ? l : Long.parseLong(value.toString());
+                case INTEGER -> intValue(value);
+                case LONG -> wholeNumber(value);
                 case DOUBLE -> value instanceof Number n ? n.doubleValue() : Double.parseDouble(value.toString());
                 case BOOLEAN -> value instanceof Boolean b ? b : Boolean.parseBoolean(value.toString());
                 case INSTANT -> value instanceof Instant i ? i : Instant.parse(value.toString());
@@ -278,12 +283,28 @@ public class MilestoneSqlCompiler {
         }
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private long wholeNumber(Object value) {
+        if (!(value instanceof Number number)) {
+            return Long.parseLong(value.toString().trim());
+        }
+        double raw = number.doubleValue();
+        if (Double.isNaN(raw) || Double.isInfinite(raw) || raw != Math.rint(raw)) {
+            throw new NumberFormatException("expected a whole number but got " + value);
+        }
+        return number.longValue();
+    }
+
+    private int intValue(Object value) {
+        long whole = wholeNumber(value);
+        if (whole < Integer.MIN_VALUE || whole > Integer.MAX_VALUE) {
+            throw new NumberFormatException("value out of INTEGER range: " + value);
+        }
+        return (int) whole;
+    }
+
     private String enumDatabaseValue(Class<? extends Enum<?>> enumClass, String raw) {
-        Enum<?> constant;
-        try {
-            constant = Enum.valueOf((Class<Enum>) (Class<?>) enumClass, raw.toUpperCase());
-        } catch (IllegalArgumentException notAConstantName) {
+        Enum<?> constant = constantNamed(enumClass, raw);
+        if (constant == null) {
             constant = fromDatabaseValue(enumClass, raw);
         }
         try {
@@ -291,6 +312,15 @@ public class MilestoneSqlCompiler {
         } catch (ReflectiveOperationException noDbValue) {
             return constant.name();
         }
+    }
+
+    private Enum<?> constantNamed(Class<? extends Enum<?>> enumClass, String raw) {
+        for (Enum<?> constant : enumClass.getEnumConstants()) {
+            if (constant.name().equalsIgnoreCase(raw)) {
+                return constant;
+            }
+        }
+        return null;
     }
 
     private Enum<?> fromDatabaseValue(Class<? extends Enum<?>> enumClass, String raw) {

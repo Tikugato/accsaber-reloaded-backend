@@ -14,7 +14,8 @@ public class ItemSources implements MilestoneSourceProvider {
 
     @Override
     public List<MilestoneSource> sources() {
-        return List.of(userItems(), crateOpens(), disintegrations(), trades(), marketListings());
+        return List.of(userItems(), crateOpens(), disintegrations(), trades(), tradesReceived(), marketListings(),
+                marketPurchases());
     }
 
     private MilestoneSource userItems() {
@@ -69,24 +70,39 @@ public class ItemSources implements MilestoneSourceProvider {
     }
 
     private MilestoneSource trades() {
-        return MilestoneSource.named("trades", "user_item_trades", "uit")
+        return tradeColumns(MilestoneSource.named("trades", "user_item_trades", "uit").user("{base}.from_user_id"));
+    }
+
+    private MilestoneSource tradesReceived() {
+        return tradeColumns(MilestoneSource.named("trades_received", "user_item_trades", "uitr").user("{base}.to_user_id"));
+    }
+
+    private MilestoneSource tradeColumns(MilestoneSource.Builder builder) {
+        return builder
                 .triggeredBy(MilestoneTrigger.ITEM)
-                .user("{base}.from_user_id")
                 .uuid("id", "{base}.id")
                 .bigint("from_user_id", "{base}.from_user_id")
                 .bigint("to_user_id", "{base}.to_user_id")
                 .enumeration("status", "{base}.status", TradeStatus.class)
                 .bigint("offered_essence", "{base}.offered_essence")
                 .bigint("requested_essence", "{base}.requested_essence")
+                .timestamp("created_at", "{base}.created_at")
                 .timestamp("resolved_at", "{base}.resolved_at")
                 .build();
     }
 
     private MilestoneSource marketListings() {
-        return MilestoneSource.named("market_listings", "market_listings", "mkl")
+        return listingColumns(MilestoneSource.named("market_listings", "market_listings", "mkl").user("{base}.seller_id"));
+    }
+
+    private MilestoneSource marketPurchases() {
+        return listingColumns(MilestoneSource.named("market_purchases", "market_listings", "mkp").user("{base}.winner_id"));
+    }
+
+    private MilestoneSource listingColumns(MilestoneSource.Builder builder) {
+        return builder
                 .triggeredBy(MilestoneTrigger.MARKET)
                 .join("itm", "JOIN items {itm} ON {base}.item_id = {itm}.id")
-                .user("{base}.seller_id")
                 .uuid("id", "{base}.id")
                 .bigint("seller_id", "{base}.seller_id")
                 .bigint("winner_id", "{base}.winner_id")
@@ -94,8 +110,11 @@ public class ItemSources implements MilestoneSourceProvider {
                 .enumeration("status", "{base}.status", MarketListingStatus.class)
                 .bigint("final_price", "{base}.final_price")
                 .bigint("current_bid", "{base}.current_bid")
+                .bigint("starting_bid", "{base}.starting_bid")
                 .bigint("buyout_price", "{base}.buyout_price")
                 .bigint("quantity", "{base}.quantity")
+                .timestamp("created_at", "{base}.created_at")
+                .timestamp("ends_at", "{base}.ends_at")
                 .timestamp("settled_at", "{base}.settled_at")
                 .text("item_name", "{itm}.name")
                 .enumeration("item_rarity", "{itm}.rarity", ItemRarity.class)

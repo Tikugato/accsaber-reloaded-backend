@@ -2,10 +2,13 @@ package com.accsaber.backend.service.milestone;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -22,7 +25,9 @@ import com.accsaber.backend.model.dto.MilestoneQuerySpec;
 import com.accsaber.backend.model.dto.MilestoneQuerySpec.FilterSpec;
 import com.accsaber.backend.model.dto.MilestoneQuerySpec.SelectSpec;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneSchemaResponse;
+import com.accsaber.backend.service.milestone.source.ItemSources;
 import com.accsaber.backend.service.milestone.source.MapSources;
+import com.accsaber.backend.service.milestone.source.ProgressSources;
 import com.accsaber.backend.service.milestone.source.MilestoneSourceRegistry;
 import com.accsaber.backend.service.milestone.source.PlayerSources;
 import com.accsaber.backend.service.milestone.source.ProgressionSources;
@@ -45,7 +50,8 @@ class MilestoneQueryBuilderServiceTest {
                 lenient().when(entityManager.createNativeQuery(anyString())).thenReturn(mockQuery);
 
                 MilestoneSourceRegistry registry = new MilestoneSourceRegistry(List.of(
-                                new ScoreSources(), new MapSources(), new PlayerSources(), new ProgressionSources()));
+                                new ScoreSources(), new MapSources(), new PlayerSources(), new ProgressionSources(),
+                                new ItemSources(), new ProgressSources()));
                 service = new MilestoneQueryBuilderService(entityManager, registry, new MilestoneSqlCompiler(registry));
         }
 
@@ -648,6 +654,33 @@ class MilestoneQueryBuilderServiceTest {
                 }
 
                 @Test
+                void coercion_wholeDoubleValueForIntegerColumn() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        List.of(new FilterSpec("streak_115", ">=", 1.0)));
+
+                        when(mockQuery.getSingleResult()).thenReturn(2L);
+
+                        service.evaluate(spec, 1L, null);
+
+                        verify(mockQuery).setParameter("p0", 1);
+                        assertRankedFilterApplied();
+                }
+
+                @Test
+                void coercion_fractionalValueForIntegerColumn_throwsValidationException() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        List.of(new FilterSpec("streak_115", ">=", 1.5)));
+
+                        assertThatThrownBy(() -> service.evaluate(spec, 1L, null))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("INTEGER");
+                }
+
+                @Test
                 void multipleFilters_allBoundAsParameters() {
                         MilestoneQuerySpec spec = new MilestoneQuerySpec(
                                         new SelectSpec("MAX", "ap"),
@@ -926,7 +959,7 @@ class MilestoneQueryBuilderServiceTest {
                         assertThat(schema.functions()).containsExactlyInAnyOrder(
                                         "AVG", "COUNT", "COUNT_DISTINCT", "MAX", "MIN", "PLAIN", "SUM");
                         assertThat(schema.operators()).containsExactlyInAnyOrder(
-                                        "!=", "<", "<=", "=", ">", ">=");
+                                        "!=", "<", "<=", "=", ">", ">=", "IS NULL", "IS NOT NULL");
                 }
 
                 @Test
@@ -1187,6 +1220,155 @@ class MilestoneQueryBuilderServiceTest {
                         assertThatThrownBy(() -> service.validate(spec))
                                         .isInstanceOf(ValidationException.class)
                                         .hasMessageContaining("Unsupported group_by cast");
+                }
+        }
+
+        @Nested
+        class EnumFilters {
+
+                @Test
+                void lowercaseEnumConstant_bindsItsName() {
+                        when(mockQuery.getSingleResult()).thenReturn(1L);
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "crate_opens",
+                                        List.of(new FilterSpec("reward_item_rarity", "=", "legendary")));
+
+                        service.evaluate(spec, 1L, null);
+
+                        verify(mockQuery).setParameter("p0", "legendary");
+                }
+
+                @Test
+                void dbValueEnumConstant_bindsItsDbValue() {
+                        when(mockQuery.getSingleResult()).thenReturn(1L);
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "user_campaigns",
+                                        List.of(new FilterSpec("status", "=", "COMPLETED")));
+
+                        service.evaluate(spec, 1L, null);
+
+                        verify(mockQuery).setParameter("p0", "completed");
+                }
+
+                @Test
+                void unknownEnumValue_throwsValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "crate_opens",
+                                        List.of(new FilterSpec("reward_item_rarity", "=", "shiny")));
+
+                        assertThatThrownBy(() -> service.evaluate(spec, 1L, null))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("Invalid value");
+                }
+        }
+
+        @Nested
+        class OuterReferences {
+
+                @Test
+                void outerRef_isValidatedAgainstTheParentSource() {
+                        MilestoneQuerySpec inner = new MilestoneQuerySpec(
+                                        new SelectSpec("PLAIN", "id"), "map_difficulties",
+                                        List.of(new FilterSpec("batch_id", "=", null, null, null,
+                                                        "OUTER.map_difficulty_batch_id", null)));
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"), "scores",
+                                        List.of(new FilterSpec("id", "NOT EXISTS", null, inner)));
+
+                        service.validate(spec);
+                }
+
+                @Test
+                void outerRef_unknownOnParent_throwsValidation() {
+                        MilestoneQuerySpec inner = new MilestoneQuerySpec(
+                                        new SelectSpec("PLAIN", "id"), "map_difficulties",
+                                        List.of(new FilterSpec("batch_id", "=", null, null, null,
+                                                        "OUTER.nope", null)));
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"), "scores",
+                                        List.of(new FilterSpec("id", "NOT EXISTS", null, inner)));
+
+                        assertThatThrownBy(() -> service.validate(spec))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("column_ref");
+                }
+        }
+
+        @Nested
+        class SubqueryUserScope {
+
+                @Test
+                void userScopedSubquery_getsTheUserFilter() {
+                        when(mockQuery.getSingleResult()).thenReturn(1L);
+                        MilestoneQuerySpec inner = new MilestoneQuerySpec(
+                                        new SelectSpec("PLAIN", "id"), "scores",
+                                        List.of(new FilterSpec("partial", "=", true)),
+                                        null, null, null, null, null, null, null, "USER");
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"), "scores",
+                                        List.of(new FilterSpec("id", "NOT EXISTS", null, inner)));
+
+                        service.evaluate(spec, 1L, null);
+
+                        assertThat(capturedSql()).contains("s_1.user_id = :userId");
+                }
+
+                @Test
+                void plainSubquery_staysUncorrelated() {
+                        when(mockQuery.getSingleResult()).thenReturn(1L);
+                        MilestoneQuerySpec inner = new MilestoneQuerySpec(
+                                        new SelectSpec("PLAIN", "id"), "scores",
+                                        List.of(new FilterSpec("partial", "=", true)));
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"), "scores",
+                                        List.of(new FilterSpec("id", "NOT EXISTS", null, inner)));
+
+                        service.evaluate(spec, 1L, null);
+
+                        assertThat(capturedSql()).doesNotContain("s_1.user_id = :userId");
+                }
+        }
+
+        @Nested
+        class ValidateNullOperators {
+
+                @Test
+                void isNotNullWithoutValue_passesValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        List.of(new FilterSpec("supersedes_id", "IS NOT NULL", null)));
+
+                        service.validate(spec);
+                }
+
+                @Test
+                void isNullWithValue_throwsValidation() {
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        List.of(new FilterSpec("supersedes_id", "IS NULL", true)));
+
+                        assertThatThrownBy(() -> service.validate(spec))
+                                        .isInstanceOf(ValidationException.class)
+                                        .hasMessageContaining("takes no value");
+                }
+
+                @Test
+                void isNotNull_compilesWithoutBoundParameter() {
+                        when(mockQuery.getSingleResult()).thenReturn(3L);
+                        MilestoneQuerySpec spec = new MilestoneQuerySpec(
+                                        new SelectSpec("COUNT", "id"),
+                                        "scores",
+                                        List.of(new FilterSpec("supersedes_id", "IS NOT NULL", null)));
+
+                        service.evaluate(spec, 1L, null);
+
+                        assertThat(capturedSql()).contains("s.supersedes_id IS NOT NULL");
+                        verify(mockQuery, never()).setParameter(eq("p0"), any());
                 }
         }
 

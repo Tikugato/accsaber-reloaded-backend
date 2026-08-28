@@ -36,6 +36,10 @@ import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.notification.NotificationService;
 import com.accsaber.backend.service.player.DuplicateUserService;
 
+import org.springframework.context.ApplicationEventPublisher;
+
+import com.accsaber.backend.model.event.InventoryChangedEvent;
+
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -53,6 +57,7 @@ public class ItemTradeService {
     private final ItemTransferService itemTransferService;
     private final EssenceLedgerService essenceLedgerService;
     private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public Page<UserItemTrade> listForUser(Long userId, String direction, Collection<TradeStatus> statuses,
             Pageable pageable) {
@@ -186,6 +191,8 @@ public class ItemTradeService {
         trade.setStatus(TradeStatus.accepted);
         trade.setResolvedAt(Instant.now());
         notifyResolution(trade, NotificationType.trade_accepted, receiverId);
+        eventPublisher.publishEvent(new InventoryChangedEvent(senderId));
+        eventPublisher.publishEvent(new InventoryChangedEvent(receiverId));
         return tradeRepository.save(trade);
     }
 

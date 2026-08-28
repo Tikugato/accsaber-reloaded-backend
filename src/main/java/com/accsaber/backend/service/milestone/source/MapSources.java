@@ -40,6 +40,7 @@ public class MapSources implements MilestoneSourceProvider {
                 .enumeration("difficulty", "{base}.difficulty", Difficulty.class)
                 .text("characteristic", "{base}.characteristic")
                 .timestamp("ranked_at", "{base}.ranked_at")
+                .uuid("batch_id", "{base}.batch_id")
                 .uuid("map_id", "{base}.map_id")
                 .text("song_name", "{mp}.song_name")
                 .text("song_author", "{mp}.song_author")

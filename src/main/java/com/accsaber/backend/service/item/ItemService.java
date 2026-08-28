@@ -58,6 +58,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.springframework.context.ApplicationEventPublisher;
+
+import com.accsaber.backend.model.event.InventoryChangedEvent;
+
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -86,6 +90,7 @@ public class ItemService {
     private final ItemValueValidator itemValueValidator;
     private final EssenceLedgerService essenceLedgerService;
     private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public List<Item> findAllVisible() {
         return itemRepository.findByActiveTrueAndVisibleTrue();
@@ -555,6 +560,8 @@ public class ItemService {
                 .quantity(toDestroy)
                 .essenceGained(essence)
                 .build());
+
+        eventPublisher.publishEvent(new InventoryChangedEvent(resolved));
 
         return DisintegrationResponse.builder()
                 .linkId(linkId)

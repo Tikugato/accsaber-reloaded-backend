@@ -93,6 +93,7 @@ public class MarketSettlementService {
 
     private void publish(MarketListing listing, String type, Long amount) {
         eventPublisher.publishEvent(new MarketListingEvent(listing.getId(), type, listing.getStatus(),
-                amount, MarketMapper.toUserRef(listing.getWinner()), listing.getEndsAt()));
+                amount, MarketMapper.toUserRef(listing.getWinner()), MarketMapper.toUserRef(listing.getSeller()),
+                listing.getEndsAt()));
     }
 }

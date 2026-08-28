@@ -18,6 +18,9 @@ public class PlayerSources implements MilestoneSourceProvider {
                 .country("{base}.country")
                 .text("name", "{base}.name")
                 .decimal("total_xp", "{base}.total_xp")
+                .bigint("item_essence", "{base}.item_essence")
+                .bigint("net_worth", "{base}.item_essence + (SELECT COALESCE(SUM(itm.worth * lnk.quantity), 0)"
+                        + " FROM user_item_links lnk JOIN items itm ON itm.id = lnk.item_id WHERE lnk.user_id = {base}.id)")
                 .flag("active", "{base}.active")
                 .flag("banned", "{base}.banned")
                 .text("country", "{base}.country")

@@ -12,5 +12,6 @@ public record MarketListingEvent(
         MarketListingStatus status,
         Long amount,
         MarketUserRef actor,
+        MarketUserRef seller,
         Instant endsAt) {
 }

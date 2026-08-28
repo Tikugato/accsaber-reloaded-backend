@@ -14,7 +14,7 @@ public class ProgressSources implements MilestoneSourceProvider {
 
     @Override
     public List<MilestoneSource> sources() {
-        return List.of(userCampaigns(), userCampaignScores(), userMissions());
+        return List.of(userCampaigns(), userCampaignScores(), authoredCampaigns(), userMissions());
     }
 
     private MilestoneSource userCampaigns() {
@@ -48,14 +48,38 @@ public class ProgressSources implements MilestoneSourceProvider {
                 .build();
     }
 
+    private MilestoneSource authoredCampaigns() {
+        return MilestoneSource.named("authored_campaigns", "campaigns", "acmp")
+                .triggeredBy(MilestoneTrigger.CAMPAIGN)
+                .user("{base}.creator_id")
+                .uuid("id", "{base}.id")
+                .text("name", "{base}.name")
+                .enumeration("status", "{base}.status", CampaignStatus.class)
+                .flag("official", "{base}.official")
+                .flag("loved", "{base}.loved")
+                .flag("active", "{base}.active")
+                .timestamp("published_at", "{base}.published_at")
+                .timestamp("curated_at", "{base}.curated_at")
+                .timestamp("loved_at", "{base}.loved_at")
+                .integer("participants", "(SELECT COUNT(*) FROM user_campaigns ucx WHERE ucx.campaign_id = {base}.id"
+                        + " AND ucx.status IN ('in_progress', 'completed'))")
+                .integer("completions", "(SELECT COUNT(*) FROM user_campaigns ucx WHERE ucx.campaign_id = {base}.id"
+                        + " AND ucx.status = 'completed')")
+                .build();
+    }
+
     private MilestoneSource userMissions() {
         return MilestoneSource.named("user_missions", "user_missions", "umi")
                 .triggeredBy(MilestoneTrigger.MISSION)
                 .join("cat", "JOIN categories {cat} ON {base}.category_id = {cat}.id")
+                .join("tpl", "JOIN mission_templates {tpl} ON {base}.template_id = {tpl}.id")
                 .user("{base}.user_id")
                 .category("{base}.category_id")
                 .uuid("id", "{base}.id")
                 .uuid("template_id", "{base}.template_id")
+                .text("template_code", "{tpl}.code")
+                .text("template_type", "{tpl}.type")
+                .bigint("target_player_id", "{base}.target_player_id")
                 .enumeration("pool", "{base}.pool", MissionPool.class)
                 .enumeration("band", "{base}.band", MissionBand.class)
                 .integer("progress_count", "{base}.progress_count")

@@ -190,6 +190,7 @@ public class MarketBidService {
 
     private void publish(MarketListing listing, String type, Long amount, User actor) {
         eventPublisher.publishEvent(new MarketListingEvent(listing.getId(), type, listing.getStatus(),
-                amount, MarketMapper.toUserRef(actor), listing.getEndsAt()));
+                amount, MarketMapper.toUserRef(actor), MarketMapper.toUserRef(listing.getSeller()),
+                listing.getEndsAt()));
     }
 }

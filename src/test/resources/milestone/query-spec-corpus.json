@@ -4030,5 +4030,2682 @@
         }
       }
     }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "First Pull",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "crate_opens",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Crate Habit",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "crate_opens",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Crate Problem",
+    "categoryCode": null,
+    "targetValue": 50,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "crate_opens",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Jackpot",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "crate_opens",
+      "filters": [
+        {
+          "column": "reward_item_rarity",
+          "operator": "=",
+          "value": "legendary"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Mythic Pull",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "crate_opens",
+      "filters": [
+        {
+          "column": "reward_item_rarity",
+          "operator": "=",
+          "value": "mythic"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Shelf Space",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "item_id"
+      },
+      "from": "user_items",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Showroom",
+    "categoryCode": null,
+    "targetValue": 30,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "item_id"
+      },
+      "from": "user_items",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Museum",
+    "categoryCode": null,
+    "targetValue": 75,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "item_id"
+      },
+      "from": "user_items",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Full Spectrum",
+    "categoryCode": null,
+    "targetValue": 6,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "item_rarity"
+      },
+      "from": "user_items",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Dressed for the Occasion",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "item_type_key"
+      },
+      "from": "user_items",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Net Worth",
+    "categoryCode": null,
+    "targetValue": 250,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "net_worth"
+      },
+      "from": "users",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Old Money",
+    "categoryCode": null,
+    "targetValue": 1000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "net_worth"
+      },
+      "from": "users",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Something Unusual",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_items",
+      "filters": [
+        {
+          "column": "unusual_effect_id",
+          "operator": "IS NOT NULL"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Ashes to Essence",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "disintegrations",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Recycler",
+    "categoryCode": null,
+    "targetValue": 1000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "SUM",
+        "column": "essence_gained"
+      },
+      "from": "disintegrations",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Was That Wise?",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "disintegrations",
+      "filters": [],
+      "or_groups": [
+        [
+          {
+            "column": "item_rarity",
+            "operator": "=",
+            "value": "epic"
+          }
+        ],
+        [
+          {
+            "column": "item_rarity",
+            "operator": "=",
+            "value": "legendary"
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Dealmaker",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "trades",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "accepted"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Broker",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "trades",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "accepted"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Fair Trade",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "trades_received",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "accepted"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Sought After",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "trades_received",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "accepted"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Sold!",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "market_listings",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "sold"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Merchant",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "market_listings",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "sold"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Tycoon",
+    "categoryCode": null,
+    "targetValue": 1000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "SUM",
+        "column": "final_price"
+      },
+      "from": "market_listings",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "sold"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Flash Sale",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "market_listings",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "sold"
+        },
+        {
+          "column": "settled_at",
+          "operator": "<=",
+          "column_ref": "created_at",
+          "transform": {
+            "function": "INTERVAL_SUBTRACT",
+            "argument": "1 hour"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Retail Therapy",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "market_purchases",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "sold"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Regular Customer",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "market_purchases",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "sold"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Big Spender",
+    "categoryCode": null,
+    "targetValue": 1000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "SUM",
+        "column": "final_price"
+      },
+      "from": "market_purchases",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "sold"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Impulse Buy",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "market_purchases",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "sold"
+        },
+        {
+          "column": "settled_at",
+          "operator": "<=",
+          "column_ref": "created_at",
+          "transform": {
+            "function": "INTERVAL_SUBTRACT",
+            "argument": "1 hour"
+          }
+        },
+        {
+          "column": "final_price",
+          "operator": "=",
+          "column_ref": "buyout_price"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Bidding War",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "market_purchases",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "sold"
+        },
+        {
+          "column": "final_price",
+          "operator": ">",
+          "column_ref": "starting_bid"
+        }
+      ],
+      "or_groups": [
+        [
+          {
+            "column": "buyout_price",
+            "operator": "IS NULL"
+          }
+        ],
+        [
+          {
+            "column": "final_price",
+            "operator": "<",
+            "column_ref": "buyout_price"
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Second Hand",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_items",
+      "filters": [
+        {
+          "column": "source",
+          "operator": "=",
+          "value": "trade"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Stubborn",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ],
+      "group_by": [
+        {
+          "column": "map_difficulty_id"
+        }
+      ],
+      "outer_function": "MAX"
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Obsessed",
+    "categoryCode": null,
+    "targetValue": 25,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ],
+      "group_by": [
+        {
+          "column": "map_difficulty_id"
+        }
+      ],
+      "outer_function": "MAX"
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Unhinged",
+    "categoryCode": null,
+    "targetValue": 100,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ],
+      "group_by": [
+        {
+          "column": "map_difficulty_id"
+        }
+      ],
+      "outer_function": "MAX"
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Fail Forward",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "partial",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Falling With Style",
+    "categoryCode": null,
+    "targetValue": 100,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "partial",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Redemption Arc",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "id",
+          "operator": "EXISTS",
+          "subquery": {
+            "select": {
+              "function": "PLAIN",
+              "column": "id"
+            },
+            "from": "scores",
+            "filters": [
+              {
+                "column": "partial",
+                "operator": "=",
+                "value": true
+              },
+              {
+                "column": "map_difficulty_id",
+                "operator": "=",
+                "column_ref": "OUTER.map_difficulty_id"
+              },
+              {
+                "column": "user_id",
+                "operator": "=",
+                "column_ref": "OUTER.user_id"
+              },
+              {
+                "column": "id",
+                "operator": "NOT EXISTS",
+                "subquery": {
+                  "select": {
+                    "function": "PLAIN",
+                    "column": "id"
+                  },
+                  "from": "score_modifier_links",
+                  "filters": [
+                    {
+                      "column": "score_id",
+                      "operator": "=",
+                      "column_ref": "OUTER.id"
+                    },
+                    {
+                      "column": "modifier_code",
+                      "operator": "=",
+                      "value": "NF"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Session",
+    "categoryCode": null,
+    "targetValue": 25,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ],
+      "group_by": [
+        {
+          "column": "time_set",
+          "cast": "DATE"
+        }
+      ],
+      "outer_function": "MAX"
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Marathon",
+    "categoryCode": null,
+    "targetValue": 60,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ],
+      "group_by": [
+        {
+          "column": "time_set",
+          "cast": "DATE"
+        }
+      ],
+      "outer_function": "MAX"
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Regular",
+    "categoryCode": null,
+    "targetValue": 30,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ],
+      "group_by": [
+        {
+          "column": "time_set",
+          "cast": "DATE"
+        }
+      ],
+      "outer_function": "COUNT"
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Fixture",
+    "categoryCode": null,
+    "targetValue": 100,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ],
+      "group_by": [
+        {
+          "column": "time_set",
+          "cast": "DATE"
+        }
+      ],
+      "outer_function": "COUNT"
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Resident",
+    "categoryCode": null,
+    "targetValue": 365,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ],
+      "group_by": [
+        {
+          "column": "time_set",
+          "cast": "DATE"
+        }
+      ],
+      "outer_function": "COUNT"
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Day One",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        },
+        {
+          "column": "time_set",
+          "operator": ">=",
+          "column_ref": "map_difficulty_ranked_at"
+        },
+        {
+          "column": "time_set",
+          "operator": "<=",
+          "column_ref": "map_difficulty_ranked_at",
+          "transform": {
+            "function": "INTERVAL_SUBTRACT",
+            "argument": "1 day"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Early Bird",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        },
+        {
+          "column": "time_set",
+          "operator": ">=",
+          "column_ref": "map_difficulty_ranked_at"
+        },
+        {
+          "column": "time_set",
+          "operator": "<=",
+          "column_ref": "map_difficulty_ranked_at",
+          "transform": {
+            "function": "INTERVAL_SUBTRACT",
+            "argument": "1 day"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Couldn't Wait Any Longer",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "map_difficulty_batch_id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        },
+        {
+          "column": "time_set",
+          "operator": ">=",
+          "column_ref": "map_difficulty_ranked_at"
+        },
+        {
+          "column": "time_set",
+          "operator": "<=",
+          "column_ref": "map_difficulty_ranked_at",
+          "transform": {
+            "function": "INTERVAL_SUBTRACT",
+            "argument": "1 day"
+          }
+        },
+        {
+          "column": "map_difficulty_batch_id",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "id",
+          "operator": "NOT EXISTS",
+          "subquery": {
+            "select": {
+              "function": "PLAIN",
+              "column": "id"
+            },
+            "from": "map_difficulties",
+            "filters": [
+              {
+                "column": "active",
+                "operator": "=",
+                "value": true
+              },
+              {
+                "column": "batch_id",
+                "operator": "=",
+                "column_ref": "OUTER.map_difficulty_batch_id"
+              },
+              {
+                "column": "id",
+                "operator": "NOT EXISTS",
+                "subquery": {
+                  "select": {
+                    "function": "PLAIN",
+                    "column": "id"
+                  },
+                  "from": "scores",
+                  "filters": [
+                    {
+                      "column": "reweight_derivative",
+                      "operator": "=",
+                      "value": false
+                    },
+                    {
+                      "column": "time_set",
+                      "operator": ">=",
+                      "column_ref": "map_difficulty_ranked_at"
+                    },
+                    {
+                      "column": "time_set",
+                      "operator": "<=",
+                      "column_ref": "map_difficulty_ranked_at",
+                      "transform": {
+                        "function": "INTERVAL_SUBTRACT",
+                        "argument": "1 day"
+                      }
+                    },
+                    {
+                      "column": "map_difficulty_id",
+                      "operator": "=",
+                      "column_ref": "OUTER.id"
+                    }
+                  ],
+                  "scope": "USER"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Kaboom",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "bomb_hits"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Wallflower",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "wall_hits"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Coffee Break",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "pauses"
+      },
+      "from": "scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "King of the Hill",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "LTE",
+    "querySpec": {
+      "select": {
+        "function": "MIN",
+        "column": "rank"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "rank",
+          "operator": ">=",
+          "value": 1
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Pushed Around",
+    "categoryCode": null,
+    "targetValue": 25,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "rank_when_set",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "rank",
+          "operator": ">",
+          "column_ref": "rank_when_set"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Free Real Estate",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "rank",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "column": "rank",
+          "operator": "<",
+          "column_ref": "rank_when_set"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Long Time Coming",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "supersedes_time_set",
+          "operator": "<",
+          "column_ref": "time_set",
+          "column_ref_transform": {
+            "function": "INTERVAL_SUBTRACT",
+            "argument": "365 days"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Nice.",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        },
+        {
+          "column": "score",
+          "operator": "=",
+          "value": 69,
+          "transform": {
+            "function": "MOD",
+            "argument": 100
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Round Number",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        },
+        {
+          "column": "score",
+          "operator": "=",
+          "value": 0,
+          "transform": {
+            "function": "MOD",
+            "argument": 1000
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Adventurer",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaigns",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "completed"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Wayfarer",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaigns",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "completed"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Cartographer",
+    "categoryCode": null,
+    "targetValue": 15,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaigns",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "completed"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Atlas",
+    "categoryCode": null,
+    "targetValue": 30,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaigns",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "completed"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Curator's Pick",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaigns",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "completed"
+        },
+        {
+          "column": "campaign_status",
+          "operator": "=",
+          "value": "curated"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Official Business",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaigns",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "completed"
+        },
+        {
+          "column": "campaign_official",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Fan Favourite",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaigns",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "completed"
+        },
+        {
+          "column": "campaign_loved",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Node Runner",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaign_scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Trailblazer",
+    "categoryCode": null,
+    "targetValue": 50,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaign_scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Globetrotter",
+    "categoryCode": null,
+    "targetValue": 250,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaign_scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "World Tour",
+    "categoryCode": null,
+    "targetValue": 500,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaign_scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Explorer",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "campaign_id"
+      },
+      "from": "user_campaign_scores",
+      "filters": []
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "One Sitting",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaigns",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "completed"
+        },
+        {
+          "column": "completed_at",
+          "operator": "<=",
+          "column_ref": "started_at",
+          "transform": {
+            "function": "INTERVAL_SUBTRACT",
+            "argument": "1 day"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Slow Burn",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaigns",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "completed"
+        },
+        {
+          "column": "completed_at",
+          "operator": ">=",
+          "column_ref": "started_at",
+          "transform": {
+            "function": "INTERVAL_SUBTRACT",
+            "argument": "30 days"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Juggler",
+    "categoryCode": null,
+    "targetValue": 3,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaigns",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "in_progress"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Tactical Retreat",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_campaigns",
+      "filters": [
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "abandoned"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Author",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "authored_campaigns",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ],
+      "or_groups": [
+        [
+          {
+            "column": "status",
+            "operator": "=",
+            "value": "published"
+          }
+        ],
+        [
+          {
+            "column": "status",
+            "operator": "=",
+            "value": "editing"
+          }
+        ],
+        [
+          {
+            "column": "status",
+            "operator": "=",
+            "value": "curated"
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Finish Line",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "completions"
+      },
+      "from": "authored_campaigns",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Crowd Pleaser",
+    "categoryCode": null,
+    "targetValue": 25,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "participants"
+      },
+      "from": "authored_campaigns",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Seal of Approval",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "authored_campaigns",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "status",
+          "operator": "=",
+          "value": "curated"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Hundred Club",
+    "categoryCode": null,
+    "targetValue": 100,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "MAX",
+        "column": "completions"
+      },
+      "from": "authored_campaigns",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_pathfinder.sql",
+    "title": "Beloved",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "authored_campaigns",
+      "filters": [
+        {
+          "column": "active",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "loved",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Reporting for Duty",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Daily Driver",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "pool",
+          "operator": "=",
+          "value": "daily"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Routine",
+    "categoryCode": null,
+    "targetValue": 50,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "pool",
+          "operator": "=",
+          "value": "daily"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Clockwork",
+    "categoryCode": null,
+    "targetValue": 250,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "pool",
+          "operator": "=",
+          "value": "daily"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Autopilot",
+    "categoryCode": null,
+    "targetValue": 500,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "pool",
+          "operator": "=",
+          "value": "daily"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Weekly Warrior",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "pool",
+          "operator": "=",
+          "value": "weekly"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Long Haul",
+    "categoryCode": null,
+    "targetValue": 25,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "pool",
+          "operator": "=",
+          "value": "weekly"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Fifty Weeks",
+    "categoryCode": null,
+    "targetValue": 50,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "pool",
+          "operator": "=",
+          "value": "weekly"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "No Sweat",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "band",
+          "operator": "=",
+          "value": "easy"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Extreme Measures",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "band",
+          "operator": "=",
+          "value": "extreme"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Living on the Edge",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "band",
+          "operator": "=",
+          "value": "extreme"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Adrenaline Junkie",
+    "categoryCode": null,
+    "targetValue": 25,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "band",
+          "operator": "=",
+          "value": "extreme"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Event Goer",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "pool",
+          "operator": "=",
+          "value": "event"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Regular Attendee",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "pool",
+          "operator": "=",
+          "value": "event"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Festival Regular",
+    "categoryCode": null,
+    "targetValue": 50,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "pool",
+          "operator": "=",
+          "value": "event"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Loot Goblin",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "item_awarded",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Well Rounded",
+    "categoryCode": null,
+    "targetValue": 3,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT_DISTINCT",
+        "column": "category_code"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Payroll",
+    "categoryCode": null,
+    "targetValue": 25000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "SUM",
+        "column": "xp_reward"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Payday",
+    "categoryCode": null,
+    "targetValue": 50000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "SUM",
+        "column": "xp_reward"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Pension Plan",
+    "categoryCode": null,
+    "targetValue": 100000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "SUM",
+        "column": "xp_reward"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Speedy Delivery",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "completed_at",
+          "operator": "<=",
+          "column_ref": "assigned_at",
+          "transform": {
+            "function": "INTERVAL_SUBTRACT",
+            "argument": "1 hour"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Sniper",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        }
+      ],
+      "or_groups": [
+        [
+          {
+            "column": "template_type",
+            "operator": "=",
+            "value": "SNIPE_PLAYER_ON_MAP"
+          }
+        ],
+        [
+          {
+            "column": "template_type",
+            "operator": "=",
+            "value": "SNIPE_RIVAL_ANY_MAP"
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Marksman",
+    "categoryCode": null,
+    "targetValue": 25,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        }
+      ],
+      "or_groups": [
+        [
+          {
+            "column": "template_type",
+            "operator": "=",
+            "value": "SNIPE_PLAYER_ON_MAP"
+          }
+        ],
+        [
+          {
+            "column": "template_type",
+            "operator": "=",
+            "value": "SNIPE_RIVAL_ANY_MAP"
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "source": "sidequests_mission_control.sql",
+    "title": "Comeback Kid",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_missions",
+      "filters": [
+        {
+          "column": "completed_at",
+          "operator": "IS NOT NULL"
+        },
+        {
+          "column": "template_type",
+          "operator": "=",
+          "value": "COMEBACK_PB"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "Getting the Hang of It",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "Achiever",
+    "categoryCode": null,
+    "targetValue": 50,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "Overachiever",
+    "categoryCode": null,
+    "targetValue": 150,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "Bronze Age",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "milestone_tier",
+          "operator": "=",
+          "value": "bronze"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "Silver Lining",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "milestone_tier",
+          "operator": "=",
+          "value": "silver"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "Gold Rush",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "milestone_tier",
+          "operator": "=",
+          "value": "gold"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "Platinum Standard",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "milestone_tier",
+          "operator": "=",
+          "value": "platinum"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "Diamond Hands",
+    "categoryCode": null,
+    "targetValue": 5,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "milestone_tier",
+          "operator": "=",
+          "value": "diamond"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "Achievement Hunter",
+    "categoryCode": null,
+    "targetValue": 25,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "milestone_type",
+          "operator": "=",
+          "value": "achievement"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "XP Farmer",
+    "categoryCode": null,
+    "targetValue": 25000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "SUM",
+        "column": "milestone_xp"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
   }
 ]

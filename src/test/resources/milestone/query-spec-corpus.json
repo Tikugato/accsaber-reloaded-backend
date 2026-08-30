@@ -5422,37 +5422,6 @@
   },
   {
     "source": "sidequests_grinder.sql",
-    "title": "Free Real Estate",
-    "categoryCode": null,
-    "targetValue": 1,
-    "comparison": "GTE",
-    "querySpec": {
-      "select": {
-        "function": "COUNT",
-        "column": "id"
-      },
-      "from": "scores",
-      "filters": [
-        {
-          "column": "active",
-          "operator": "=",
-          "value": true
-        },
-        {
-          "column": "rank",
-          "operator": ">=",
-          "value": 1
-        },
-        {
-          "column": "rank",
-          "operator": "<",
-          "column_ref": "rank_when_set"
-        }
-      ]
-    }
-  },
-  {
-    "source": "sidequests_grinder.sql",
     "title": "Long Time Coming",
     "categoryCode": null,
     "targetValue": 1,

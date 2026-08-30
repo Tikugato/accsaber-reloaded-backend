@@ -51,7 +51,11 @@ public class ProgressSources implements MilestoneSourceProvider {
     private MilestoneSource authoredCampaigns() {
         return MilestoneSource.named("authored_campaigns", "campaigns", "acmp")
                 .triggeredBy(MilestoneTrigger.CAMPAIGN)
-                .user("{base}.creator_id")
+                .join("aut", "JOIN LATERAL (SELECT {base}.creator_id AS user_id"
+                        + " UNION SELECT cca.user_id FROM campaign_collaborators cca"
+                        + " WHERE cca.campaign_id = {base}.id AND cca.active = true"
+                        + " AND cca.status = 'accepted') {aut} ON true")
+                .user("{aut}.user_id")
                 .uuid("id", "{base}.id")
                 .text("name", "{base}.name")
                 .enumeration("status", "{base}.status", CampaignStatus.class)

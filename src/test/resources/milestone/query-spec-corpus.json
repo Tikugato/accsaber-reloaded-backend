@@ -4642,6 +4642,204 @@
     }
   },
   {
+    "source": "sidequests_collector.sql",
+    "title": "Stockpile",
+    "categoryCode": null,
+    "targetValue": 25,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "SUM",
+        "column": "quantity"
+      },
+      "from": "user_items",
+      "filters": [
+        {
+          "column": "item_tradeable",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Warehouse",
+    "categoryCode": null,
+    "targetValue": 75,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "SUM",
+        "column": "quantity"
+      },
+      "from": "user_items",
+      "filters": [
+        {
+          "column": "item_tradeable",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Hoard",
+    "categoryCode": null,
+    "targetValue": 150,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "SUM",
+        "column": "quantity"
+      },
+      "from": "user_items",
+      "filters": [
+        {
+          "column": "item_tradeable",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Caught the Light",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_items",
+      "filters": [
+        {
+          "column": "modifier_key",
+          "operator": "=",
+          "value": "holographic"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Strange Indeed",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_items",
+      "filters": [
+        {
+          "column": "modifier_key",
+          "operator": "=",
+          "value": "strange"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Spooky Season",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_items",
+      "filters": [
+        {
+          "column": "modifier_key",
+          "operator": "=",
+          "value": "haunted"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Season's Greetings",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_items",
+      "filters": [
+        {
+          "column": "modifier_key",
+          "operator": "=",
+          "value": "jolly"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Seen Some Things",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_items",
+      "filters": [
+        {
+          "column": "modifier_key",
+          "operator": "=",
+          "value": "battle_worn"
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_collector.sql",
+    "title": "Shiny Hoard",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_items",
+      "filters": [],
+      "or_groups": [
+        [
+          {
+            "column": "unusual_effect_id",
+            "operator": "IS NOT NULL"
+          }
+        ],
+        [
+          {
+            "column": "modifier_key",
+            "operator": "=",
+            "value": "holographic"
+          }
+        ]
+      ]
+    }
+  },
+  {
     "source": "sidequests_grinder.sql",
     "title": "Stubborn",
     "categoryCode": null,
@@ -5193,32 +5391,6 @@
   },
   {
     "source": "sidequests_grinder.sql",
-    "title": "King of the Hill",
-    "categoryCode": null,
-    "targetValue": 1,
-    "comparison": "LTE",
-    "querySpec": {
-      "select": {
-        "function": "MIN",
-        "column": "rank"
-      },
-      "from": "scores",
-      "filters": [
-        {
-          "column": "active",
-          "operator": "=",
-          "value": true
-        },
-        {
-          "column": "rank",
-          "operator": ">=",
-          "value": 1
-        }
-      ]
-    }
-  },
-  {
-    "source": "sidequests_grinder.sql",
     "title": "Pushed Around",
     "categoryCode": null,
     "targetValue": 25,
@@ -5365,6 +5537,153 @@
             "function": "MOD",
             "argument": 1000
           }
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Warming Up",
+    "categoryCode": null,
+    "targetValue": 10,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Getting Going",
+    "categoryCode": null,
+    "targetValue": 25,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Half a Hundred",
+    "categoryCode": null,
+    "targetValue": 50,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Century",
+    "categoryCode": null,
+    "targetValue": 100,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Prolific",
+    "categoryCode": null,
+    "targetValue": 250,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Machine",
+    "categoryCode": null,
+    "targetValue": 500,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_grinder.sql",
+    "title": "Four Digits",
+    "categoryCode": null,
+    "targetValue": 1000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "scores",
+      "filters": [
+        {
+          "column": "reweight_derivative",
+          "operator": "=",
+          "value": false
         }
       ]
     }
@@ -5725,6 +6044,11 @@
           "column": "active",
           "operator": "=",
           "value": true
+        },
+        {
+          "column": "official",
+          "operator": "=",
+          "value": false
         }
       ],
       "or_groups": [
@@ -5769,6 +6093,11 @@
           "column": "active",
           "operator": "=",
           "value": true
+        },
+        {
+          "column": "official",
+          "operator": "=",
+          "value": false
         }
       ]
     }
@@ -5790,6 +6119,11 @@
           "column": "active",
           "operator": "=",
           "value": true
+        },
+        {
+          "column": "official",
+          "operator": "=",
+          "value": false
         }
       ]
     }
@@ -5813,6 +6147,11 @@
           "value": true
         },
         {
+          "column": "official",
+          "operator": "=",
+          "value": false
+        },
+        {
           "column": "status",
           "operator": "=",
           "value": "curated"
@@ -5822,9 +6161,9 @@
   },
   {
     "source": "sidequests_pathfinder.sql",
-    "title": "Hundred Club",
+    "title": "Fifty Strong",
     "categoryCode": null,
-    "targetValue": 100,
+    "targetValue": 50,
     "comparison": "GTE",
     "querySpec": {
       "select": {
@@ -5837,6 +6176,11 @@
           "column": "active",
           "operator": "=",
           "value": true
+        },
+        {
+          "column": "official",
+          "operator": "=",
+          "value": false
         }
       ]
     }
@@ -5858,6 +6202,11 @@
           "column": "active",
           "operator": "=",
           "value": true
+        },
+        {
+          "column": "official",
+          "operator": "=",
+          "value": false
         },
         {
           "column": "loved",
@@ -6258,6 +6607,11 @@
           "column": "item_awarded",
           "operator": "=",
           "value": true
+        },
+        {
+          "column": "pool",
+          "operator": "!=",
+          "value": "event"
         }
       ]
     }

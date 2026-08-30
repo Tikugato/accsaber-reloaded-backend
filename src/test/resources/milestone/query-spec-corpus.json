@@ -4718,9 +4718,27 @@
       "from": "user_items",
       "filters": [
         {
-          "column": "modifier_key",
-          "operator": "=",
-          "value": "holographic"
+          "column": "id",
+          "operator": "EXISTS",
+          "subquery": {
+            "select": {
+              "function": "PLAIN",
+              "column": "id"
+            },
+            "from": "user_item_modifiers",
+            "filters": [
+              {
+                "column": "user_item_link_id",
+                "operator": "=",
+                "column_ref": "OUTER.id"
+              },
+              {
+                "column": "modifier_key",
+                "operator": "=",
+                "value": "holographic"
+              }
+            ]
+          }
         }
       ]
     }
@@ -4739,9 +4757,27 @@
       "from": "user_items",
       "filters": [
         {
-          "column": "modifier_key",
-          "operator": "=",
-          "value": "strange"
+          "column": "id",
+          "operator": "EXISTS",
+          "subquery": {
+            "select": {
+              "function": "PLAIN",
+              "column": "id"
+            },
+            "from": "user_item_modifiers",
+            "filters": [
+              {
+                "column": "user_item_link_id",
+                "operator": "=",
+                "column_ref": "OUTER.id"
+              },
+              {
+                "column": "modifier_key",
+                "operator": "=",
+                "value": "strange"
+              }
+            ]
+          }
         }
       ]
     }
@@ -4760,9 +4796,27 @@
       "from": "user_items",
       "filters": [
         {
-          "column": "modifier_key",
-          "operator": "=",
-          "value": "haunted"
+          "column": "id",
+          "operator": "EXISTS",
+          "subquery": {
+            "select": {
+              "function": "PLAIN",
+              "column": "id"
+            },
+            "from": "user_item_modifiers",
+            "filters": [
+              {
+                "column": "user_item_link_id",
+                "operator": "=",
+                "column_ref": "OUTER.id"
+              },
+              {
+                "column": "modifier_key",
+                "operator": "=",
+                "value": "haunted"
+              }
+            ]
+          }
         }
       ]
     }
@@ -4781,9 +4835,27 @@
       "from": "user_items",
       "filters": [
         {
-          "column": "modifier_key",
-          "operator": "=",
-          "value": "jolly"
+          "column": "id",
+          "operator": "EXISTS",
+          "subquery": {
+            "select": {
+              "function": "PLAIN",
+              "column": "id"
+            },
+            "from": "user_item_modifiers",
+            "filters": [
+              {
+                "column": "user_item_link_id",
+                "operator": "=",
+                "column_ref": "OUTER.id"
+              },
+              {
+                "column": "modifier_key",
+                "operator": "=",
+                "value": "jolly"
+              }
+            ]
+          }
         }
       ]
     }
@@ -4802,9 +4874,27 @@
       "from": "user_items",
       "filters": [
         {
-          "column": "modifier_key",
-          "operator": "=",
-          "value": "battle_worn"
+          "column": "id",
+          "operator": "EXISTS",
+          "subquery": {
+            "select": {
+              "function": "PLAIN",
+              "column": "id"
+            },
+            "from": "user_item_modifiers",
+            "filters": [
+              {
+                "column": "user_item_link_id",
+                "operator": "=",
+                "column_ref": "OUTER.id"
+              },
+              {
+                "column": "modifier_key",
+                "operator": "=",
+                "value": "battle_worn"
+              }
+            ]
+          }
         }
       ]
     }
@@ -4831,9 +4921,27 @@
         ],
         [
           {
-            "column": "modifier_key",
-            "operator": "=",
-            "value": "holographic"
+            "column": "id",
+            "operator": "EXISTS",
+            "subquery": {
+              "select": {
+                "function": "PLAIN",
+                "column": "id"
+              },
+              "from": "user_item_modifiers",
+              "filters": [
+                {
+                  "column": "user_item_link_id",
+                  "operator": "=",
+                  "column_ref": "OUTER.id"
+                },
+                {
+                  "column": "modifier_key",
+                  "operator": "=",
+                  "value": "holographic"
+                }
+              ]
+            }
           }
         ]
       ]

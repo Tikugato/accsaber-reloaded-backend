@@ -14,8 +14,19 @@ public class ItemSources implements MilestoneSourceProvider {
 
     @Override
     public List<MilestoneSource> sources() {
-        return List.of(userItems(), crateOpens(), disintegrations(), trades(), tradesReceived(), marketListings(),
-                marketPurchases());
+        return List.of(userItems(), userItemModifiers(), crateOpens(), disintegrations(), trades(), tradesReceived(),
+                marketListings(), marketPurchases());
+    }
+
+    private MilestoneSource userItemModifiers() {
+        return MilestoneSource.named("user_item_modifiers", "user_item_link_modifiers", "uilm")
+                .join("imd", "JOIN item_modifiers {imd} ON {base}.modifier_id = {imd}.id")
+                .uuid("id", "{base}.id")
+                .uuid("user_item_link_id", "{base}.user_item_link_id")
+                .uuid("modifier_id", "{base}.modifier_id")
+                .text("modifier_key", "{imd}.key")
+                .text("modifier_name", "{imd}.name")
+                .build();
     }
 
     private MilestoneSource userItems() {
@@ -24,7 +35,6 @@ public class ItemSources implements MilestoneSourceProvider {
                         MilestoneTrigger.CAMPAIGN)
                 .join("itm", "JOIN items {itm} ON {base}.item_id = {itm}.id")
                 .join("ity", "JOIN item_types {ity} ON {itm}.type_id = {ity}.id")
-                .join("imd", "LEFT JOIN item_modifiers {imd} ON {base}.modifier_id = {imd}.id")
                 .user("{base}.user_id")
                 .uuid("id", "{base}.id")
                 .uuid("item_id", "{base}.item_id")
@@ -32,8 +42,6 @@ public class ItemSources implements MilestoneSourceProvider {
                 .bigint("quantity", "{base}.quantity")
                 .enumeration("source", "{base}.source", ItemSource.class)
                 .uuid("unusual_effect_id", "{base}.unusual_effect_id")
-                .uuid("modifier_id", "{base}.modifier_id")
-                .text("modifier_key", "{imd}.key")
                 .timestamp("awarded_at", "{base}.awarded_at")
                 .text("item_name", "{itm}.name")
                 .enumeration("item_rarity", "{itm}.rarity", ItemRarity.class)

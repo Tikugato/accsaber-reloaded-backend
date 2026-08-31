@@ -469,7 +469,7 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                             SELECT pc.user_id, o.id, ROUND(SUM(pc.score_xp)::numeric, 6)::double precision
                             FROM per_category pc
                             JOIN categories c ON c.id = pc.category_id AND c.count_for_overall = true
-                            CROSS JOIN (SELECT id FROM categories WHERE code = 'overall' AND active = true) o
+                            JOIN categories o ON o.code = 'overall' AND o.active = true
                             GROUP BY pc.user_id, o.id
                         )
                         UPDATE user_category_statistics ucs

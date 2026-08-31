@@ -1,0 +1,171 @@
+package com.accsaber.backend.repository.user;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import com.accsaber.backend.model.entity.Category;
+import com.accsaber.backend.model.entity.map.Difficulty;
+import com.accsaber.backend.model.entity.map.Map;
+import com.accsaber.backend.model.entity.map.MapDifficulty;
+import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
+import com.accsaber.backend.model.entity.score.Score;
+import com.accsaber.backend.model.entity.user.User;
+import com.accsaber.backend.model.entity.user.UserCategoryStatistics;
+
+import jakarta.persistence.EntityManager;
+
+@Tag("integration")
+@Testcontainers
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+class XpRebuildQueryTest {
+
+    @Container
+    @ServiceConnection
+    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18-alpine");
+
+    @Autowired
+    private EntityManager entityManager;
+    @Autowired
+    private UserCategoryStatisticsRepository statisticsRepository;
+    @Autowired
+    private UserRepository userRepository;
+
+    private User user;
+    private Category trueAcc;
+    private MapDifficulty difficulty;
+
+    @BeforeEach
+    void seed() {
+        trueAcc = categoryByCode("true_acc");
+
+        user = User.builder()
+                .id(76561190000000001L)
+                .name("RebuildPlayer")
+                .country("ES")
+                .build();
+        entityManager.persist(user);
+
+        Map map = Map.builder()
+                .songName("Song")
+                .songAuthor("Author")
+                .songHash("hash-" + UUID.randomUUID())
+                .mapAuthor("Mapper")
+                .build();
+        entityManager.persist(map);
+
+        difficulty = MapDifficulty.builder()
+                .map(map)
+                .category(trueAcc)
+                .difficulty(Difficulty.EXPERT_PLUS)
+                .characteristic("Standard")
+                .status(MapDifficultyStatus.RANKED)
+                .maxScore(1000000)
+                .build();
+        entityManager.persist(difficulty);
+    }
+
+    private Category categoryByCode(String code) {
+        return entityManager
+                .createQuery("SELECT c FROM Category c WHERE c.code = :code AND c.active = true", Category.class)
+                .setParameter("code", code)
+                .getSingleResult();
+    }
+
+    private void persistScore(double xpGained, boolean active, String supersedesReason) {
+        Score score = Score.builder()
+                .user(user)
+                .mapDifficulty(difficulty)
+                .score(950000)
+                .scoreNoMods(950000)
+                .rank(1)
+                .rankWhenSet(1)
+                .ap(400.0)
+                .weightedAp(400.0)
+                .xpGained(xpGained)
+                .active(active)
+                .supersedesReason(supersedesReason)
+                .build();
+        entityManager.persist(score);
+    }
+
+    private UserCategoryStatistics persistStats(Category category, double scoreXp) {
+        UserCategoryStatistics stats = UserCategoryStatistics.builder()
+                .user(user)
+                .category(category)
+                .ap(400.0)
+                .scoreXp(scoreXp)
+                .rankedPlays(1)
+                .active(true)
+                .build();
+        entityManager.persist(stats);
+        return stats;
+    }
+
+    @Test
+    @DisplayName("rebuildScoreXp repairs a stale per-category score_xp from the active scores")
+    void rebuildScoreXpRepairsStaleCategoryTotal() {
+        persistScore(300.0, true, null);
+        persistScore(25.0, false, "Worse score");
+        UserCategoryStatistics stats = persistStats(trueAcc, 999.0);
+        entityManager.flush();
+
+        statisticsRepository.rebuildScoreXp(user.getId());
+
+        entityManager.refresh(stats);
+        assertThat(stats.getScoreXp()).isEqualTo(300.0);
+    }
+
+    @Test
+    @DisplayName("rebuildScoreXp sums the overall row across categories that count for overall")
+    void rebuildScoreXpFillsTheOverallRow() {
+        persistScore(300.0, true, null);
+        persistStats(trueAcc, 0.0);
+        UserCategoryStatistics overallStats = persistStats(categoryByCode("overall"), 0.0);
+        entityManager.flush();
+
+        statisticsRepository.rebuildScoreXp(user.getId());
+
+        entityManager.refresh(overallStats);
+        assertThat(overallStats.getScoreXp()).isEqualTo(300.0);
+    }
+
+    @Test
+    @DisplayName("rebuildXpTotals sums every score row, attempts included")
+    void rebuildXpTotalsCountsAttempts() {
+        persistScore(300.0, true, null);
+        persistScore(25.0, false, "Partial attempt");
+        persistScore(0.0, false, "Campaign attempt");
+        entityManager.flush();
+
+        userRepository.recalculateTotalXpForUser(user.getId());
+
+        entityManager.refresh(user);
+        assertThat(user.getTotalXp()).isEqualTo(325.0);
+    }
+
+    @Test
+    @DisplayName("rebuildXpTotals runs across every user without arguments")
+    void rebuildXpTotalsRunsForAllUsers() {
+        persistScore(120.0, true, null);
+        entityManager.flush();
+
+        userRepository.recalculateTotalXpForAllActiveUsers();
+
+        entityManager.refresh(user);
+        assertThat(user.getTotalXp()).isEqualTo(120.0);
+    }
+}

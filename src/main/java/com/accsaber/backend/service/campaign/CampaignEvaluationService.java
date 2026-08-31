@@ -793,7 +793,7 @@ public class CampaignEvaluationService {
             uc.setCompletedAt(Instant.now());
         }
         if (campaign.getStatus() == CampaignStatus.CURATED && !uc.isCompletionRewardsPaid()) {
-            payCompletionRewards(uc, campaign);
+            payCompletionRewards(uc);
         }
         userCampaignRepository.save(uc);
 
@@ -949,8 +949,9 @@ public class CampaignEvaluationService {
         }
     }
 
-    private void payCompletionRewards(UserCampaign uc, Campaign campaign) {
+    private void payCompletionRewards(UserCampaign uc) {
         Long userId = uc.getUser().getId();
+        Campaign campaign = uc.getCampaign();
         uc.setCompletionRewardsPaid(true);
         uc.setCompletionXpAwarded(campaign.getCompletionXp());
         if (campaign.getCompletionXp() > 0) {

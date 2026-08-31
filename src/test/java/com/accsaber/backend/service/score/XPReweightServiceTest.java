@@ -3,6 +3,7 @@ package com.accsaber.backend.service.score;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -25,6 +26,7 @@ import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.score.ScoreRepository;
+import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.map.MapDifficultyComplexityService;
 
@@ -35,6 +37,8 @@ class XPReweightServiceTest {
         private ScoreRepository scoreRepository;
         @Mock
         private UserRepository userRepository;
+        @Mock
+        private UserCategoryStatisticsRepository statisticsRepository;
         @Mock
         private MapDifficultyComplexityService mapComplexityService;
         @Mock
@@ -48,8 +52,8 @@ class XPReweightServiceTest {
 
         @BeforeEach
         void setUp() {
-                service = new XPReweightService(scoreRepository, userRepository, mapComplexityService,
-                                xpCalculationService);
+                service = new XPReweightService(scoreRepository, userRepository, statisticsRepository,
+                                mapComplexityService, xpCalculationService);
                 try {
                         var field = XPReweightService.class.getDeclaredField("backfillExecutor");
                         field.setAccessible(true);
@@ -151,7 +155,7 @@ class XPReweightServiceTest {
                 }
 
                 @Test
-                void complexityReweightGetsWorseXp() {
+                void reweightDerivativeEarnsNothingAndTheOriginalPlayKeepsItsXp() {
                         UUID diffId = UUID.randomUUID();
                         Curve scoreCurve = Curve.builder().id(UUID.randomUUID()).build();
                         Category category = Category.builder().id(UUID.randomUUID()).scoreCurve(scoreCurve).build();
@@ -163,10 +167,40 @@ class XPReweightServiceTest {
                                         .user(user).active(false).build();
                         Score reweighted = Score.builder()
                                         .id(UUID.randomUUID()).score(950000).mapDifficulty(diff)
-                                        .user(user).active(true).supersedesReason("Complexity reweight").build();
+                                        .user(user).active(true).reweightDerivative(true)
+                                        .supersedesReason("Complexity reweight").build();
 
                         when(scoreRepository.findAllByDifficultyOrderedByUserAndTime(diffId))
                                         .thenReturn(List.of(first, reweighted));
+                        when(mapComplexityService.findActiveComplexity(diffId))
+                                        .thenReturn(Optional.of(8.0));
+                        when(xpCalculationService.calculateXpForNewMap(anyDouble(), anyDouble()))
+                                        .thenReturn(50.000000);
+
+                        service.reweightScoresForDifficulty(diffId);
+
+                        assertThat(first.getXpGained()).isEqualByComparingTo(50.000000);
+                        assertThat(reweighted.getXpGained()).isEqualByComparingTo(0.0);
+                }
+
+                @Test
+                void partialAttemptGetsFlatXpEvenAsTheFirstRowOnTheMap() {
+                        UUID diffId = UUID.randomUUID();
+                        Curve scoreCurve = Curve.builder().id(UUID.randomUUID()).build();
+                        Category category = Category.builder().id(UUID.randomUUID()).scoreCurve(scoreCurve).build();
+                        MapDifficulty diff = MapDifficulty.builder()
+                                        .id(diffId).category(category).maxScore(1000000).build();
+
+                        Score attempt = Score.builder()
+                                        .id(UUID.randomUUID()).score(400000).mapDifficulty(diff)
+                                        .user(user).active(false).partial(true)
+                                        .supersedesReason("Partial attempt").build();
+                        Score realScore = Score.builder()
+                                        .id(UUID.randomUUID()).score(950000).mapDifficulty(diff)
+                                        .user(user).active(true).build();
+
+                        when(scoreRepository.findAllByDifficultyOrderedByUserAndTime(diffId))
+                                        .thenReturn(List.of(attempt, realScore));
                         when(mapComplexityService.findActiveComplexity(diffId))
                                         .thenReturn(Optional.of(8.0));
                         when(xpCalculationService.calculateXpForNewMap(anyDouble(), anyDouble()))
@@ -176,8 +210,45 @@ class XPReweightServiceTest {
 
                         service.reweightScoresForDifficulty(diffId);
 
+                        assertThat(attempt.getXpGained()).isEqualByComparingTo(25.000000);
+                        assertThat(realScore.getXpGained()).isEqualByComparingTo(50.000000);
+                }
+
+                @Test
+                void partialAttemptAfterABestDoesNotConsumeTheImprovementSlot() {
+                        UUID diffId = UUID.randomUUID();
+                        Curve scoreCurve = Curve.builder().id(UUID.randomUUID()).build();
+                        Category category = Category.builder().id(UUID.randomUUID()).scoreCurve(scoreCurve).build();
+                        MapDifficulty diff = MapDifficulty.builder()
+                                        .id(diffId).category(category).maxScore(1000000).build();
+
+                        Score first = Score.builder()
+                                        .id(UUID.randomUUID()).score(800000).mapDifficulty(diff)
+                                        .user(user).active(false).build();
+                        Score attempt = Score.builder()
+                                        .id(UUID.randomUUID()).score(300000).mapDifficulty(diff)
+                                        .user(user).active(false).partial(true)
+                                        .supersedesReason("Partial attempt").build();
+                        Score improvement = Score.builder()
+                                        .id(UUID.randomUUID()).score(950000).mapDifficulty(diff)
+                                        .user(user).active(true).supersedesReason("Score improved").build();
+
+                        when(scoreRepository.findAllByDifficultyOrderedByUserAndTime(diffId))
+                                        .thenReturn(List.of(first, attempt, improvement));
+                        when(mapComplexityService.findActiveComplexity(diffId))
+                                        .thenReturn(Optional.of(8.0));
+                        when(xpCalculationService.calculateXpForNewMap(anyDouble(), anyDouble()))
+                                        .thenReturn(50.000000);
+                        when(xpCalculationService.calculateXpForWorseScore())
+                                        .thenReturn(25.000000);
+                        when(xpCalculationService.calculateXpForImprovement(anyDouble(), eq(0.8), anyDouble()))
+                                        .thenReturn(75.000000);
+
+                        service.reweightScoresForDifficulty(diffId);
+
                         assertThat(first.getXpGained()).isEqualByComparingTo(50.000000);
-                        assertThat(reweighted.getXpGained()).isEqualByComparingTo(25.000000);
+                        assertThat(attempt.getXpGained()).isEqualByComparingTo(25.000000);
+                        assertThat(improvement.getXpGained()).isEqualByComparingTo(75.000000);
                 }
 
                 @Test
@@ -261,6 +332,20 @@ class XPReweightServiceTest {
                 }
 
                 @Test
+                void rebuildsDerivedTotalsAfterRepricingScores() {
+                        UUID diffId = UUID.randomUUID();
+
+                        when(scoreRepository.findDistinctMapDifficultyIds()).thenReturn(List.of(diffId));
+                        when(scoreRepository.findAllByDifficultyOrderedByUserAndTime(diffId))
+                                        .thenReturn(List.of());
+
+                        service.reweightAllScores();
+
+                        verify(statisticsRepository).rebuildScoreXp(null);
+                        verify(userRepository).recalculateTotalXpForAllActiveUsers();
+                }
+
+                @Test
                 void skipsDifficultyWithNoScores() {
                         UUID diffId = UUID.randomUUID();
 
@@ -281,6 +366,7 @@ class XPReweightServiceTest {
                 void callsBulkRecalculation() {
                         service.recalculateTotalXpForAllUsers();
 
+                        verify(statisticsRepository).rebuildScoreXp(null);
                         verify(userRepository).recalculateTotalXpForAllActiveUsers();
                 }
         }
@@ -292,6 +378,7 @@ class XPReweightServiceTest {
                 void callsSingleUserRecalculation() {
                         service.recalculateTotalXpForUser(42L);
 
+                        verify(statisticsRepository).rebuildScoreXp(42L);
                         verify(userRepository).recalculateTotalXpForUser(42L);
                 }
         }

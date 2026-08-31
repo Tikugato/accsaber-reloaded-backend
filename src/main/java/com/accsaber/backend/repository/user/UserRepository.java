@@ -218,6 +218,56 @@ public interface UserRepository extends JpaRepository<User, Long> {
             """, nativeQuery = true)
     void rebuildXpTotals(@Param("userId") Long userId);
 
+    @Query(value = """
+            SELECT u.id
+            FROM users u
+            WHERE u.active = true
+              AND u.total_xp >= :threshold
+              AND NOT EXISTS (
+                  SELECT 1 FROM user_item_links l
+                  WHERE l.user_id = u.id
+                    AND l.source = 'level'
+                    AND l.source_id = CAST(:level AS text))
+            ORDER BY u.id
+            """, nativeQuery = true)
+    List<Long> findUsersMissingLevelReward(@Param("level") int level, @Param("threshold") double threshold);
+
+    @Query(value = """
+            SELECT e.ts, e.xp FROM (
+                SELECT COALESCE(s.time_set, s.created_at) AS ts, s.xp_gained AS xp
+                FROM scores s WHERE s.user_id = :userId
+                UNION ALL
+                SELECT COALESCE(uml.completed_at, uml.created_at), m.xp
+                FROM user_milestone_links uml
+                JOIN milestones m ON uml.milestone_id = m.id
+                WHERE uml.user_id = :userId AND uml.completed = true
+                UNION ALL
+                SELECT umsb.claimed_at, ms.set_bonus_xp
+                FROM user_milestone_set_bonuses umsb
+                JOIN milestone_sets ms ON umsb.milestone_set_id = ms.id
+                WHERE umsb.user_id = :userId
+                UNION ALL
+                SELECT ucs.submitted_at, ucs.xp_awarded
+                FROM user_campaign_scores ucs
+                WHERE ucs.user_id = :userId AND ucs.active = true AND ucs.rewards_paid = true
+                UNION ALL
+                SELECT uc.completed_at, uc.completion_xp_awarded
+                FROM user_campaigns uc
+                WHERE uc.user_id = :userId AND uc.active = true AND uc.completion_rewards_paid = true
+                UNION ALL
+                SELECT um.completed_at, um.xp_reward
+                FROM user_missions um
+                WHERE um.user_id = :userId AND um.status = 'completed'
+                UNION ALL
+                SELECT uep.bonus_awarded_at, uep.bonus_xp
+                FROM user_event_profiles uep
+                WHERE uep.user_id = :userId AND uep.bonus_awarded_at IS NOT NULL
+            ) e
+            WHERE e.xp IS NOT NULL AND e.xp <> 0
+            ORDER BY e.ts ASC NULLS FIRST
+            """, nativeQuery = true)
+    List<Object[]> findXpTimeline(@Param("userId") Long userId);
+
     default void recalculateTotalXpForAllActiveUsers() {
         rebuildXpTotals(null);
     }

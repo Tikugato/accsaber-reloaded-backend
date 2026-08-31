@@ -2,6 +2,8 @@ package com.accsaber.backend.repository.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -86,6 +88,10 @@ class XpRebuildQueryTest {
     }
 
     private void persistScore(double xpGained, boolean active, String supersedesReason) {
+        persistScore(xpGained, active, supersedesReason, null);
+    }
+
+    private void persistScore(double xpGained, boolean active, String supersedesReason, Instant timeSet) {
         Score score = Score.builder()
                 .user(user)
                 .mapDifficulty(difficulty)
@@ -98,6 +104,7 @@ class XpRebuildQueryTest {
                 .xpGained(xpGained)
                 .active(active)
                 .supersedesReason(supersedesReason)
+                .timeSet(timeSet)
                 .build();
         entityManager.persist(score);
     }
@@ -155,6 +162,57 @@ class XpRebuildQueryTest {
 
         entityManager.refresh(user);
         assertThat(user.getTotalXp()).isEqualTo(325.0);
+    }
+
+    @Test
+    @DisplayName("findXpTimeline returns dated XP events oldest first")
+    void findXpTimelineReturnsDatedEventsInOrder() {
+        persistScore(300.0, true, null, Instant.parse("2024-03-01T00:00:00Z"));
+        persistScore(25.0, false, "Worse score", Instant.parse("2022-01-01T00:00:00Z"));
+        entityManager.flush();
+
+        List<Object[]> timeline = userRepository.findXpTimeline(user.getId());
+
+        assertThat(timeline).hasSize(2);
+        assertThat(((Number) timeline.get(0)[1]).doubleValue()).isEqualTo(25.0);
+        assertThat(((Number) timeline.get(1)[1]).doubleValue()).isEqualTo(300.0);
+    }
+
+    @Test
+    @DisplayName("findXpTimeline skips zero-XP rows such as campaign attempts")
+    void findXpTimelineSkipsZeroXpRows() {
+        persistScore(0.0, false, "Campaign attempt", Instant.parse("2024-03-01T00:00:00Z"));
+        persistScore(120.0, true, null, Instant.parse("2024-04-01T00:00:00Z"));
+        entityManager.flush();
+
+        List<Object[]> timeline = userRepository.findXpTimeline(user.getId());
+
+        assertThat(timeline).hasSize(1);
+        assertThat(((Number) timeline.get(0)[1]).doubleValue()).isEqualTo(120.0);
+    }
+
+    @Test
+    @DisplayName("findUsersMissingLevelReward honours the threshold and an existing level grant")
+    void findUsersMissingLevelRewardHonoursThresholdAndExistingGrant() {
+        user.setTotalXp(5000.0);
+        entityManager.flush();
+
+        assertThat(userRepository.findUsersMissingLevelReward(10, 9000.0)).doesNotContain(user.getId());
+        assertThat(userRepository.findUsersMissingLevelReward(10, 1000.0)).contains(user.getId());
+
+        UUID itemId = (UUID) entityManager
+                .createNativeQuery("SELECT id FROM items WHERE unlock_level = 10 LIMIT 1")
+                .getSingleResult();
+        entityManager.createNativeQuery("""
+                INSERT INTO user_item_links (user_id, item_id, source, source_id)
+                VALUES (:userId, :itemId, 'level', '10')
+                """)
+                .setParameter("userId", user.getId())
+                .setParameter("itemId", itemId)
+                .executeUpdate();
+
+        assertThat(userRepository.findUsersMissingLevelReward(10, 1000.0)).doesNotContain(user.getId());
+        assertThat(userRepository.findUsersMissingLevelReward(20, 1000.0)).contains(user.getId());
     }
 
     @Test

@@ -41,7 +41,6 @@ import com.accsaber.backend.model.dto.response.milestone.PrerequisiteLinkRespons
 import com.accsaber.backend.model.entity.milestone.MilestoneStatus;
 import com.accsaber.backend.service.milestone.MilestoneLayoutService;
 import com.accsaber.backend.service.milestone.MilestoneQueryBuilderService;
-import com.accsaber.backend.service.milestone.MilestoneEvaluationService;
 import com.accsaber.backend.service.milestone.MilestoneService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -57,7 +56,6 @@ import lombok.RequiredArgsConstructor;
 public class AdminMilestoneController {
 
     private final MilestoneService milestoneService;
-    private final MilestoneEvaluationService evaluationService;
     private final MilestoneQueryBuilderService queryBuilderService;
     private final MilestoneLayoutService layoutService;
 
@@ -119,20 +117,6 @@ public class AdminMilestoneController {
         List<MilestoneResponse> responses = milestoneService.activateMilestones(request.getMilestoneIds());
         milestoneService.backfillAllMilestones();
         return ResponseEntity.ok(responses);
-    }
-
-    @Operation(summary = "Hand out a milestone's rewards to everyone who already completed it", description = "Run this after attaching a new item to a milestone players have already earned. Only users missing the item get it, so the job is safe to re-run.")
-    @PostMapping("/{id}/regrant-rewards")
-    public ResponseEntity<Void> regrantRewards(@PathVariable UUID id) {
-        evaluationService.regrantRewards(id);
-        return ResponseEntity.accepted().build();
-    }
-
-    @Operation(summary = "Regrant rewards for every milestone that has them", description = "Sweeps all milestones with attached items and gives each completer anything they are missing. Safe to re-run.")
-    @PostMapping("/regrant-rewards")
-    public ResponseEntity<Void> regrantAllRewards() {
-        evaluationService.regrantAllRewards();
-        return ResponseEntity.accepted().build();
     }
 
     @Operation(summary = "Add map difficulty links to a milestone")

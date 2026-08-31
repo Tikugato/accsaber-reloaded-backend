@@ -62,11 +62,12 @@ public class LevelUpAwardService {
             return;
 
         for (int level = from; level <= newLevel; level++) {
-            awardItemsForLevel(userId, level);
+            grantLevelRewards(userId, level);
         }
     }
 
-    private void awardItemsForLevel(Long userId, int level) {
+    @Transactional
+    public void grantLevelRewards(Long userId, int level) {
         levelThresholdRepository.findById(level)
                 .filter(t -> t.getAwardsItem() != null)
                 .ifPresent(t -> itemService.awardSystem(

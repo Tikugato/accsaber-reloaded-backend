@@ -36,6 +36,13 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
 
     List<Item> findByUnlockLevelAndActiveTrue(Integer unlockLevel);
 
+    @Query("""
+            SELECT DISTINCT i.unlockLevel FROM Item i
+            WHERE i.unlockLevel IS NOT NULL AND i.unlockLevel > 0 AND i.active = true
+            ORDER BY i.unlockLevel ASC
+            """)
+    List<Integer> findDistinctUnlockLevels();
+
     List<Item> findByWelcomeGrantTrueAndActiveTrueAndDeprecatedFalse();
 
     List<Item> findByType_Key(String typeKey);

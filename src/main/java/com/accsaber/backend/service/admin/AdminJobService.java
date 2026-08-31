@@ -15,6 +15,7 @@ import com.accsaber.backend.model.dto.response.admin.JobTypeResponse;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.service.media.CdnSyncService;
+import com.accsaber.backend.service.milestone.MilestoneEvaluationService;
 import com.accsaber.backend.service.milestone.MilestoneService;
 import com.accsaber.backend.service.score.ScoreImportService;
 import com.accsaber.backend.service.score.ScoreIngestionService;
@@ -35,6 +36,7 @@ public class AdminJobService {
     private final ScoreIngestionService scoreIngestionService;
     private final CdnSyncService cdnSyncService;
     private final MilestoneService milestoneService;
+    private final MilestoneEvaluationService milestoneEvaluationService;
     private final SongSuggestService songSuggestService;
     private final MapDifficultyRepository mapDifficultyRepository;
 
@@ -115,6 +117,10 @@ public class AdminJobService {
             case BACKFILL_MILESTONE -> milestoneService.backfillMilestone(request.getMilestoneId());
             case BACKFILL_MILESTONES_ALL -> milestoneService.backfillAllMilestones();
             case BACKFILL_MILESTONES_USER -> milestoneService.backfillUser(request.getUserId());
+
+            case REGRANT_MILESTONE_REWARDS ->
+                milestoneEvaluationService.regrantRewards(request.getMilestoneId());
+            case REGRANT_MILESTONE_REWARDS_ALL -> milestoneEvaluationService.regrantAllRewards();
 
             case REGENERATE_SONG_SUGGEST -> songSuggestService.regenerateAsync();
         };

@@ -102,6 +102,17 @@ public enum JobType {
             "Re-evaluates every milestone for a single player.",
             JobField.required("userId", JobFieldKind.USER, "Player", RunJobRequest::getUserId)),
 
+    REGRANT_MILESTONE_REWARDS(JobGroup.MILESTONE, "Hand out one milestone's rewards",
+            "Gives a milestone's items to everyone who already completed it, oldest completion first so serial"
+                    + " numbers follow achievement order. Run this after attaching an item to a milestone players"
+                    + " have already earned. Only users missing the item get it, so it is safe to re-run.",
+            JobField.required("milestoneId", JobFieldKind.MILESTONE, "Milestone",
+                    RunJobRequest::getMilestoneId)),
+
+    REGRANT_MILESTONE_REWARDS_ALL(JobGroup.MILESTONE, "Hand out every milestone's rewards",
+            "Sweeps every milestone that has items attached and gives each completer whatever they are missing,"
+                    + " oldest completion first. Safe to re-run."),
+
     REGENERATE_SONG_SUGGEST(JobGroup.MISC, "Regenerate song suggestions",
             "Rebuilds the song suggestion data from current scores.");
 

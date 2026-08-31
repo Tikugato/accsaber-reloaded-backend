@@ -15,4 +15,11 @@ public interface LevelThresholdRepository extends JpaRepository<LevelThreshold, 
 
     @Query("SELECT lt FROM LevelThreshold lt WHERE lt.level <= :level ORDER BY lt.level DESC LIMIT 1")
     Optional<LevelThreshold> findHighestTitleAtOrBelow(@Param("level") int level);
+
+    @Query("""
+            SELECT lt.level FROM LevelThreshold lt
+            WHERE lt.awardsItem IS NOT NULL AND lt.level > 0
+            ORDER BY lt.level ASC
+            """)
+    List<Integer> findLevelsWithItemAwards();
 }

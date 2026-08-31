@@ -26,6 +26,7 @@ public interface UserMilestoneLinkRepository extends JpaRepository<UserMilestone
         @Query("""
                         SELECT uml.user.id FROM UserMilestoneLink uml
                         WHERE uml.milestone.id = :milestoneId AND uml.completed = true
+                        ORDER BY COALESCE(uml.completedAt, uml.createdAt) ASC, uml.user.id ASC
                         """)
         List<Long> findCompletedUserIdsByMilestone(@Param("milestoneId") UUID milestoneId);
 

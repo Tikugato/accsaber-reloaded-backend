@@ -688,7 +688,8 @@ public class MissionBuilderService {
                 continue;
             }
             int reference = mapStreakReference(pick, bandAbility);
-            int targetStreak = Math.max(3, Math.min(streakTargetFor(band, reference, topTier), bandAbility + 1));
+            int targetStreak = Math.max(3,
+                    Math.min(streakTargetFor(band, reference, topTier), streakOnMapAbilityCeiling(band, bandAbility)));
             int xp = calibrationService.computeXpReward(template, skillLvl, band, null);
             return baseBuilder(ctx, template, category, expiresAt, pool, band)
                     .targetMapDifficulty(pick.difficulty())
@@ -719,6 +720,15 @@ public class MissionBuilderService {
         return Math.max(2, (int) Math.round(0.6 * avg + 0.4 * max));
     }
 
+    private int streakOnMapAbilityCeiling(MissionBand band, int bandAbility) {
+        return switch (band) {
+            case easy -> bandAbility + 1;
+            case medium -> bandAbility - 1;
+            case hard -> bandAbility;
+            case extreme -> bandAbility + 2;
+        };
+    }
+
     private int complexityBandIndex(double complexity) {
         double clamped = Math.max(STREAK_COMPLEXITY_MIN, Math.min(STREAK_COMPLEXITY_MAX, complexity));
         int index = (int) Math.floor((clamped - STREAK_COMPLEXITY_MIN) / STREAK_COMPLEXITY_BAND_SIZE);
@@ -744,7 +754,7 @@ public class MissionBuilderService {
             case easy -> (int) Math.round(reference * 0.50);
             case medium -> (int) Math.round(reference * 0.70);
             case hard -> topTier ? reference : (int) Math.round(reference * 0.90);
-            case extreme -> topTier ? reference + 1 : reference;
+            case extreme -> reference + 1;
         };
     }
 

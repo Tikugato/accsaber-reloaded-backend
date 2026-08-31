@@ -85,6 +85,20 @@ class MissionBuilderServiceTest {
         assertThat(capped).isEqualByComparingTo(new BigDecimal("1010"));
     }
 
+    @Test
+    void streakOnMapAbilityCeilingSeparatesMediumHardAndExtremeDemands() throws Exception {
+        assertThat(invokeStreakOnMapAbilityCeiling(MissionBand.easy, 7)).isEqualTo(8);
+        assertThat(invokeStreakOnMapAbilityCeiling(MissionBand.medium, 7)).isEqualTo(6);
+        assertThat(invokeStreakOnMapAbilityCeiling(MissionBand.hard, 7)).isEqualTo(7);
+        assertThat(invokeStreakOnMapAbilityCeiling(MissionBand.extreme, 7)).isEqualTo(9);
+    }
+
+    @Test
+    void extremeStreakTargetAlwaysRequiresOneAboveReference() throws Exception {
+        assertThat(invokeStreakTarget(MissionBand.extreme, 7, false)).isEqualTo(8);
+        assertThat(invokeStreakTarget(MissionBand.extreme, 7, true)).isEqualTo(8);
+    }
+
     private int invokeAnchorIndex(int scoreCount, MissionBand band, double percentile) throws Exception {
         Method method = MissionBuilderService.class.getDeclaredMethod(
                 "pbAboveThresholdAnchorIndex", int.class, MissionBand.class, double.class);
@@ -106,6 +120,20 @@ class MissionBuilderServiceTest {
                 Long.class, UUID.class, MapPick.class, MissionBand.class, BigDecimal.class);
         method.setAccessible(true);
         return (BigDecimal) method.invoke(service, userId, categoryId, pick, band, targetRawAp);
+    }
+
+    private int invokeStreakOnMapAbilityCeiling(MissionBand band, int bandAbility) throws Exception {
+        Method method = MissionBuilderService.class.getDeclaredMethod(
+                "streakOnMapAbilityCeiling", MissionBand.class, int.class);
+        method.setAccessible(true);
+        return (int) method.invoke(service, band, bandAbility);
+    }
+
+    private int invokeStreakTarget(MissionBand band, int reference, boolean topTier) throws Exception {
+        Method method = MissionBuilderService.class.getDeclaredMethod(
+                "streakTargetFor", MissionBand.class, int.class, boolean.class);
+        method.setAccessible(true);
+        return (int) method.invoke(service, band, reference, topTier);
     }
 
     private List<Score> descendingScores(int count, int topAp) {

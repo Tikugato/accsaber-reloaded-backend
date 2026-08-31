@@ -10,12 +10,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.exception.ValidationException;
+import com.accsaber.backend.model.dto.request.user.PinnedMilestoneEntry;
 import com.accsaber.backend.model.dto.request.user.PinnedScoreEntry;
+import com.accsaber.backend.model.entity.milestone.Milestone;
+import com.accsaber.backend.model.entity.milestone.UserMilestoneLink;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.User;
+import com.accsaber.backend.model.entity.user.UserPinnedMilestone;
 import com.accsaber.backend.model.entity.user.UserPinnedScore;
 import com.accsaber.backend.model.entity.user.UserSettingKey;
+import com.accsaber.backend.repository.milestone.MilestoneRepository;
+import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
+import com.accsaber.backend.repository.user.UserPinnedMilestoneRepository;
 import com.accsaber.backend.repository.user.UserPinnedScoreRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.media.CdnSyncService;
@@ -30,8 +37,10 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class ProfileCustomizationService {
 
-    public static final int BASIC_MAX_PINNED_SCORES = 3;
-    public static final int SUPPORTER_MAX_PINNED_SCORES = 6;
+    public static final int BASIC_MAX_PINNED_SCORES = 4;
+    public static final int SUPPORTER_MAX_PINNED_SCORES = 8;
+    public static final int BASIC_MAX_PINNED_MILESTONES = 4;
+    public static final int SUPPORTER_MAX_PINNED_MILESTONES = 8;
     public static final int BASIC_MAX_BIO_LENGTH = 4000;
     public static final int SUPPORTER_MAX_BIO_LENGTH = 8000;
     public static final int MAX_NAME_LENGTH = 32;
@@ -39,6 +48,9 @@ public class ProfileCustomizationService {
 
     private final UserRepository userRepository;
     private final UserPinnedScoreRepository pinnedScoreRepository;
+    private final UserPinnedMilestoneRepository pinnedMilestoneRepository;
+    private final MilestoneRepository milestoneRepository;
+    private final UserMilestoneLinkRepository userMilestoneLinkRepository;
     private final ScoreRepository scoreRepository;
     private final UserService userService;
     private final UserSettingsService userSettingsService;
@@ -100,6 +112,65 @@ public class ProfileCustomizationService {
         pinnedScoreRepository.deleteByUser_Id(userId);
         pinnedScoreRepository.flush();
         pinnedScoreRepository.saveAll(built);
+    }
+
+    @Transactional
+    public void updatePinnedMilestones(Long userId, List<PinnedMilestoneEntry> entries) {
+        List<PinnedMilestoneEntry> normalized = entries == null ? List.of() : entries;
+        int pinnedMax = pinnedMilestoneMaxFor(userId);
+        if (normalized.size() > pinnedMax) {
+            throw new ValidationException("pinnedMilestones",
+                    "may contain at most " + pinnedMax + " entries");
+        }
+        Set<UUID> uniqueMilestoneIds = new HashSet<>();
+        Set<Integer> uniqueOrders = new HashSet<>();
+        for (PinnedMilestoneEntry entry : normalized) {
+            if (entry.milestoneId() == null) {
+                throw new ValidationException("pinnedMilestones", "milestoneId must not be null");
+            }
+            if (!uniqueMilestoneIds.add(entry.milestoneId())) {
+                throw new ValidationException("pinnedMilestones", "duplicate milestoneId " + entry.milestoneId());
+            }
+            if (!uniqueOrders.add(entry.displayOrder())) {
+                throw new ValidationException("pinnedMilestones", "duplicate displayOrder " + entry.displayOrder());
+            }
+        }
+        User user = requireUser(userId);
+        List<UserPinnedMilestone> built = normalized.stream()
+                .map(entry -> buildMilestonePin(user, entry))
+                .toList();
+        pinnedMilestoneRepository.deleteByUser_Id(userId);
+        pinnedMilestoneRepository.flush();
+        pinnedMilestoneRepository.saveAll(built);
+    }
+
+    private UserPinnedMilestone buildMilestonePin(User user, PinnedMilestoneEntry entry) {
+        Milestone milestone = milestoneRepository.findById(entry.milestoneId())
+                .orElseThrow(() -> new ValidationException("pinnedMilestones",
+                        "milestone not found: " + entry.milestoneId()));
+        if (!milestone.isActive()) {
+            throw new ValidationException("pinnedMilestones",
+                    "milestone " + entry.milestoneId() + " is not active");
+        }
+        boolean completed = userMilestoneLinkRepository
+                .findByUser_IdAndMilestone_Id(user.getId(), milestone.getId())
+                .map(UserMilestoneLink::isCompleted)
+                .orElse(false);
+        if (!completed) {
+            throw new ValidationException("pinnedMilestones",
+                    "milestone " + entry.milestoneId() + " is not completed by the player");
+        }
+        return UserPinnedMilestone.builder()
+                .user(user)
+                .milestone(milestone)
+                .displayOrder(entry.displayOrder())
+                .build();
+    }
+
+    private int pinnedMilestoneMaxFor(Long userId) {
+        return supporterService.isActiveSupporter(userId)
+                ? SUPPORTER_MAX_PINNED_MILESTONES
+                : BASIC_MAX_PINNED_MILESTONES;
     }
 
     private UserPinnedScore buildPin(User user, PinnedScoreEntry entry) {

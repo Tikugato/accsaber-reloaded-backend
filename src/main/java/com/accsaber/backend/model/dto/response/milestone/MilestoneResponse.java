@@ -20,6 +20,8 @@ public class MilestoneResponse {
     private String description;
     private String type;
     private String tier;
+
+    private String iconGroup;
     private Double xp;
     private MilestoneQuerySpec querySpec;
     private Double targetValue;

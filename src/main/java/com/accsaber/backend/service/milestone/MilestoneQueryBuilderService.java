@@ -74,6 +74,33 @@ public class MilestoneQueryBuilderService {
         return Rounding.round(result / divisor, 6);
     }
 
+    public Double evaluateGate(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
+        if (spec == null || spec.having() == null) {
+            return null;
+        }
+        HavingSpec having = spec.having();
+        MilestoneQuerySpec gateSpec = new MilestoneQuerySpec(
+                new SelectSpec(having.function(), having.column()),
+                spec.from(), spec.filters(), null, null, spec.groupBy(), spec.outerFunction(),
+                spec.orderBy(), spec.limit(), spec.orGroups(), spec.scope());
+        return evaluateSingle(gateSpec, userId, categoryId);
+    }
+
+    public Double evaluateGateFraction(MilestoneQuerySpec spec, Long userId, UUID categoryId) {
+        if (spec == null || spec.having() == null) {
+            return null;
+        }
+        HavingSpec having = spec.having();
+        Double target = having.valueQuery() != null
+                ? evaluateSingle(having.valueQuery(), userId, categoryId)
+                : (having.value() instanceof Number number ? number.doubleValue() : null);
+        if (target == null || target <= 0) {
+            return null;
+        }
+        Double value = evaluateGate(spec, userId, categoryId);
+        return value == null ? 0.0 : Rounding.round(value / target, 6);
+    }
+
     public boolean requiresIndividualEvaluation(MilestoneQuerySpec spec) {
         return spec.having() != null
                 || spec.divisor() != null

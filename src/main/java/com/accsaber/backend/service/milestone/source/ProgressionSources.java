@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
+import com.accsaber.backend.model.entity.milestone.MilestoneStatus;
+
 @Component
 public class ProgressionSources implements MilestoneSourceProvider {
 
@@ -45,6 +47,7 @@ public class ProgressionSources implements MilestoneSourceProvider {
                 .decimal("xp", "{base}.xp")
                 .decimal("target_value", "{base}.target_value")
                 .flag("active", "{base}.active")
+                .enumeration("status", "{base}.status", MilestoneStatus.class)
                 .text("comparison", "{base}.comparison")
                 .uuid("set_id", "{base}.set_id")
                 .build();

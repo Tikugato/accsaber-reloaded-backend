@@ -63,6 +63,16 @@ public interface UserItemLinkRepository extends JpaRepository<UserItemLink, UUID
         long countByUser_IdAndItem_IdAndSourceAndSourceId(Long userId, UUID itemId, ItemSource source,
                         String sourceId);
 
+        long countByUser_IdAndItem_Type_KeyAndSourceAndSourceId(Long userId, String typeKey, ItemSource source,
+                        String sourceId);
+
+        @Query("""
+                        SELECT DISTINCT l.user.id FROM UserItemLink l
+                        WHERE l.item.id = :itemId AND l.source = :source AND l.sourceId = :sourceId
+                        """)
+        List<Long> findUserIdsByItemAndSource(@Param("itemId") UUID itemId,
+                        @Param("source") ItemSource source, @Param("sourceId") String sourceId);
+
         @Query("""
                         SELECT l FROM UserItemLink l
                         JOIN FETCH l.item i

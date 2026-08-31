@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -598,10 +599,35 @@ public class ItemService {
         if (!userRepository.existsById(resolved))
             return;
         for (Item item : itemRepository.findByWelcomeGrantTrueAndActiveTrueAndDeprecatedFalse()) {
-            if (userItemLinkRepository.existsByUser_IdAndItem_Id(resolved, item.getId()))
+            Item granted = resolveGrantItem(item);
+            if (granted == null || userItemLinkRepository.existsByUser_IdAndItem_Id(resolved, granted.getId()))
                 continue;
-            awardOrMerge(resolved, item, null, 1L, ItemSource.welcome, null, null, "Welcome grant");
+            awardOrMerge(resolved, granted, null, 1L, ItemSource.welcome, null, null, "Welcome grant");
         }
+    }
+
+    public static boolean isActiveCrateSentinel(Item item) {
+        JsonNode value = item.getValue();
+        return value != null && "active_crate".equals(value.path("grant").asText(null));
+    }
+
+    Item resolveGrantItem(Item item) {
+        if (!isActiveCrateSentinel(item)) {
+            return item;
+        }
+        List<Item> crates = itemRepository
+                .findByType_KeyAndActiveTrueAndDeprecatedFalseAndVisibleTrue("crate").stream()
+                .filter(c -> !isActiveCrateSentinel(c))
+                .toList();
+        Instant now = Instant.now();
+        List<Item> inWindow = crates.stream().filter(c -> c.isObtainableAt(now)).toList();
+        if (!inWindow.isEmpty()) {
+            return inWindow.get(ThreadLocalRandom.current().nextInt(inWindow.size()));
+        }
+        return crates.stream()
+                .max(Comparator.comparing(Item::getCreatedAt,
+                        Comparator.nullsFirst(Comparator.naturalOrder())))
+                .orElse(null);
     }
 
     @Transactional
@@ -619,17 +645,19 @@ public class ItemService {
         if (!userRepository.existsById(resolved))
             return;
 
-        Item item = itemRepository.findByIdAndActiveTrue(itemId).orElse(null);
-        if (item == null || item.isDeprecated())
+        Item requested = itemRepository.findByIdAndActiveTrue(itemId).orElse(null);
+        if (requested == null || requested.isDeprecated())
+            return;
+        Item item = resolveGrantItem(requested);
+        if (item == null)
             return;
 
         if (!item.isStackable()) {
-            if (item.isUniquePerUser() && userItemLinkRepository.existsByUser_IdAndItem_Id(resolved, itemId)) {
+            if (item.isUniquePerUser() && userItemLinkRepository.existsByUser_IdAndItem_Id(resolved, item.getId())) {
                 return;
             }
             long target = item.isUniquePerUser() ? 1L : quantity;
-            long shortfall = target - userItemLinkRepository
-                    .countByUser_IdAndItem_IdAndSourceAndSourceId(resolved, itemId, source, sourceId);
+            long shortfall = target - countPriorGrants(resolved, requested, item, source, sourceId);
             if (shortfall < 1)
                 return;
             awardOrMerge(resolved, item, null, shortfall, source, sourceId, null, reason);
@@ -637,6 +665,15 @@ public class ItemService {
         }
 
         awardOrMerge(resolved, item, null, quantity, source, sourceId, null, reason);
+    }
+
+    private long countPriorGrants(Long userId, Item requested, Item granted, ItemSource source, String sourceId) {
+        if (requested == granted) {
+            return userItemLinkRepository.countByUser_IdAndItem_IdAndSourceAndSourceId(
+                    userId, granted.getId(), source, sourceId);
+        }
+        return userItemLinkRepository.countByUser_IdAndItem_Type_KeyAndSourceAndSourceId(
+                userId, granted.getType().getKey(), source, sourceId);
     }
 
     @Transactional
@@ -668,10 +705,14 @@ public class ItemService {
         if (!userRepository.existsById(resolved)) {
             throw new ResourceNotFoundException("User", userId);
         }
-        Item item = itemRepository.findByIdAndActiveTrue(itemId)
+        Item requested = itemRepository.findByIdAndActiveTrue(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Item", itemId));
-        if (item.isDeprecated()) {
+        if (requested.isDeprecated()) {
             throw new ValidationException("itemId", "cannot award a deprecated item");
+        }
+        Item item = resolveGrantItem(requested);
+        if (item == null) {
+            throw new ValidationException("itemId", "no active crate is available to grant right now");
         }
         long qty = quantity == null ? 1L : quantity;
         if (qty < 1) {
@@ -781,6 +822,10 @@ public class ItemService {
 
     private UserItemLink createLink(Long userId, Item item, Set<ItemModifier> modifiers, Long serial, long quantity,
             ItemSource source, String sourceId, StaffUser staff, String reason) {
+        if (isActiveCrateSentinel(item)) {
+            throw new ValidationException("item",
+                    "this item resolves to an active crate at grant time and can never be owned directly");
+        }
         if (item.isUniquePerUser() && userItemLinkRepository.existsByUser_IdAndItem_Id(userId, item.getId())) {
             throw new ConflictException("Player already owns '" + item.getName() + "', which is a unique item");
         }

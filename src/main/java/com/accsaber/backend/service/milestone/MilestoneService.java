@@ -55,6 +55,7 @@ import com.accsaber.backend.model.entity.milestone.MilestoneSetLink;
 import com.accsaber.backend.model.entity.milestone.MilestoneStatus;
 import com.accsaber.backend.model.entity.milestone.MilestoneTier;
 import com.accsaber.backend.model.entity.milestone.UserMilestoneLink;
+import com.accsaber.backend.model.entity.user.UserPinnedMilestone;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.CategoryRepository;
@@ -71,6 +72,7 @@ import com.accsaber.backend.repository.milestone.MilestoneSetGroupRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetLinkRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
+import com.accsaber.backend.repository.user.UserPinnedMilestoneRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.item.ItemMapper;
 import com.accsaber.backend.service.player.DuplicateUserService;
@@ -89,6 +91,7 @@ public class MilestoneService {
     private final MilestoneSetRepository milestoneSetRepository;
     private final UserMilestoneLinkRepository userMilestoneLinkRepository;
     private final MilestoneCompletionStatsRepository completionStatsRepository;
+    private final UserPinnedMilestoneRepository pinnedMilestoneRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final MapDifficultyRepository mapDifficultyRepository;
@@ -149,25 +152,13 @@ public class MilestoneService {
         Map<UUID, MilestoneCompletionStats> statsMap = completionStatsRepository.findAll().stream()
                 .collect(Collectors.toMap(MilestoneCompletionStats::getMilestoneId, Function.identity()));
 
+        Map<UUID, List<MilestoneRewardResponse>> rewards = loadRewards(
+                completedLinks.stream().map(l -> l.getMilestone().getId()).toList());
+
         return completedLinks.stream().map(link -> {
             Milestone m = link.getMilestone();
             MilestoneCompletionStats stats = statsMap.get(m.getId());
-            return UserMilestoneProgressResponse.builder()
-                    .milestoneId(m.getId())
-                    .title(m.getTitle())
-                    .description(m.getDescription())
-                    .type(m.getType())
-                    .tier(m.getTier().name())
-                    .xp(m.getXp())
-                    .targetValue(m.getTargetValue())
-                    .progress(link.getProgress())
-                    .normalizedProgress(progressCalculator.normalize(m, link.getProgress()))
-                    .completed(true)
-                    .completedAt(link.getCompletedAt())
-                    .completionPercentage(stats != null ? stats.getCompletionPercentage() : 0.0)
-                    .setId(m.getMilestoneSet().getId())
-                    .categoryId(m.getCategory() != null ? m.getCategory().getId() : null)
-                    .build();
+            return toProgressResponse(m, link, stats, rewards.get(m.getId()));
         }).toList();
     }
 
@@ -181,26 +172,12 @@ public class MilestoneService {
         Map<UUID, MilestoneCompletionStats> statsMap = completionStatsRepository.findAll().stream()
                 .collect(Collectors.toMap(MilestoneCompletionStats::getMilestoneId, Function.identity()));
 
+        Map<UUID, List<MilestoneRewardResponse>> rewards = loadRewards(milestoneIds);
+
         return uncompleted.stream().map(m -> {
             UserMilestoneLink link = linkMap.get(m.getId());
             MilestoneCompletionStats stats = statsMap.get(m.getId());
-            Double rawProgress = link != null ? link.getProgress() : null;
-            return UserMilestoneProgressResponse.builder()
-                    .milestoneId(m.getId())
-                    .title(m.getTitle())
-                    .description(m.getDescription())
-                    .type(m.getType())
-                    .tier(m.getTier().name())
-                    .xp(m.getXp())
-                    .targetValue(m.getTargetValue())
-                    .progress(rawProgress)
-                    .normalizedProgress(progressCalculator.normalize(m, rawProgress))
-                    .completed(false)
-                    .completedAt(null)
-                    .completionPercentage(stats != null ? stats.getCompletionPercentage() : 0.0)
-                    .setId(m.getMilestoneSet().getId())
-                    .categoryId(m.getCategory() != null ? m.getCategory().getId() : null)
-                    .build();
+            return toProgressResponse(m, link, stats, rewards.get(m.getId()));
         }).toList();
     }
 
@@ -292,27 +269,13 @@ public class MilestoneService {
         Map<UUID, MilestoneCompletionStats> statsMap = completionStatsRepository.findAll().stream()
                 .collect(Collectors.toMap(MilestoneCompletionStats::getMilestoneId, Function.identity()));
 
+        Map<UUID, List<MilestoneRewardResponse>> rewards = loadRewards(
+                allActive.getContent().stream().map(Milestone::getId).toList());
+
         return allActive.map(m -> {
             UserMilestoneLink link = linkMap.get(m.getId());
             MilestoneCompletionStats stats = statsMap.get(m.getId());
-
-            Double rawProgress = link != null ? link.getProgress() : null;
-            return UserMilestoneProgressResponse.builder()
-                    .milestoneId(m.getId())
-                    .title(m.getTitle())
-                    .description(m.getDescription())
-                    .type(m.getType())
-                    .tier(m.getTier().name())
-                    .xp(m.getXp())
-                    .targetValue(m.getTargetValue())
-                    .progress(rawProgress)
-                    .normalizedProgress(progressCalculator.normalize(m, rawProgress))
-                    .completed(link != null && link.isCompleted())
-                    .completedAt(link != null ? link.getCompletedAt() : null)
-                    .completionPercentage(stats != null ? stats.getCompletionPercentage() : 0.0)
-                    .setId(m.getMilestoneSet().getId())
-                    .categoryId(m.getCategory() != null ? m.getCategory().getId() : null)
-                    .build();
+            return toProgressResponse(m, link, stats, rewards.get(m.getId()));
         });
     }
 
@@ -414,6 +377,7 @@ public class MilestoneService {
                 .description(request.getDescription())
                 .type(request.getType())
                 .tier(request.getTier())
+                .iconGroup(request.getIconGroup() != null ? request.getIconGroup() : "GENERAL")
                 .xp(request.getXp())
                 .querySpec(request.getQuerySpec())
                 .targetValue(request.getTargetValue())
@@ -490,6 +454,9 @@ public class MilestoneService {
         }
         if (request.getTier() != null) {
             milestone.setTier(request.getTier());
+        }
+        if (request.getIconGroup() != null) {
+            milestone.setIconGroup(request.getIconGroup());
         }
         if (request.getTargetValue() != null) {
             milestone.setTargetValue(request.getTargetValue());
@@ -867,6 +834,7 @@ public class MilestoneService {
                 .description(m.getDescription())
                 .type(m.getType())
                 .tier(m.getTier().name())
+                .iconGroup(m.getIconGroup())
                 .xp(m.getXp())
                 .querySpec(m.getQuerySpec())
                 .targetValue(m.getTargetValue())
@@ -885,6 +853,51 @@ public class MilestoneService {
                 .build();
     }
 
+    private UserMilestoneProgressResponse toProgressResponse(Milestone m, UserMilestoneLink link,
+            MilestoneCompletionStats stats, List<MilestoneRewardResponse> rewards) {
+        Double rawProgress = link != null ? link.getProgress() : null;
+        return UserMilestoneProgressResponse.builder()
+                .milestoneId(m.getId())
+                .title(m.getTitle())
+                .description(m.getDescription())
+                .type(m.getType())
+                .tier(m.getTier().name())
+                .iconGroup(m.getIconGroup())
+                .xp(m.getXp())
+                .targetValue(m.getTargetValue())
+                .progress(rawProgress)
+                .normalizedProgress(progressCalculator.normalize(m, rawProgress,
+                        link != null ? link.getGateFraction() : null))
+                .completed(link != null && link.isCompleted())
+                .completedAt(link != null ? link.getCompletedAt() : null)
+                .completionPercentage(stats != null ? stats.getCompletionPercentage() : 0.0)
+                .setId(m.getMilestoneSet().getId())
+                .categoryId(m.getCategory() != null ? m.getCategory().getId() : null)
+                .positionX(m.getPositionX())
+                .positionY(m.getPositionY())
+                .rewards(rewards)
+                .build();
+    }
+
+    public List<UserMilestoneProgressResponse> findPinnedByUser(Long userId) {
+        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
+        List<UserPinnedMilestone> pins = pinnedMilestoneRepository.findActiveByUserIdWithMilestoneGraph(resolved);
+        if (pins.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> milestoneIds = pins.stream().map(p -> p.getMilestone().getId()).toList();
+        Map<UUID, UserMilestoneLink> linkMap = userMilestoneLinkRepository
+                .findByUser_IdAndMilestone_IdIn(resolved, milestoneIds).stream()
+                .collect(Collectors.toMap(l -> l.getMilestone().getId(), Function.identity()));
+        Map<UUID, MilestoneCompletionStats> statsMap = completionStatsRepository.findAll().stream()
+                .collect(Collectors.toMap(MilestoneCompletionStats::getMilestoneId, Function.identity()));
+        Map<UUID, List<MilestoneRewardResponse>> rewards = loadRewards(milestoneIds);
+        return pins.stream()
+                .map(pin -> toProgressResponse(pin.getMilestone(), linkMap.get(pin.getMilestone().getId()),
+                        statsMap.get(pin.getMilestone().getId()), rewards.get(pin.getMilestone().getId())))
+                .toList();
+    }
+
     private MilestoneCompletionResponse toCompletionResponse(Milestone m, MilestoneCompletionStats stats,
             UserMilestoneLink userLink) {
         var builder = MilestoneCompletionResponse.builder()
@@ -893,6 +906,7 @@ public class MilestoneService {
                 .description(m.getDescription())
                 .type(m.getType())
                 .tier(m.getTier().name())
+                .iconGroup(m.getIconGroup())
                 .xp(m.getXp())
                 .targetValue(m.getTargetValue())
                 .comparison(m.getComparison())
@@ -905,7 +919,7 @@ public class MilestoneService {
         if (userLink != null) {
             builder.userProgress(userLink.getProgress())
                     .userNormalizedProgress(
-                            progressCalculator.normalize(m, userLink.getProgress()))
+                            progressCalculator.normalize(m, userLink.getProgress(), userLink.getGateFraction()))
                     .userCompleted(userLink.isCompleted())
                     .userCompletedAt(userLink.getCompletedAt());
             Score score = userLink.getAchievedWithScore();

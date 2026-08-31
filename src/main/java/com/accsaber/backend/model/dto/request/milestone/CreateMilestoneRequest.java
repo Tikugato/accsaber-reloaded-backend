@@ -31,6 +31,8 @@ public class CreateMilestoneRequest {
     @NotNull
     private MilestoneTier tier;
 
+
+    private String iconGroup;
     @NotNull
     private Double xp;
 

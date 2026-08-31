@@ -12,4 +12,6 @@ public class ProfileUpdateRequest {
     private String bio;
 
     private List<PinnedScoreEntry> pinnedScores;
+
+    private List<PinnedMilestoneEntry> pinnedMilestones;
 }

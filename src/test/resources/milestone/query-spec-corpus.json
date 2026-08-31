@@ -7138,5 +7138,118 @@
         }
       ]
     }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "XP Baron",
+    "categoryCode": null,
+    "targetValue": 50000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "SUM",
+        "column": "milestone_xp"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "XP Magnate",
+    "categoryCode": null,
+    "targetValue": 75000,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "SUM",
+        "column": "milestone_xp"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "Completionist",
+    "categoryCode": null,
+    "targetValue": 200,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        }
+      ]
+    }
+  },
+  {
+    "source": "sidequests_meta.sql",
+    "title": "Dedication Like no Other",
+    "categoryCode": null,
+    "targetValue": 1,
+    "comparison": "GTE",
+    "querySpec": {
+      "select": {
+        "function": "COUNT",
+        "column": "id"
+      },
+      "from": "user_milestone_links",
+      "filters": [
+        {
+          "column": "completed",
+          "operator": "=",
+          "value": true
+        },
+        {
+          "column": "milestone_tier",
+          "operator": "!=",
+          "value": "apex"
+        }
+      ],
+      "divisor": {
+        "select": {
+          "function": "COUNT",
+          "column": "id"
+        },
+        "from": "milestones",
+        "filters": [
+          {
+            "column": "active",
+            "operator": "=",
+            "value": true
+          },
+          {
+            "column": "status",
+            "operator": "=",
+            "value": "ACTIVE"
+          },
+          {
+            "column": "tier",
+            "operator": "!=",
+            "value": "apex"
+          }
+        ]
+      }
+    }
   }
 ]

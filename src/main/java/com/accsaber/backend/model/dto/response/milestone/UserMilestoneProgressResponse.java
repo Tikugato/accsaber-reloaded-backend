@@ -1,6 +1,7 @@
 package com.accsaber.backend.model.dto.response.milestone;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import lombok.Builder;
@@ -15,6 +16,8 @@ public class UserMilestoneProgressResponse {
     private String description;
     private String type;
     private String tier;
+
+    private String iconGroup;
     private Double xp;
     private Double targetValue;
     private Double progress;
@@ -24,4 +27,10 @@ public class UserMilestoneProgressResponse {
     private Double completionPercentage;
     private UUID setId;
     private UUID categoryId;
+
+    private double positionX;
+
+    private double positionY;
+
+    private List<MilestoneRewardResponse> rewards;
 }

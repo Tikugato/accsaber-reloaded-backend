@@ -88,6 +88,10 @@ public class Milestone {
     @Column(name = "progress_floor")
     private Double progressFloor;
 
+    @Column(name = "icon_group", nullable = false)
+    @Builder.Default
+    private String iconGroup = "GENERAL";
+
     @Column(name = "position_x", nullable = false)
     private double positionX;
 

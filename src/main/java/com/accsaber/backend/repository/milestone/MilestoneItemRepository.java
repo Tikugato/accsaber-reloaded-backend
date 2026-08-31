@@ -21,6 +21,12 @@ public interface MilestoneItemRepository extends JpaRepository<MilestoneItem, Mi
                         """)
         List<MilestoneItem> findByMilestoneIds(@Param("milestoneIds") Collection<UUID> milestoneIds);
 
+        @Query("""
+                        SELECT DISTINCT mi.milestone.id FROM MilestoneItem mi
+                        WHERE mi.milestone.active = true
+                        """)
+        List<UUID> findDistinctMilestoneIdsWithRewards();
+
         @Modifying
         @Query("DELETE FROM MilestoneItem mi WHERE mi.milestone.id = :milestoneId")
         int deleteByMilestone_Id(@Param("milestoneId") UUID milestoneId);

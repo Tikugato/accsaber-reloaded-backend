@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -167,11 +168,10 @@ class ProfileCustomizationServiceTest {
 
         @Test
         void rejectsMoreThanMax() {
-            List<PinnedScoreEntry> tooMany = List.of(
-                    new PinnedScoreEntry(UUID.randomUUID(), 0, null),
-                    new PinnedScoreEntry(UUID.randomUUID(), 1, null),
-                    new PinnedScoreEntry(UUID.randomUUID(), 2, null),
-                    new PinnedScoreEntry(UUID.randomUUID(), 3, null));
+            List<PinnedScoreEntry> tooMany = IntStream
+                    .rangeClosed(0, ProfileCustomizationService.BASIC_MAX_PINNED_SCORES)
+                    .mapToObj(i -> new PinnedScoreEntry(UUID.randomUUID(), i, null))
+                    .toList();
             assertThatThrownBy(() -> service.updatePinnedScores(USER_ID, tooMany))
                     .isInstanceOf(ValidationException.class)
                     .hasMessageContaining("at most");

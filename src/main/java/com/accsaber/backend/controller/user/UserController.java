@@ -94,7 +94,7 @@ public class UserController {
     }
 
     @Operation(summary = "Get a player's pinned scores", description = "The scores a player has chosen to show off on their "
-            + "profile, in the order they want them displayed. They can pin three at most.")
+            + "profile, in the order they want them displayed. Four at most, eight for supporters.")
     @GetMapping("/{userId}/pinned-scores")
     public ResponseEntity<List<PinnedScoreResponse>> getPinnedScores(@PathVariable Long userId) {
         List<PinnedScoreResponse> pinned = userService.getPinnedScores(userId).stream()
@@ -104,6 +104,13 @@ public class UserController {
                         .build())
                 .toList();
         return ResponseEntity.ok(pinned);
+    }
+
+    @Operation(summary = "Get a player's pinned milestones", description = "The milestones a player has chosen to show off on "
+            + "their profile, in the order they want them displayed. Four at most, eight for supporters.")
+    @GetMapping("/{userId}/pinned-milestones")
+    public ResponseEntity<List<UserMilestoneProgressResponse>> getPinnedMilestones(@PathVariable Long userId) {
+        return ResponseEntity.ok(milestoneService.findPinnedByUser(userId));
     }
 
     @Operation(summary = "Get a player's stats in every category", description = "One call that gives you the current stats for "

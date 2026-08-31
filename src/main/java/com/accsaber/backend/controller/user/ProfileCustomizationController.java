@@ -47,6 +47,9 @@ public class ProfileCustomizationController {
         if (request.getPinnedScores() != null) {
             profileService.updatePinnedScores(userId, request.getPinnedScores());
         }
+        if (request.getPinnedMilestones() != null) {
+            profileService.updatePinnedMilestones(userId, request.getPinnedMilestones());
+        }
         return ResponseEntity.noContent().build();
     }
 

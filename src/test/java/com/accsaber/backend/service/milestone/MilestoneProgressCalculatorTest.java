@@ -247,4 +247,62 @@ class MilestoneProgressCalculatorTest {
             verify(statisticsRepository).countActivePlayersInCategory(OVERALL_ID);
         }
     }
+
+    @Nested
+    @DisplayName("gated milestones (a HAVING clause, e.g. Completionist X)")
+    class Gated {
+
+        @Test
+        @DisplayName("reports gate progress while the gate is unmet and the value is still null")
+        void gateProgressWhileValueNull() {
+            Milestone m = milestone(MilestoneProgressModel.LINEAR, 0.96, "GTE");
+
+            assertThat(calculator.normalize(m, null, 0.4)).isEqualTo(0.4);
+        }
+
+        @Test
+        @DisplayName("takes the weakest link once both sides are known")
+        void weakestLinkWins() {
+            Milestone m = milestone(MilestoneProgressModel.LINEAR, 100, "GTE");
+
+            assertThat(calculator.normalize(m, 100.0, 0.5)).isEqualTo(0.5);
+            assertThat(calculator.normalize(m, 50.0, 1.0)).isEqualTo(0.5);
+            assertThat(calculator.normalize(m, 100.0, 1.0)).isEqualTo(1.0);
+        }
+
+        @Test
+        @DisplayName("clamps a gate that has overshot its target")
+        void clampsOvershotGate() {
+            Milestone m = milestone(MilestoneProgressModel.LINEAR, 100, "GTE");
+
+            assertThat(calculator.normalize(m, 100.0, 3.0)).isEqualTo(1.0);
+        }
+
+        @Test
+        @DisplayName("stays null when the gate is met but the value is missing")
+        void nullWhenGateMetAndValueMissing() {
+            Milestone m = milestone(MilestoneProgressModel.LINEAR, 100, "GTE");
+
+            assertThat(calculator.normalize(m, null, 1.0)).isNull();
+        }
+
+        @Test
+        @DisplayName("falls back to plain value progress when there is no gate")
+        void ungatedIsUnchanged() {
+            Milestone m = milestone(MilestoneProgressModel.LINEAR, 100, "GTE");
+
+            assertThat(calculator.normalize(m, 25.0, null))
+                    .isEqualTo(calculator.normalize(m, 25.0));
+        }
+
+        @Test
+        @DisplayName("Completionist X: shows maps-played share, then switches to accuracy")
+        void completionistXJourney() {
+            Milestone m = milestone(MilestoneProgressModel.LINEAR, 0.96, "GTE");
+
+            assertThat(calculator.normalize(m, null, 0.0)).isEqualTo(0.0);
+            assertThat(calculator.normalize(m, null, 0.75)).isEqualTo(0.75);
+            assertThat(calculator.normalize(m, 0.96, 1.0)).isEqualTo(1.0);
+        }
+    }
 }

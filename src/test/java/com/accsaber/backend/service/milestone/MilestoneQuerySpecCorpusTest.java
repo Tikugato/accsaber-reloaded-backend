@@ -95,7 +95,7 @@ class MilestoneQuerySpecCorpusTest {
     @Test
     @DisplayName("the corpus holds every shipped milestone")
     void corpusIsComplete() throws Exception {
-        assertThat(corpus()).hasSize(264);
+        assertThat(corpus()).hasSize(268);
     }
 
     @ParameterizedTest(name = "{0}")

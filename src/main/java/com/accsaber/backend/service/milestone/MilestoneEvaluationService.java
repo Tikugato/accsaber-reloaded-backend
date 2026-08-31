@@ -8,13 +8,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneCompletedResponse;
 import com.accsaber.backend.model.dto.response.milestone.MilestoneRewardResponse;
 import com.accsaber.backend.model.entity.item.Item;
@@ -28,6 +32,7 @@ import com.accsaber.backend.model.entity.milestone.UserMilestoneSetBonus;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.model.event.MilestoneCompletedEvent;
+import com.accsaber.backend.repository.item.UserItemLinkRepository;
 import com.accsaber.backend.repository.milestone.MilestoneItemRepository;
 import com.accsaber.backend.repository.milestone.MilestoneRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetItemRepository;
@@ -41,7 +46,9 @@ import com.accsaber.backend.service.milestone.source.MilestoneSourceRegistry;
 import com.accsaber.backend.service.milestone.source.MilestoneTrigger;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MilestoneEvaluationService {
@@ -54,6 +61,7 @@ public class MilestoneEvaluationService {
     private final UserRepository userRepository;
     private final MilestoneQueryBuilderService queryBuilderService;
     private final ItemService itemService;
+    private final UserItemLinkRepository userItemLinkRepository;
     private final LevelUpAwardService levelUpAwardService;
     private final MilestoneSourceRegistry sourceRegistry;
     private final ApplicationEventPublisher eventPublisher;
@@ -79,6 +87,7 @@ public class MilestoneEvaluationService {
         UUID categoryId = milestone.getCategory() != null ? milestone.getCategory().getId() : null;
         Double currentValue = evaluateMilestone(milestone, userId, categoryId);
         link.setProgress(currentValue);
+        link.setGateFraction(gateFraction(milestone, userId, categoryId));
 
         boolean newlyCompleted = isCompleted(milestone, currentValue);
         if (newlyCompleted) {
@@ -122,6 +131,8 @@ public class MilestoneEvaluationService {
             Double currentValue = batchResults.get(milestone.getId());
             UserMilestoneLink link = getOrCreateFromMap(linkMap, userId, milestone);
             link.setProgress(currentValue);
+            link.setGateFraction(gateFraction(milestone, userId,
+                    milestone.getCategory() != null ? milestone.getCategory().getId() : null));
 
             if (isCompleted(milestone, currentValue) && !link.isCompleted()) {
                 markCompleted(link, newScore != null ? newScore : findQualifying(milestone, userId));
@@ -215,6 +226,63 @@ public class MilestoneEvaluationService {
                 .build();
     }
 
+    @Async("taskExecutor")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public CompletableFuture<Void> regrantRewards(UUID milestoneId) {
+        Milestone milestone = milestoneRepository.findByIdAndActiveTrueEager(milestoneId)
+                .orElseThrow(() -> new ResourceNotFoundException("Milestone", milestoneId));
+        int granted = regrantOne(milestone);
+        log.info("Reward regrant complete for milestone '{}' ({}) - {} grants issued",
+                milestone.getTitle(), milestoneId, granted);
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Async("taskExecutor")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public CompletableFuture<Void> regrantAllRewards() {
+        List<UUID> milestoneIds = milestoneItemRepository.findDistinctMilestoneIdsWithRewards();
+        log.info("Reward regrant started across {} milestones with rewards", milestoneIds.size());
+        int granted = 0;
+        for (UUID milestoneId : milestoneIds) {
+            Milestone milestone = milestoneRepository.findByIdAndActiveTrueEager(milestoneId).orElse(null);
+            if (milestone != null) {
+                granted += regrantOne(milestone);
+            }
+        }
+        log.info("Reward regrant complete across {} milestones - {} grants issued", milestoneIds.size(), granted);
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private int regrantOne(Milestone milestone) {
+        List<MilestoneItem> rewards = milestoneItemRepository.findByMilestoneIds(List.of(milestone.getId()));
+        if (rewards.isEmpty()) {
+            return 0;
+        }
+        List<Long> completed = userMilestoneLinkRepository.findCompletedUserIdsByMilestone(milestone.getId());
+        if (completed.isEmpty()) {
+            return 0;
+        }
+        String sourceId = milestone.getId().toString();
+        String reason = "Completed milestone: " + milestone.getTitle();
+        int granted = 0;
+        for (MilestoneItem reward : rewards) {
+            if (!reward.getItem().isObtainableAt(Instant.now())) {
+                continue;
+            }
+            Set<Long> alreadyHave = new HashSet<>(userItemLinkRepository.findUserIdsByItemAndSource(
+                    reward.getItem().getId(), ItemSource.milestone, sourceId));
+            for (Long userId : completed) {
+                if (alreadyHave.contains(userId)) {
+                    continue;
+                }
+                itemService.awardSystem(userId, reward.getItem().getId(), ItemSource.milestone, sourceId, reason,
+                        reward.getQuantity());
+                granted++;
+            }
+        }
+        return granted;
+    }
+
     private Map<UUID, List<MilestoneRewardResponse>> awardMilestoneItems(Long userId, List<Milestone> milestones) {
         if (milestones.isEmpty()) {
             return Map.of();
@@ -257,6 +325,13 @@ public class MilestoneEvaluationService {
             itemService.awardSystem(userId, item.getId(), source, sourceId, reason, quantity);
         }
         return ItemMapper.toRewardResponse(item, quantity);
+    }
+
+    private Double gateFraction(Milestone milestone, Long userId, UUID categoryId) {
+        if (milestone.getQuerySpec() == null || milestone.getQuerySpec().having() == null) {
+            return null;
+        }
+        return queryBuilderService.evaluateGateFraction(milestone.getQuerySpec(), userId, categoryId);
     }
 
     private Double evaluateMilestone(Milestone milestone, Long userId, UUID categoryId) {

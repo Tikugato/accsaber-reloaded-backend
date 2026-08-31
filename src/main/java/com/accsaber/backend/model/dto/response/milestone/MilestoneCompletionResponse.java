@@ -19,6 +19,8 @@ public class MilestoneCompletionResponse {
     private String description;
     private String type;
     private String tier;
+
+    private String iconGroup;
     private Double xp;
     private Double targetValue;
     private String comparison;

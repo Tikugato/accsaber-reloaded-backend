@@ -93,6 +93,10 @@ public class CrateService {
         if (reward.isDeprecated()) {
             throw new ValidationException("rewardItemId", "cannot add a deprecated item as a reward");
         }
+        if (ItemService.isActiveCrateSentinel(reward)) {
+            throw new ValidationException("rewardItemId",
+                    "'" + reward.getName() + "' resolves at grant time and cannot be part of a crate pool");
+        }
         if (!reward.isObtainableAt(Instant.now())) {
             throw new ValidationException("rewardItemId",
                     "'" + reward.getName() + "' can no longer be handed out as a reward");

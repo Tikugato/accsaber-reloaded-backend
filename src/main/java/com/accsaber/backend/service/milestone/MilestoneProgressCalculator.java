@@ -32,6 +32,17 @@ public class MilestoneProgressCalculator {
 
     private final Map<UUID, Long> populationCache = new ConcurrentHashMap<>();
 
+    public Double normalize(Milestone milestone, Double progress, Double gateFraction) {
+        Double valueFraction = normalize(milestone, progress);
+        if (gateFraction == null) {
+            return valueFraction;
+        }
+        if (valueFraction == null) {
+            return gateFraction >= 1.0 ? null : clamp(gateFraction);
+        }
+        return clamp(Math.min(gateFraction, valueFraction));
+    }
+
     public Double normalize(Milestone milestone, Double progress) {
         if (progress == null || milestone.getTargetValue() == null) {
             return null;

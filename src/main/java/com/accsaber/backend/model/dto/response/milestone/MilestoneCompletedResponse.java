@@ -37,6 +37,8 @@ public class MilestoneCompletedResponse {
         private String description;
         private String type;
         private String tier;
+
+        private String iconGroup;
         private Double xp;
         private List<MilestoneRewardResponse> rewards;
     }

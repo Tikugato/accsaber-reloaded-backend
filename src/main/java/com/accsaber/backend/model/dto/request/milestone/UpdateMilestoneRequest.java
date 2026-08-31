@@ -23,6 +23,9 @@ public class UpdateMilestoneRequest {
 
     private MilestoneTier tier;
 
+
+
+    private String iconGroup;
     private Double targetValue;
 
     private String comparison;

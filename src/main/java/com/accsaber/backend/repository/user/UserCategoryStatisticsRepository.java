@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.accsaber.backend.model.entity.user.UserCategoryStatistics;
 
@@ -449,4 +450,36 @@ public interface UserCategoryStatisticsRepository extends JpaRepository<UserCate
                         @Param("categoryId") UUID categoryId,
                         @Param("ranking") Integer ranking,
                         @Param("countryRanking") Integer countryRanking);
+
+        @Modifying
+        @Transactional
+        @Query(value = """
+                        WITH per_category AS (
+                            SELECT s.user_id, d.category_id,
+                                ROUND(SUM(s.xp_gained)::numeric, 6)::double precision AS score_xp
+                            FROM scores s
+                            JOIN map_difficulties d ON s.map_difficulty_id = d.id
+                            WHERE s.active = true AND d.category_id IS NOT NULL
+                              AND (CAST(:userId AS bigint) IS NULL OR s.user_id = CAST(:userId AS bigint))
+                            GROUP BY s.user_id, d.category_id
+                        ),
+                        rebuilt AS (
+                            SELECT user_id, category_id, score_xp FROM per_category
+                            UNION ALL
+                            SELECT pc.user_id, o.id, ROUND(SUM(pc.score_xp)::numeric, 6)::double precision
+                            FROM per_category pc
+                            JOIN categories c ON c.id = pc.category_id AND c.count_for_overall = true
+                            CROSS JOIN (SELECT id FROM categories WHERE code = 'overall' AND active = true) o
+                            GROUP BY pc.user_id, o.id
+                        )
+                        UPDATE user_category_statistics ucs
+                        SET score_xp = COALESCE(r.score_xp, 0), updated_at = NOW()
+                        FROM user_category_statistics target
+                        LEFT JOIN rebuilt r ON r.user_id = target.user_id AND r.category_id = target.category_id
+                        WHERE ucs.id = target.id
+                          AND ucs.active = true
+                          AND (CAST(:userId AS bigint) IS NULL OR ucs.user_id = CAST(:userId AS bigint))
+                          AND ucs.score_xp IS DISTINCT FROM COALESCE(r.score_xp, 0)
+                        """, nativeQuery = true)
+        void rebuildScoreXp(@Param("userId") Long userId);
 }

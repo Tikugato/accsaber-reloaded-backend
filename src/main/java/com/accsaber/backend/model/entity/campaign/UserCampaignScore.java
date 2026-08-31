@@ -65,6 +65,10 @@ public class UserCampaignScore {
     @Builder.Default
     private boolean rewardsPaid = false;
 
+    @Column(name = "xp_awarded", nullable = false)
+    @Builder.Default
+    private double xpAwarded = 0.0;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

@@ -174,17 +174,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
                 JOIN milestone_sets ms ON umsb.milestone_set_id = ms.id
                 WHERE CAST(:userId AS bigint) IS NULL OR umsb.user_id = CAST(:userId AS bigint)
                 UNION ALL
-                SELECT ucs.user_id, 'campaign', CAST(cd.xp AS numeric)
+                SELECT ucs.user_id, 'campaign', CAST(ucs.xp_awarded AS numeric)
                 FROM user_campaign_scores ucs
-                JOIN campaign_difficulties cd ON ucs.campaign_difficulty_id = cd.id
-                JOIN campaigns c ON ucs.campaign_id = c.id
-                WHERE ucs.active = true AND c.status = 'curated' AND cd.active = true
+                WHERE ucs.active = true AND ucs.rewards_paid = true
                   AND (CAST(:userId AS bigint) IS NULL OR ucs.user_id = CAST(:userId AS bigint))
                 UNION ALL
-                SELECT uc.user_id, 'campaign', CAST(c.completion_xp AS numeric)
+                SELECT uc.user_id, 'campaign', CAST(uc.completion_xp_awarded AS numeric)
                 FROM user_campaigns uc
-                JOIN campaigns c ON uc.campaign_id = c.id
-                WHERE uc.active = true AND uc.status = 'completed' AND c.status = 'curated'
+                WHERE uc.active = true AND uc.completion_rewards_paid = true
                   AND (CAST(:userId AS bigint) IS NULL OR uc.user_id = CAST(:userId AS bigint))
                 UNION ALL
                 SELECT um.user_id, 'mission', CAST(um.xp_reward AS numeric)

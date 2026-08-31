@@ -627,7 +627,7 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         LEFT JOIN FETCH c.scoreCurve
                         WHERE d.id = :mapDifficultyId
                           AND (s.supersedesReason IS NULL OR s.supersedesReason <> 'Campaign attempt')
-                        ORDER BY s.user.id, s.timeSet ASC NULLS LAST
+                        ORDER BY s.user.id, COALESCE(s.timeSet, s.createdAt) ASC, s.createdAt ASC, s.id ASC
                         """)
         List<Score> findAllByDifficultyOrderedByUserAndTime(@Param("mapDifficultyId") UUID mapDifficultyId);
 

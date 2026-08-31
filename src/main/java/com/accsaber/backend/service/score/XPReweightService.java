@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.repository.score.ScoreRepository;
+import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.map.MapDifficultyComplexityService;
 import com.accsaber.backend.util.Rounding;
@@ -33,6 +34,7 @@ public class XPReweightService {
 
     private final ScoreRepository scoreRepository;
     private final UserRepository userRepository;
+    private final UserCategoryStatisticsRepository statisticsRepository;
     private final MapDifficultyComplexityService mapComplexityService;
     private final XPCalculationService xpCalculationService;
 
@@ -60,8 +62,12 @@ public class XPReweightService {
 
         futures.forEach(CompletableFuture::join);
 
-        log.info("XP reweight complete. Updated {} scores across {} difficulties. Run /total-xp to update user totals.",
+        log.info("XP reweight updated {} scores across {} difficulties. Rebuilding derived totals",
                 updated.get(), difficultyIds.size());
+        statisticsRepository.rebuildScoreXp(null);
+        userRepository.recalculateTotalXpForAllActiveUsers();
+
+        log.info("XP reweight complete");
         return CompletableFuture.completedFuture(null);
     }
 
@@ -96,7 +102,11 @@ public class XPReweightService {
             for (Score score : userScores) {
                 Double accuracy = Rounding.round((double) (score.getScore()) / (double) (maxScore), 10);
                 Double newXp;
-                if (currentBestAccuracy == null) {
+                if (score.isReweightDerivative()) {
+                    newXp = 0.0;
+                } else if (score.isPartial()) {
+                    newXp = xpCalculationService.calculateXpForWorseScore();
+                } else if (currentBestAccuracy == null) {
                     newXp = xpCalculationService.calculateXpForNewMap(accuracy, complexity);
                     currentBestAccuracy = accuracy;
                 } else if ("Score improved".equals(score.getSupersedesReason())) {
@@ -121,6 +131,7 @@ public class XPReweightService {
     @Transactional
     public CompletableFuture<Void> recalculateTotalXpForAllUsers() {
         log.info("Starting bulk total XP recalculation for all users");
+        statisticsRepository.rebuildScoreXp(null);
         userRepository.recalculateTotalXpForAllActiveUsers();
         log.info("Bulk total XP recalculation complete");
         return CompletableFuture.completedFuture(null);
@@ -130,6 +141,7 @@ public class XPReweightService {
     @Transactional
     public CompletableFuture<Void> recalculateTotalXpForUser(Long userId) {
         log.info("Starting total XP recalculation for user {}", userId);
+        statisticsRepository.rebuildScoreXp(userId);
         userRepository.recalculateTotalXpForUser(userId);
         log.info("Total XP recalculation complete for user {}", userId);
         return CompletableFuture.completedFuture(null);

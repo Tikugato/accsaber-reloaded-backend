@@ -63,6 +63,10 @@ public class UserCampaign {
     @Builder.Default
     private boolean completionRewardsPaid = false;
 
+    @Column(name = "completion_xp_awarded", nullable = false)
+    @Builder.Default
+    private double completionXpAwarded = 0.0;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

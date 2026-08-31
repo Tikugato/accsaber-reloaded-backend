@@ -281,8 +281,7 @@ public class CampaignEvaluationService {
                     continue;
                 }
             }
-            payDifficultyRewards(uid, difficulty);
-            ucs.setRewardsPaid(true);
+            payDifficultyRewards(ucs, difficulty);
             userCampaignScoreRepository.save(ucs);
             touchedUsers.add(uid);
         }
@@ -547,8 +546,7 @@ public class CampaignEvaluationService {
                 payable = true;
             }
             if (payable) {
-                payDifficultyRewards(uc.getUser().getId(), difficulty);
-                record.setRewardsPaid(true);
+                payDifficultyRewards(record, difficulty);
             }
         }
         userCampaignScoreRepository.save(record);
@@ -720,8 +718,7 @@ public class CampaignEvaluationService {
                 .submittedAt(brokeAt != null ? brokeAt : Instant.now())
                 .build();
         if (uc.getCampaign().getStatus() == CampaignStatus.CURATED) {
-            payDifficultyRewards(uc.getUser().getId(), barrier);
-            record.setRewardsPaid(true);
+            payDifficultyRewards(record, barrier);
         }
         userCampaignScoreRepository.save(record);
     }
@@ -776,8 +773,7 @@ public class CampaignEvaluationService {
             if (!hasCompletedPath(difficulty.getId(), graph, completedIds)) {
                 continue;
             }
-            payDifficultyRewards(ucs.getUser().getId(), difficulty);
-            ucs.setRewardsPaid(true);
+            payDifficultyRewards(ucs, difficulty);
             userCampaignScoreRepository.save(ucs);
         }
     }
@@ -797,8 +793,7 @@ public class CampaignEvaluationService {
             uc.setCompletedAt(Instant.now());
         }
         if (campaign.getStatus() == CampaignStatus.CURATED && !uc.isCompletionRewardsPaid()) {
-            payCompletionRewards(uc.getUser().getId(), campaign);
-            uc.setCompletionRewardsPaid(true);
+            payCompletionRewards(uc, campaign);
         }
         userCampaignRepository.save(uc);
 
@@ -936,7 +931,10 @@ public class CampaignEvaluationService {
             Set<UUID> terminalIds) {
     }
 
-    private void payDifficultyRewards(Long userId, CampaignDifficulty difficulty) {
+    private void payDifficultyRewards(UserCampaignScore record, CampaignDifficulty difficulty) {
+        Long userId = record.getUser().getId();
+        record.setRewardsPaid(true);
+        record.setXpAwarded(difficulty.getXp());
         if (difficulty.getXp() > 0) {
             levelUpAwardService.addCampaignXp(userId, difficulty.getXp());
             missionProgressService.creditXp(userId, difficulty.getXp());
@@ -951,7 +949,10 @@ public class CampaignEvaluationService {
         }
     }
 
-    private void payCompletionRewards(Long userId, Campaign campaign) {
+    private void payCompletionRewards(UserCampaign uc, Campaign campaign) {
+        Long userId = uc.getUser().getId();
+        uc.setCompletionRewardsPaid(true);
+        uc.setCompletionXpAwarded(campaign.getCompletionXp());
         if (campaign.getCompletionXp() > 0) {
             levelUpAwardService.addCampaignXp(userId, campaign.getCompletionXp());
             missionProgressService.creditXp(userId, campaign.getCompletionXp());

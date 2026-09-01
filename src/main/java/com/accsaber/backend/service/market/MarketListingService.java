@@ -238,7 +238,7 @@ public class MarketListingService {
         if (!tradeItemRepository.findLinkIdsInTradesWithStatus(List.of(link.getId()), TradeStatus.pending).isEmpty()) {
             throw new ConflictException("This item is part of a pending trade and cannot be listed");
         }
-        if (itemService.isLinkEquipped(ownerId, link.getId(), link.getItem().getType().getKey())) {
+        if (itemService.isLinkEquipped(ownerId, link.getId())) {
             throw new ConflictException("Unequip this item before listing it");
         }
     }

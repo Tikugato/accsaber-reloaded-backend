@@ -65,7 +65,7 @@ class ItemServiceCounterHydrationTest {
         Page<UserItemLink> page = new PageImpl<>(List.of(strange), PageRequest.of(0, 20), 1);
         when(duplicateUserService.resolvePrimaryUserId(USER_ID)).thenReturn(USER_ID);
         when(userItemLinkRepository.findInventoryFiltered(any(), any(), any(), any(), any(), any(), any(), any(),
-                any())).thenReturn(page);
+                any(), any())).thenReturn(page);
         when(counterRepository.countersByLink(any()))
                 .thenReturn(Map.of(strange.getId(), Map.of(StrangeTrackingService.STAT_PLAY_COUNT, 7L)));
 

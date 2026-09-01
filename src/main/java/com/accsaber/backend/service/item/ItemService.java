@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,8 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.accsaber.backend.exception.ConflictException;
 import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.exception.ValidationException;
+import com.accsaber.backend.model.dto.request.item.DisintegrateRequest;
 import com.accsaber.backend.model.dto.request.item.InventoryFilter;
 import com.accsaber.backend.model.dto.response.item.DisintegrationResponse;
+import com.accsaber.backend.model.dto.response.item.ItemResponse;
 import com.accsaber.backend.model.dto.response.item.UserItemResponse;
 import com.accsaber.backend.model.entity.item.EssenceReason;
 import com.accsaber.backend.model.entity.item.Item;
@@ -37,6 +40,7 @@ import com.accsaber.backend.model.entity.item.ItemSource;
 import com.accsaber.backend.model.entity.item.ItemType;
 import com.accsaber.backend.model.entity.item.TradeStatus;
 import com.accsaber.backend.model.entity.item.UnusualEffect;
+import com.accsaber.backend.model.entity.item.UserItemCrateSource;
 import com.accsaber.backend.model.entity.item.UserItemDisintegration;
 import com.accsaber.backend.model.entity.item.UserItemLink;
 import com.accsaber.backend.model.entity.notification.NotificationType;
@@ -45,6 +49,7 @@ import com.accsaber.backend.model.entity.user.UserSettingKey;
 import com.accsaber.backend.repository.item.ItemModifierRepository;
 import com.accsaber.backend.repository.item.ItemRepository;
 import com.accsaber.backend.repository.item.UnusualEffectRepository;
+import com.accsaber.backend.repository.item.UserItemCrateSourceRepository;
 import com.accsaber.backend.repository.item.UserItemDisintegrationRepository;
 import com.accsaber.backend.repository.item.UserItemLinkCounterRepository;
 import com.accsaber.backend.repository.item.UserItemLinkRepository;
@@ -85,6 +90,7 @@ public class ItemService {
     private final UserItemLinkCounterRepository counterRepository;
     private final UserItemTradeItemRepository tradeItemRepository;
     private final UserItemDisintegrationRepository disintegrationRepository;
+    private final UserItemCrateSourceRepository crateSourceRepository;
     private final ModifierResolver modifierResolver;
     @PersistenceContext
     private EntityManager entityManager;
@@ -156,7 +162,7 @@ public class ItemService {
     private Page<UserItemLink> findInventory(Long userId, InventoryFilter filter, Pageable pageable) {
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
         InventoryFilter f = filter == null
-                ? new InventoryFilter(null, null, null, null, null, null, null)
+                ? new InventoryFilter(null, null, null, null, null, null, null, null)
                 : filter;
         return userItemLinkRepository.findInventoryFiltered(
                 resolved,
@@ -165,6 +171,7 @@ public class ItemService {
                 f.modifierKeysOrNull(),
                 f.tradeable(),
                 f.sourcesOrNull(),
+                f.crateItemIdsOrNull(),
                 f.deprecatedEffective(),
                 f.searchOrNull(),
                 resolveInventorySort(pageable));
@@ -185,20 +192,28 @@ public class ItemService {
         return sb.toString();
     }
 
+    private static final Map<String, String> INVENTORY_SORT_EXPRESSIONS = Map.of(
+            "rarity", RARITY_ORDER_EXPRESSION,
+            "crate", "ci.name");
+
     private static Pageable resolveInventorySort(Pageable pageable) {
         if (!pageable.getSort().isSorted()) {
             return pageable;
         }
         Sort resolved = Sort.unsorted();
         for (Sort.Order order : pageable.getSort()) {
-            if ("rarity".equals(order.getProperty())) {
-                resolved = resolved.and(JpaSort.unsafe(order.getDirection(), RARITY_ORDER_EXPRESSION));
-            } else {
-                resolved = resolved.and(Sort.by(
-                        new Sort.Order(order.getDirection(), order.getProperty(), Sort.NullHandling.NULLS_LAST)));
-            }
+            String expression = INVENTORY_SORT_EXPRESSIONS.get(order.getProperty());
+            resolved = resolved.and(expression == null
+                    ? Sort.by(new Sort.Order(order.getDirection(), order.getProperty(), Sort.NullHandling.NULLS_LAST))
+                    : unsafeNullsLast(order.getDirection(), expression));
         }
         return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), resolved);
+    }
+
+    private static Sort unsafeNullsLast(Sort.Direction direction, String expression) {
+        return Sort.by(JpaSort.unsafe(direction, expression).stream()
+                .map(order -> order.with(Sort.NullHandling.NULLS_LAST))
+                .toList());
     }
 
     public Map<String, UserItemResponse> findEquippedHydrated(Long userId) {
@@ -212,7 +227,7 @@ public class ItemService {
 
         Map<String, UserItemResponse> result = new LinkedHashMap<>();
         pickedByType.forEach((typeKey, picked) -> {
-            UserItemResponse response = picked == null ? null : hydrate(picked, countersByLink);
+            UserItemResponse response = picked == null ? null : hydrate(picked, countersByLink, Map.of());
             boolean explicit = UserSettingKey.forEquippedItemType(typeKey)
                     .map(slot -> rawSettings.get(slot.key()) != null)
                     .orElse(false);
@@ -235,18 +250,44 @@ public class ItemService {
                 : findUserCollectionByType(userId, typeKey));
     }
 
+    public List<ItemResponse> findInventoryCrates(Long userId) {
+        Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
+        return userItemLinkRepository.findInventoryCrates(resolved).stream()
+                .map(ItemMapper::toItemResponse)
+                .toList();
+    }
+
     public Page<UserItemResponse> findInventoryHydrated(Long userId, InventoryFilter filter, Pageable pageable) {
         Page<UserItemLink> page = findInventory(userId, filter, pageable);
         Map<UUID, Map<String, Long>> countersByLink = counterRepository
                 .countersByLink(linkIds(page.getContent()));
-        return page.map(link -> hydrate(link, countersByLink));
+        Map<String, ItemResponse> cratesBySourceId = cratesBySourceId(page.getContent());
+        return page.map(link -> hydrate(link, countersByLink, cratesBySourceId));
     }
 
     private List<UserItemResponse> hydrateAll(List<UserItemLink> links) {
         Map<UUID, Map<String, Long>> countersByLink = counterRepository.countersByLink(linkIds(links));
+        Map<String, ItemResponse> cratesBySourceId = cratesBySourceId(links);
         return links.stream()
-                .map(link -> hydrate(link, countersByLink))
+                .map(link -> hydrate(link, countersByLink, cratesBySourceId))
                 .toList();
+    }
+
+    private Map<String, ItemResponse> cratesBySourceId(Collection<UserItemLink> links) {
+        Set<String> sourceIds = links.stream()
+                .filter(ItemService::fromCrate)
+                .map(UserItemLink::getSourceId)
+                .collect(Collectors.toSet());
+        if (sourceIds.isEmpty()) {
+            return Map.of();
+        }
+        return crateSourceRepository.findAllWithCrateItem(sourceIds).stream()
+                .collect(Collectors.toMap(UserItemCrateSource::getSourceId,
+                        source -> ItemMapper.toItemResponse(source.getCrateItem())));
+    }
+
+    private static boolean fromCrate(UserItemLink link) {
+        return link != null && link.getSource() == ItemSource.crate_drop && link.getSourceId() != null;
     }
 
     private static UUID parseLinkId(Object raw) {
@@ -260,8 +301,13 @@ public class ItemService {
         }
     }
 
-    private static UserItemResponse hydrate(UserItemLink link, Map<UUID, Map<String, Long>> countersByLink) {
-        return ItemMapper.toUserItemResponse(link, countersByLink.get(link.getId()));
+    private static UserItemResponse hydrate(UserItemLink link, Map<UUID, Map<String, Long>> countersByLink,
+            Map<String, ItemResponse> cratesBySourceId) {
+        UserItemResponse response = ItemMapper.toUserItemResponse(link, countersByLink.get(link.getId()));
+        if (fromCrate(link)) {
+            response.setCrate(cratesBySourceId.get(link.getSourceId()));
+        }
+        return response;
     }
 
     private static Set<UUID> linkIds(Collection<UserItemLink> links) {
@@ -506,80 +552,148 @@ public class ItemService {
     }
 
     @Transactional
-    public DisintegrationResponse disintegrate(Long userId, UUID linkId, Long quantity) {
+    public DisintegrationResponse disintegrate(Long userId, List<DisintegrateRequest.Entry> requested) {
         Long resolved = duplicateUserService.resolvePrimaryUserId(userId);
-        UserItemLink link = userItemLinkRepository.findByIdForUpdate(linkId)
-                .orElseThrow(() -> new ResourceNotFoundException("UserItemLink", linkId));
-        if (!link.getUser().getId().equals(resolved)) {
-            throw new ValidationException("linkId", "user does not own this item link");
-        }
-        Item item = link.getItem();
-        if (!item.isTradeable()) {
-            throw new ValidationException("linkId", "this item is not tradeable and cannot be disintegrated");
-        }
-        Long worth = item.getWorth();
-        if (worth == null || worth <= 0) {
-            throw new ValidationException("linkId", "this item has no essence value and cannot be disintegrated");
-        }
-        if (link.isEscrowed()) {
-            throw new ConflictException("This item is listed on the market and cannot be disintegrated");
-        }
-        if (!tradeItemRepository.findLinkIdsInTradesWithStatus(List.of(linkId), TradeStatus.pending).isEmpty()) {
-            throw new ConflictException("This item is part of a pending trade and cannot be disintegrated");
-        }
-        if (isLinkEquipped(resolved, linkId, item.getType().getKey())) {
-            throw new ConflictException("Unequip this item before disintegrating it");
-        }
+        Map<UUID, Long> requestedByLink = requestedQuantities(requested);
+        List<UserItemLink> links = lockForDisintegration(resolved, requestedByLink);
+        Set<UUID> equipped = equippedLinkIds(resolved);
+        Set<UUID> consumed = new HashSet<>();
 
-        long owned = link.getQuantity();
-        long toDestroy = quantity == null ? owned : quantity;
-        if (toDestroy < 1) {
-            throw new ValidationException("quantity", "must be at least 1");
-        }
-        if (toDestroy > owned) {
-            throw new ValidationException("quantity", "cannot disintegrate more than you own");
-        }
-
-        long essence = worth * toDestroy;
-        Long remaining;
-        if (toDestroy == owned) {
-            userItemLinkRepository.delete(link);
-            userItemLinkRepository.flush();
-            remaining = null;
-        } else {
-            link.setQuantity(owned - toDestroy);
-            userItemLinkRepository.save(link);
-            remaining = owned - toDestroy;
-        }
-
-        essenceLedgerService.credit(resolved, essence, EssenceReason.disintegration, linkId);
-        long balance = essenceLedgerService.balance(resolved);
-
-        disintegrationRepository.save(UserItemDisintegration.builder()
-                .user(userRepository.getReferenceById(resolved))
-                .item(item)
-                .quantity(toDestroy)
-                .essenceGained(essence)
-                .build());
-
-        eventPublisher.publishEvent(new InventoryChangedEvent(resolved));
+        List<DisintegrationResponse.Entry> entries = links.stream()
+                .map(link -> consume(link, requestedByLink.get(link.getId()), equipped, consumed))
+                .toList();
+        applyDisintegration(resolved, links, consumed, entries);
 
         return DisintegrationResponse.builder()
-                .linkId(linkId)
-                .itemId(item.getId())
-                .quantityDisintegrated(toDestroy)
-                .remainingQuantity(remaining)
-                .essenceGained(essence)
-                .balance(balance)
+                .entries(entries)
+                .essenceGained(entries.stream().mapToLong(DisintegrationResponse.Entry::getEssenceGained).sum())
+                .balance(essenceLedgerService.balance(resolved))
                 .build();
     }
 
-    public boolean isLinkEquipped(Long userId, UUID linkId, String typeKey) {
-        UserSettingKey slot = UserSettingKey.forEquippedItemType(typeKey).orElse(null);
-        if (slot == null) {
-            return false;
+    private static Map<UUID, Long> requestedQuantities(List<DisintegrateRequest.Entry> requested) {
+        Map<UUID, Long> byLink = new LinkedHashMap<>();
+        for (DisintegrateRequest.Entry entry : requested) {
+            if (byLink.containsKey(entry.getLinkId())) {
+                throw new ValidationException("entries", "the same item is listed more than once");
+            }
+            byLink.put(entry.getLinkId(), entry.getQuantity());
         }
-        return linkId.equals(userSettingsService.get(userId, slot, UUID.class));
+        if (byLink.isEmpty()) {
+            throw new ValidationException("entries", "pick at least one item to disintegrate");
+        }
+        return byLink;
+    }
+
+    private List<UserItemLink> lockForDisintegration(Long resolved, Map<UUID, Long> requestedByLink) {
+        List<UserItemLink> links = userItemLinkRepository.findAllByIdForUpdate(requestedByLink.keySet());
+        Set<UUID> found = links.stream().map(UserItemLink::getId).collect(Collectors.toSet());
+        requestedByLink.keySet().stream()
+                .filter(linkId -> !found.contains(linkId))
+                .findFirst()
+                .ifPresent(linkId -> {
+                    throw new ResourceNotFoundException("UserItemLink", linkId);
+                });
+        if (links.stream().anyMatch(link -> !link.getUser().getId().equals(resolved))) {
+            throw new ValidationException("entries", "one of these items is not yours");
+        }
+        if (!tradeItemRepository.findLinkIdsInTradesWithStatus(requestedByLink.keySet(), TradeStatus.pending)
+                .isEmpty()) {
+            throw new ConflictException("An item in this selection is part of a pending trade "
+                    + "and cannot be disintegrated");
+        }
+        return links;
+    }
+
+    private DisintegrationResponse.Entry consume(UserItemLink link, Long requestedQuantity, Set<UUID> equipped,
+            Set<UUID> consumed) {
+        long quantity = resolveDestroyQuantity(link, requestedQuantity, equipped);
+        long remaining = link.getQuantity() - quantity;
+        if (remaining == 0) {
+            consumed.add(link.getId());
+        } else {
+            link.setQuantity(remaining);
+        }
+        return DisintegrationResponse.Entry.builder()
+                .linkId(link.getId())
+                .itemId(link.getItem().getId())
+                .quantityDisintegrated(quantity)
+                .remainingQuantity(remaining == 0 ? null : remaining)
+                .essenceGained(link.getItem().getWorth() * quantity)
+                .build();
+    }
+
+    private long resolveDestroyQuantity(UserItemLink link, Long requestedQuantity, Set<UUID> equipped) {
+        Item item = link.getItem();
+        if (!item.isTradeable()) {
+            throw new ValidationException("entries",
+                    item.getName() + " is not tradeable and cannot be disintegrated");
+        }
+        if (item.getWorth() == null || item.getWorth() <= 0) {
+            throw new ValidationException("entries",
+                    item.getName() + " has no essence value and cannot be disintegrated");
+        }
+        if (link.isEscrowed()) {
+            throw new ConflictException(item.getName() + " is listed on the market and cannot be disintegrated");
+        }
+        if (equipped.contains(link.getId())) {
+            throw new ConflictException("Unequip " + item.getName() + " before disintegrating it");
+        }
+        long owned = link.getQuantity();
+        long quantity = requestedQuantity == null ? owned : requestedQuantity;
+        if (quantity < 1 || quantity > owned) {
+            throw new ValidationException("entries",
+                    "quantity for " + item.getName() + " must be between 1 and the " + owned + " you own");
+        }
+        return quantity;
+    }
+
+    private void applyDisintegration(Long resolved, List<UserItemLink> links, Set<UUID> consumed,
+            List<DisintegrationResponse.Entry> entries) {
+        userItemLinkRepository.saveAll(links.stream()
+                .filter(link -> !consumed.contains(link.getId()))
+                .toList());
+        if (!consumed.isEmpty()) {
+            userItemLinkRepository.deleteAllByIdInBatch(consumed);
+        }
+        userItemLinkRepository.flush();
+        essenceLedgerService.creditAll(resolved, EssenceReason.disintegration, entries.stream()
+                .collect(Collectors.toMap(DisintegrationResponse.Entry::getLinkId,
+                        DisintegrationResponse.Entry::getEssenceGained)));
+        disintegrationRepository.saveAll(disintegrationRecords(resolved, links, entries));
+        eventPublisher.publishEvent(new InventoryChangedEvent(resolved));
+    }
+
+    private List<UserItemDisintegration> disintegrationRecords(Long resolved, List<UserItemLink> links,
+            List<DisintegrationResponse.Entry> entries) {
+        var user = userRepository.getReferenceById(resolved);
+        return IntStream.range(0, links.size())
+                .mapToObj(index -> UserItemDisintegration.builder()
+                        .user(user)
+                        .item(links.get(index).getItem())
+                        .quantity(entries.get(index).getQuantityDisintegrated())
+                        .essenceGained(entries.get(index).getEssenceGained())
+                        .build())
+                .toList();
+    }
+
+    private Set<UUID> equippedLinkIds(Long resolved) {
+        Map<String, Object> rawSettings = userSettingsService.getGroup(resolved, UserSettingKey.GROUP_EQUIPPED);
+        Set<UUID> ids = new HashSet<>();
+        for (UserSettingKey key : UserSettingKey.values()) {
+            if (key.equippedTypeKey().isEmpty()) {
+                continue;
+            }
+            UUID linkId = parseLinkId(rawSettings.get(key.key()));
+            if (linkId != null) {
+                ids.add(linkId);
+            }
+        }
+        return ids;
+    }
+
+    public boolean isLinkEquipped(Long userId, UUID linkId) {
+        return equippedLinkIds(userId).contains(linkId);
     }
 
     @Transactional
@@ -959,7 +1073,7 @@ public class ItemService {
 
     @Transactional
     public void clearEquippedIfLinkGone(Long userId, UUID linkId, String typeKey) {
-        if (!isLinkEquipped(userId, linkId, typeKey)) {
+        if (!isLinkEquipped(userId, linkId)) {
             return;
         }
         UserSettingKey.forEquippedItemType(typeKey)

@@ -1,6 +1,7 @@
 package com.accsaber.backend.model.dto.request.item;
 
 import java.util.List;
+import java.util.UUID;
 
 import com.accsaber.backend.model.entity.item.ItemRarity;
 import com.accsaber.backend.model.entity.item.ItemSource;
@@ -12,6 +13,7 @@ public record InventoryFilter(
         Boolean tradeable,
         String search,
         List<ItemSource> source,
+        List<UUID> crateItemId,
         Boolean deprecated) {
 
     public List<String> typeKeysOrNull() {
@@ -28,6 +30,10 @@ public record InventoryFilter(
 
     public List<ItemSource> sourcesOrNull() {
         return nullIfEmpty(source);
+    }
+
+    public List<UUID> crateItemIdsOrNull() {
+        return nullIfEmpty(crateItemId);
     }
 
     public String searchOrNull() {

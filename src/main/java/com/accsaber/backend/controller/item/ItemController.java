@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.accsaber.backend.exception.UnauthorizedException;
+import com.accsaber.backend.model.dto.request.item.DisintegrateRequest;
 import com.accsaber.backend.model.dto.request.item.EquipItemRequest;
 import com.accsaber.backend.model.dto.request.item.InventoryFilter;
 import com.accsaber.backend.model.dto.request.item.ItemHolderSort;
@@ -170,7 +171,9 @@ public class ItemController {
     @Operation(summary = "Get a player's inventory", description = "The same collection but paged and with a lot more to filter "
             + "on, which is what an inventory screen wants. Narrow by type, rarity, modifier, whether something can be traded, "
             + "where it came from, or whether it has been deprecated, and search by name. Most of the list filters take "
-            + "several values at once.")
+            + "several values at once. crateItemId narrows to the items that dropped out of particular crates. Sort takes the "
+            + "usual link fields plus rarity and crate, where crate orders by the name of the crate an item dropped from and "
+            + "leaves everything that did not come from a crate at the end.")
     @GetMapping("/users/{userId}/inventory")
     public ResponseEntity<Page<UserItemResponse>> getInventory(
             @PathVariable Long userId,
@@ -180,11 +183,20 @@ public class ItemController {
             @RequestParam(required = false) Boolean tradeable,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) List<ItemSource> source,
+            @RequestParam(required = false) List<UUID> crateItemId,
             @RequestParam(required = false) Boolean deprecated,
             @PageableDefault(size = 50, sort = "awardedAt", direction = Sort.Direction.DESC) Pageable pageable) {
         InventoryFilter filter = new InventoryFilter(typeKey, rarity, modifierKey, tradeable, search, source,
-                deprecated);
+                crateItemId, deprecated);
         return ResponseEntity.ok(itemService.findInventoryHydrated(userId, filter, pageable));
+    }
+
+    @Operation(summary = "List the crates a player's items came from", description = "Every crate that dropped something the "
+            + "player still owns, sorted by name. This is what fills the collection picker on the inventory screen, so it only "
+            + "lists crates they actually have something from rather than the whole catalogue.")
+    @GetMapping("/users/{userId}/inventory/crates")
+    public ResponseEntity<List<ItemResponse>> getInventoryCrates(@PathVariable Long userId) {
+        return ResponseEntity.ok(itemService.findInventoryCrates(userId));
     }
 
     @Operation(summary = "Equip an item", description = "Puts one of your items into its slot, which is decided by the item's "
@@ -222,16 +234,17 @@ public class ItemController {
                 .body(file.bytes());
     }
 
-    @Operation(summary = "Disintegrate an item for essence", description = "Destroys something you own and gives you essence "
-            + "worth its value instead. Pass quantity if you are holding a stack and only want to break some of it. This one "
-            + "does not come back, so make sure the player meant it before you call it.")
-    @PostMapping("/users/me/items/{linkId}/disintegrate")
+    @Operation(summary = "Disintegrate items for essence", description = "Destroys things you own and gives you essence worth "
+            + "their value instead. Send as many entries as you like in one call, each with a quantity if you are holding a "
+            + "stack and only want to break some of it. It is all or nothing, so if one entry is not allowed nothing is "
+            + "destroyed and you get told why. This one does not come back, so make sure the player meant it before you call "
+            + "it.")
+    @PostMapping("/users/me/items/disintegrate")
     public ResponseEntity<DisintegrationResponse> disintegrate(
-            @PathVariable UUID linkId,
-            @RequestParam(required = false) Long quantity,
+            @Valid @RequestBody DisintegrateRequest request,
             @AuthenticationPrincipal PlayerUserDetails principal) {
         Long me = requirePrincipal(principal).getUserId();
-        return ResponseEntity.ok(itemService.disintegrate(me, linkId, quantity));
+        return ResponseEntity.ok(itemService.disintegrate(me, request.getEntries()));
     }
 
     @Operation(summary = "Get your essence balance", description = "How much item essence you are holding. Essence comes from "

@@ -15,6 +15,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.accsaber.backend.model.entity.item.Item;
 import com.accsaber.backend.model.entity.item.ItemRarity;
 import com.accsaber.backend.model.entity.item.ItemSource;
 import com.accsaber.backend.model.entity.item.UserItemLink;
@@ -30,11 +31,15 @@ public interface UserItemLinkRepository extends JpaRepository<UserItemLink, UUID
 
         List<UserItemLink> findByUser_IdAndItem_IdAndEscrowedFalse(Long userId, UUID itemId);
 
-        @Query("""
+        @Query(value = """
                         SELECT l FROM UserItemLink l
                         JOIN l.item i
                         JOIN i.type t
                         LEFT JOIN t.parentType pt
+                        LEFT JOIN UserItemCrateSource cs
+                                ON cs.sourceId = l.sourceId
+                                AND l.source = com.accsaber.backend.model.entity.item.ItemSource.crate_drop
+                        LEFT JOIN cs.crateItem ci
                         WHERE l.user.id = :userId
                         AND l.escrowed = FALSE
                         AND (:typeKeys IS NULL OR t.key IN :typeKeys OR pt.key IN :typeKeys)
@@ -43,6 +48,28 @@ public interface UserItemLinkRepository extends JpaRepository<UserItemLink, UUID
                                 SELECT m FROM l.modifiers m WHERE m.key IN :modifierKeys))
                         AND (:tradeable IS NULL OR i.tradeable = :tradeable)
                         AND (:sources IS NULL OR l.source IN :sources)
+                        AND (:crateItemIds IS NULL OR ci.id IN :crateItemIds)
+                        AND (:deprecated IS NULL OR i.deprecated = :deprecated)
+                        AND (CAST(:search AS string) IS NULL
+                                OR LOWER(i.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
+                        """, countQuery = """
+                        SELECT COUNT(l) FROM UserItemLink l
+                        JOIN l.item i
+                        JOIN i.type t
+                        LEFT JOIN t.parentType pt
+                        LEFT JOIN UserItemCrateSource cs
+                                ON cs.sourceId = l.sourceId
+                                AND l.source = com.accsaber.backend.model.entity.item.ItemSource.crate_drop
+                        LEFT JOIN cs.crateItem ci
+                        WHERE l.user.id = :userId
+                        AND l.escrowed = FALSE
+                        AND (:typeKeys IS NULL OR t.key IN :typeKeys OR pt.key IN :typeKeys)
+                        AND (:rarities IS NULL OR i.rarity IN :rarities)
+                        AND (:modifierKeys IS NULL OR EXISTS (
+                                SELECT m FROM l.modifiers m WHERE m.key IN :modifierKeys))
+                        AND (:tradeable IS NULL OR i.tradeable = :tradeable)
+                        AND (:sources IS NULL OR l.source IN :sources)
+                        AND (:crateItemIds IS NULL OR ci.id IN :crateItemIds)
                         AND (:deprecated IS NULL OR i.deprecated = :deprecated)
                         AND (CAST(:search AS string) IS NULL
                                 OR LOWER(i.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
@@ -54,6 +81,7 @@ public interface UserItemLinkRepository extends JpaRepository<UserItemLink, UUID
                         @Param("modifierKeys") Collection<String> modifierKeys,
                         @Param("tradeable") Boolean tradeable,
                         @Param("sources") Collection<ItemSource> sources,
+                        @Param("crateItemIds") Collection<UUID> crateItemIds,
                         @Param("deprecated") Boolean deprecated,
                         @Param("search") String search,
                         Pageable pageable);
@@ -86,6 +114,22 @@ public interface UserItemLinkRepository extends JpaRepository<UserItemLink, UUID
         @Lock(LockModeType.PESSIMISTIC_WRITE)
         @Query("SELECT l FROM UserItemLink l WHERE l.id = :id")
         Optional<UserItemLink> findByIdForUpdate(@Param("id") UUID id);
+
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("SELECT l FROM UserItemLink l WHERE l.id IN :ids ORDER BY l.id")
+        List<UserItemLink> findAllByIdForUpdate(@Param("ids") Collection<UUID> ids);
+
+        @Query("""
+                        SELECT DISTINCT ci FROM UserItemLink l
+                        JOIN UserItemCrateSource cs
+                                ON cs.sourceId = l.sourceId
+                                AND l.source = com.accsaber.backend.model.entity.item.ItemSource.crate_drop
+                        JOIN cs.crateItem ci
+                        JOIN FETCH ci.type
+                        WHERE l.user.id = :userId AND l.escrowed = FALSE
+                        ORDER BY ci.name
+                        """)
+        List<Item> findInventoryCrates(@Param("userId") Long userId);
 
         @Modifying
         @Query(value = """

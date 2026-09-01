@@ -90,7 +90,7 @@ class MarketListingCreateTest {
         when(userItemLinkRepository.findByIdForUpdate(LINK_ID)).thenReturn(Optional.of(link));
         when(listingRepository.countBySeller_IdAndStatus(SELLER_ID, MarketListingStatus.active)).thenReturn(0L);
         when(tradeItemRepository.findLinkIdsInTradesWithStatus(any(), any())).thenReturn(List.of());
-        when(itemService.isLinkEquipped(anyLong(), any(), any())).thenReturn(false);
+        when(itemService.isLinkEquipped(anyLong(), any())).thenReturn(false);
         when(itemTransferService.escrow(any(), anyLong())).thenReturn(link);
         when(userRepository.getReferenceById(SELLER_ID)).thenReturn(user());
         when(listingRepository.save(any())).thenAnswer(returnsFirstArg());

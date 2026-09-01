@@ -22,6 +22,10 @@ public class UserItemResponse {
     private Map<String, Long> counters;
     private String source;
     private String sourceId;
+
+    @Setter
+    private ItemResponse crate;
+
     private UUID awardedByStaffId;
     private String reason;
     private Instant awardedAt;

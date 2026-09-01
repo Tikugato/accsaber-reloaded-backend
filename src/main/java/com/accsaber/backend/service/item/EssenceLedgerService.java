@@ -1,5 +1,6 @@
 package com.accsaber.backend.service.item;
 
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -33,9 +34,19 @@ public class EssenceLedgerService {
     }
 
     public void credit(Long resolvedUserId, long amount, EssenceReason reason, UUID refId) {
-        requirePositive(amount);
-        userRepository.addItemEssence(resolvedUserId, amount);
-        record(resolvedUserId, amount, reason, refId);
+        creditAll(resolvedUserId, reason, Map.of(refId, amount));
+    }
+
+    public void creditAll(Long resolvedUserId, EssenceReason reason, Map<UUID, Long> amountByRef) {
+        long total = 0;
+        for (Long amount : amountByRef.values()) {
+            requirePositive(amount);
+            total += amount;
+        }
+        userRepository.addItemEssence(resolvedUserId, total);
+        transactionRepository.saveAll(amountByRef.entrySet().stream()
+                .map(e -> transaction(resolvedUserId, e.getValue(), reason, e.getKey()))
+                .toList());
     }
 
     public void debit(Long resolvedUserId, long amount, EssenceReason reason, UUID refId) {
@@ -72,12 +83,16 @@ public class EssenceLedgerService {
     }
 
     private void record(Long resolvedUserId, long signedAmount, EssenceReason reason, UUID refId) {
-        transactionRepository.save(EssenceTransaction.builder()
+        transactionRepository.save(transaction(resolvedUserId, signedAmount, reason, refId));
+    }
+
+    private EssenceTransaction transaction(Long resolvedUserId, long signedAmount, EssenceReason reason, UUID refId) {
+        return EssenceTransaction.builder()
                 .user(userRepository.getReferenceById(resolvedUserId))
                 .amount(signedAmount)
                 .reason(reason)
                 .refId(refId)
-                .build());
+                .build();
     }
 
     private void requirePositive(long amount) {

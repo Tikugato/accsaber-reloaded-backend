@@ -50,17 +50,20 @@ class SnipePairQueryTest {
     @Autowired
     private ScoreRepository scoreRepository;
 
+    private Category trueAcc;
+    private User sniper;
+    private User target;
     private UUID closeGap;
     private UUID wideGap;
     private UUID tightestGap;
 
     @BeforeEach
     void seed() {
-        Category trueAcc = entityManager
+        trueAcc = entityManager
                 .createQuery("SELECT c FROM Category c WHERE c.code = 'true_acc' AND c.active = true", Category.class)
                 .getSingleResult();
-        User sniper = persistUser(SNIPER_ID, "Sniper");
-        User target = persistUser(TARGET_ID, "Target");
+        sniper = persistUser(SNIPER_ID, "Sniper");
+        target = persistUser(TARGET_ID, "Target");
 
         closeGap = persistPair(trueAcc, sniper, target, 1_000_000, 940_000, 480.0, 5, 950_000, 500.0, 1);
         wideGap = persistPair(trueAcc, sniper, target, 1_000_000, 900_000, 400.0, 30, 990_000, 600.0, 2);
@@ -116,14 +119,14 @@ class SnipePairQueryTest {
     }
 
     @Test
-    @DisplayName("a null rank sorts last instead of hijacking the top of a descending list")
-    void nullRanksSortLast() {
-        entityManager.createQuery("UPDATE Score s SET s.rank = NULL WHERE s.mapDifficulty.id = :id")
-                .setParameter("id", wideGap)
-                .executeUpdate();
-        entityManager.clear();
+    @DisplayName("a difficulty with no max score sorts last either way round rather than hijacking the top")
+    void unknownMaxScoreSortsLastInBothDirections() {
+        UUID unknownMaxScore = persistPair(trueAcc, sniper, target, null, 900_000, 450.0, 6, 950_000, 470.0, 2);
+        entityManager.flush();
 
-        assertThat(orderedBy(SnipeSort.RANK_GAP, null)).containsExactly(closeGap, tightestGap, wideGap);
+        assertThat(orderedBy(SnipeSort.GAP, null)).containsExactly(tightestGap, closeGap, wideGap, unknownMaxScore);
+        assertThat(orderedBy(SnipeSort.GAP, Sort.Direction.DESC))
+                .containsExactly(wideGap, closeGap, tightestGap, unknownMaxScore);
     }
 
     private List<UUID> orderedBy(SnipeSort sort, Sort.Direction direction) {
@@ -143,7 +146,7 @@ class SnipePairQueryTest {
         return user;
     }
 
-    private UUID persistPair(Category category, User sniper, User target, int maxScore,
+    private UUID persistPair(Category category, User sniper, User target, Integer maxScore,
             int sniperScore, double sniperAp, int sniperRank, int targetScore, double targetAp, int targetRank) {
         Map map = Map.builder()
                 .songName("Song")

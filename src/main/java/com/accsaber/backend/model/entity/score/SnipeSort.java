@@ -5,7 +5,7 @@ public enum SnipeSort {
     AP_GAP("(s_b.ap - s_a.ap)", true, false, "AP gap"),
     TARGET_AP("s_b.ap", true, false, "their AP"),
     YOUR_AP("s_a.ap", true, false, "your AP"),
-    RANK_GAP("(s_a.rank - s_b.rank)", true, true, "rank gap");
+    RANK_GAP("(s_a.rank - s_b.rank)", true, false, "rank gap");
 
     private final String expression;
     private final boolean descendingByDefault;

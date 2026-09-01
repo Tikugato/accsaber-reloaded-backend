@@ -464,12 +464,14 @@ public class ScoreService {
                 java.util.Map<UUID, Double> complexities = mapComplexityService
                                 .findActiveComplexitiesForDifficulties(scores.getContent().stream()
                                                 .map(s -> s.getMapDifficulty().getId()).distinct().toList());
-                java.util.Map<StreakKey, Integer> maxStreaks = loadMaxStreaksBatch(scores.getContent());
+                java.util.Map<AttemptKey, AttemptAggregate> aggregates = loadAttemptAggregatesBatch(
+                                scores.getContent());
                 return scores.map(s -> toResponse(s, computeAccuracy(s.getScore(), s.getMapDifficulty().getMaxScore()),
                                 modifierIds.getOrDefault(s.getId(), List.of()))
                                 .toBuilder()
                                 .complexity(complexities.get(s.getMapDifficulty().getId()))
-                                .maxStreak115(maxStreakFor(maxStreaks, s))
+                                .maxStreak115(maxStreakFor(aggregates, s))
+                                .playCount(playCountFor(aggregates, s))
                                 .build());
         }
 
@@ -669,14 +671,16 @@ public class ScoreService {
                                 difficulty.getCategory() != null ? difficulty.getCategory().getId() : null, userIds);
                 java.util.Map<UUID, List<UUID>> modifierIds = loadModifierIdsBatch(
                                 scores.getContent().stream().map(Score::getId).toList());
-                java.util.Map<StreakKey, Integer> maxStreaks = loadMaxStreaksBatch(scores.getContent());
+                java.util.Map<AttemptKey, AttemptAggregate> aggregates = loadAttemptAggregatesBatch(
+                                scores.getContent());
                 return scores.map(s -> toResponse(s,
                                 computeAccuracy(s.getScore(), difficulty.getMaxScore()),
                                 modifierIds.getOrDefault(s.getId(), List.of()))
                                 .toBuilder()
                                 .supporterTier(tiers.get(s.getUser().getId()))
                                 .skillLevel(skillLevels.get(s.getUser().getId()))
-                                .maxStreak115(maxStreakFor(maxStreaks, s))
+                                .maxStreak115(maxStreakFor(aggregates, s))
+                                .playCount(playCountFor(aggregates, s))
                                 .build());
         }
 
@@ -718,16 +722,26 @@ public class ScoreService {
                 Integer maxScore = difficulty.getMaxScore();
                 java.util.Map<UUID, List<UUID>> modifierIds = loadModifierIdsBatch(
                                 scores.stream().map(Score::getId).toList());
+                java.util.Map<AttemptKey, AttemptAggregate> aggregates = loadAttemptAggregatesBatch(scores);
                 List<ScoreResponse> aboveScores = scores.subList(0, playerIndex).stream()
                                 .map(s -> toResponse(s, computeAccuracy(s.getScore(), maxScore),
-                                                modifierIds.getOrDefault(s.getId(), List.of())))
+                                                modifierIds.getOrDefault(s.getId(), List.of()))
+                                                .toBuilder()
+                                                .playCount(playCountFor(aggregates, s))
+                                                .build())
                                 .toList();
                 ScoreResponse player = toResponse(scores.get(playerIndex),
                                 computeAccuracy(scores.get(playerIndex).getScore(), maxScore),
-                                modifierIds.getOrDefault(scores.get(playerIndex).getId(), List.of()));
+                                modifierIds.getOrDefault(scores.get(playerIndex).getId(), List.of()))
+                                .toBuilder()
+                                .playCount(playCountFor(aggregates, scores.get(playerIndex)))
+                                .build();
                 List<ScoreResponse> belowScores = scores.subList(playerIndex + 1, scores.size()).stream()
                                 .map(s -> toResponse(s, computeAccuracy(s.getScore(), maxScore),
-                                                modifierIds.getOrDefault(s.getId(), List.of())))
+                                                modifierIds.getOrDefault(s.getId(), List.of()))
+                                                .toBuilder()
+                                                .playCount(playCountFor(aggregates, s))
+                                                .build())
                                 .toList();
 
                 return ScoresAroundResponse.builder()
@@ -950,24 +964,42 @@ public class ScoreService {
                                                                 java.util.stream.Collectors.toList())));
         }
 
-        private record StreakKey(Long userId, UUID mapDifficultyId) {
+        private record AttemptKey(Long userId, UUID mapDifficultyId) {
         }
 
-        private java.util.Map<StreakKey, Integer> loadMaxStreaksBatch(java.util.Collection<Score> scores) {
+        private record AttemptAggregate(Integer maxStreak115, Integer playCount) {
+        }
+
+        private java.util.Map<AttemptKey, AttemptAggregate> loadAttemptAggregatesBatch(
+                        java.util.Collection<Score> scores) {
                 if (scores.isEmpty()) {
                         return java.util.Map.of();
                 }
                 List<Long> userIds = scores.stream().map(s -> s.getUser().getId()).distinct().toList();
                 List<UUID> difficultyIds = scores.stream().map(s -> s.getMapDifficulty().getId()).distinct().toList();
-                java.util.Map<StreakKey, Integer> byKey = new java.util.HashMap<>();
-                for (Object[] row : scoreRepository.findMaxStreak115ByUsersAndDifficulties(userIds, difficultyIds)) {
-                        byKey.put(new StreakKey((Long) row[0], (UUID) row[1]), (Integer) row[2]);
+                java.util.Map<AttemptKey, AttemptAggregate> byKey = new java.util.HashMap<>();
+                for (Object[] row : scoreRepository.findAttemptAggregatesByUsersAndDifficulties(userIds,
+                                difficultyIds)) {
+                        byKey.put(new AttemptKey((Long) row[0], (UUID) row[1]),
+                                        new AttemptAggregate((Integer) row[2], (Integer) row[3]));
                 }
                 return byKey;
         }
 
-        private static Integer maxStreakFor(java.util.Map<StreakKey, Integer> maxStreaks, Score s) {
-                return maxStreaks.get(new StreakKey(s.getUser().getId(), s.getMapDifficulty().getId()));
+        private static AttemptAggregate aggregateFor(java.util.Map<AttemptKey, AttemptAggregate> aggregates, Score s) {
+                return aggregates.get(new AttemptKey(s.getUser().getId(), s.getMapDifficulty().getId()));
+        }
+
+        private static Integer maxStreakFor(java.util.Map<AttemptKey, AttemptAggregate> aggregates, Score s) {
+                AttemptAggregate aggregate = aggregateFor(aggregates, s);
+                return aggregate == null ? null : aggregate.maxStreak115();
+        }
+
+        private static Integer playCountFor(java.util.Map<AttemptKey, AttemptAggregate> aggregates, Score s) {
+                AttemptAggregate aggregate = aggregateFor(aggregates, s);
+                return aggregate == null || aggregate.playCount() == null
+                                ? s.getPlayCount()
+                                : aggregate.playCount();
         }
 
         private static final String ACCURACY_SORT_EXPRESSION = "CAST(s.score AS double) / s.mapDifficulty.maxScore";
@@ -978,6 +1010,9 @@ public class ScoreService {
         private static final String MAX_STREAK_SORT_EXPRESSION = "(SELECT MAX(s2.streak115) FROM Score s2 "
                         + "WHERE s2.user = s.user AND s2.mapDifficulty = s.mapDifficulty "
                         + "AND (s2.supersedesReason IS NULL OR s2.supersedesReason <> 'Campaign attempt'))";
+
+        private static final String PLAY_COUNT_SORT_EXPRESSION = "(SELECT MAX(s2.playCount) FROM Score s2 "
+                        + "WHERE s2.user = s.user AND s2.mapDifficulty = s.mapDifficulty)";
 
         private Pageable resolveSort(Pageable pageable, Sort defaultSort) {
                 Sort resolved;
@@ -1007,6 +1042,13 @@ public class ScoreService {
                                                                                         + ") IS NULL THEN 1 ELSE 0 END)"))
                                                         .and(JpaSort.unsafe(order.getDirection(),
                                                                         MAX_STREAK_SORT_EXPRESSION));
+                                } else if ("playCount".equalsIgnoreCase(order.getProperty())) {
+                                        resolved = resolved
+                                                        .and(JpaSort.unsafe(Sort.Direction.ASC,
+                                                                        "(CASE WHEN (" + PLAY_COUNT_SORT_EXPRESSION
+                                                                                        + ") IS NULL THEN 1 ELSE 0 END)"))
+                                                        .and(JpaSort.unsafe(order.getDirection(),
+                                                                        PLAY_COUNT_SORT_EXPRESSION));
                                 } else {
                                         resolved = resolved.and(Sort.by(
                                                         new Sort.Order(order.getDirection(), order.getProperty(),

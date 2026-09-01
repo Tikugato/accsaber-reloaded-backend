@@ -686,7 +686,7 @@ class ScoreServiceTest {
         }
 
         @Nested
-        class MaxStreak115 {
+        class AttemptAggregates {
 
                 private Score activeScoreWithStreak(int streak) {
                         return Score.builder()
@@ -698,6 +698,7 @@ class ScoreServiceTest {
                                         .ap(500.000000)
                                         .weightedAp(500.000000)
                                         .streak115(streak)
+                                        .playCount(2)
                                         .active(true)
                                         .build();
                 }
@@ -707,10 +708,10 @@ class ScoreServiceTest {
                         Score active = activeScoreWithStreak(3);
                         when(scoreRepository.findActiveByUser(eq(activeUser.getId()), any(Pageable.class)))
                                         .thenReturn(new PageImpl<>(List.of(active)));
-                        when(scoreRepository.findMaxStreak115ByUsersAndDifficulties(
+                        when(scoreRepository.findAttemptAggregatesByUsersAndDifficulties(
                                         List.of(activeUser.getId()), List.of(rankedDifficulty.getId())))
                                         .thenReturn(List.<Object[]>of(new Object[] {
-                                                        activeUser.getId(), rankedDifficulty.getId(), 5 }));
+                                                        activeUser.getId(), rankedDifficulty.getId(), 5, 9 }));
 
                         Page<ScoreResponse> result = scoreService.findByUser(
                                         activeUser.getId(), null, null, PageRequest.of(0, 20));
@@ -721,11 +722,43 @@ class ScoreServiceTest {
                 }
 
                 @Test
+                void hydratesPlayCountAcrossEveryAttempt_notTheActiveScoreOne() {
+                        Score active = activeScoreWithStreak(3);
+                        when(scoreRepository.findActiveByUser(eq(activeUser.getId()), any(Pageable.class)))
+                                        .thenReturn(new PageImpl<>(List.of(active)));
+                        when(scoreRepository.findAttemptAggregatesByUsersAndDifficulties(
+                                        List.of(activeUser.getId()), List.of(rankedDifficulty.getId())))
+                                        .thenReturn(List.<Object[]>of(new Object[] {
+                                                        activeUser.getId(), rankedDifficulty.getId(), 5, 9 }));
+
+                        Page<ScoreResponse> result = scoreService.findByUser(
+                                        activeUser.getId(), null, null, PageRequest.of(0, 20));
+
+                        assertThat(result.getContent().get(0).getPlayCount()).isEqualTo(9);
+                }
+
+                @Test
+                void fallsBackToTheRowPlayCountWhenNoAttemptCarriesOne() {
+                        Score active = activeScoreWithStreak(3);
+                        when(scoreRepository.findActiveByUser(eq(activeUser.getId()), any(Pageable.class)))
+                                        .thenReturn(new PageImpl<>(List.of(active)));
+                        when(scoreRepository.findAttemptAggregatesByUsersAndDifficulties(
+                                        List.of(activeUser.getId()), List.of(rankedDifficulty.getId())))
+                                        .thenReturn(List.<Object[]>of(new Object[] {
+                                                        activeUser.getId(), rankedDifficulty.getId(), 5, null }));
+
+                        Page<ScoreResponse> result = scoreService.findByUser(
+                                        activeUser.getId(), null, null, PageRequest.of(0, 20));
+
+                        assertThat(result.getContent().get(0).getPlayCount()).isEqualTo(2);
+                }
+
+                @Test
                 void leavesMaxStreakNullWhenNoAttemptCarriesOne() {
                         Score active = activeScoreWithStreak(3);
                         when(scoreRepository.findActiveByUser(eq(activeUser.getId()), any(Pageable.class)))
                                         .thenReturn(new PageImpl<>(List.of(active)));
-                        when(scoreRepository.findMaxStreak115ByUsersAndDifficulties(
+                        when(scoreRepository.findAttemptAggregatesByUsersAndDifficulties(
                                         List.of(activeUser.getId()), List.of(rankedDifficulty.getId())))
                                         .thenReturn(Collections.emptyList());
 
@@ -733,6 +766,22 @@ class ScoreServiceTest {
                                         activeUser.getId(), null, null, PageRequest.of(0, 20));
 
                         assertThat(result.getContent().get(0).getMaxStreak115()).isNull();
+                }
+
+                @Test
+                void sortByPlayCount_translatesToAnAggregateOverEveryAttempt() {
+                        when(scoreRepository.findActiveByUser(eq(activeUser.getId()), any(Pageable.class)))
+                                        .thenReturn(new PageImpl<>(List.of()));
+
+                        scoreService.findByUser(activeUser.getId(), null, null,
+                                        PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "playCount")));
+
+                        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+                        verify(scoreRepository).findActiveByUser(eq(activeUser.getId()), captor.capture());
+                        String sort = captor.getValue().getSort().toString();
+                        assertThat(sort).contains("MAX(s2.playCount)");
+                        assertThat(sort).contains("s2.user = s.user");
+                        assertThat(sort).contains("s2.mapDifficulty = s.mapDifficulty");
                 }
 
                 @Test

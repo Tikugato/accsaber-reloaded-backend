@@ -11,20 +11,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.accsaber.backend.exception.ResourceNotFoundException;
-import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.campaign.Campaign;
 import com.accsaber.backend.model.entity.campaign.CampaignDifficulty;
 import com.accsaber.backend.model.entity.map.Batch;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
-import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.CategoryRepository;
 import com.accsaber.backend.repository.campaign.CampaignDifficultyRepository;
@@ -32,6 +29,8 @@ import com.accsaber.backend.repository.map.MapDifficultyRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.score.ScoreService;
+import com.accsaber.backend.service.snipe.SnipeQuery;
+import com.accsaber.backend.service.snipe.SnipeSelection;
 
 import lombok.RequiredArgsConstructor;
 
@@ -155,45 +154,16 @@ public class PlaylistService {
                 difficulties);
     }
 
-    public Map<String, Object> generateSnipePlaylist(Long sniperId, Long targetId, String categoryCode, int size,
-            String syncUrl) {
-        if (sniperId.equals(targetId)) {
-            throw new ValidationException("Sniper and target must be different players");
-        }
-        requireUser(sniperId);
-        User target = requireUser(targetId);
-        SnipeCategoryFilter filter = resolveSnipeCategoryFilter(categoryCode);
-
-        Pageable pageable = size <= 0 ? Pageable.unpaged() : PageRequest.of(0, size);
-        List<MapDifficulty> difficulties = scoreRepository
-                .findClosestSnipePairs(sniperId, targetId, filter.categoryId, filter.overallOnly, pageable)
-                .stream()
-                .map(row -> ((Score) row[0]).getMapDifficulty())
-                .toList();
-
-        String title = "AccSaber: Snipe " + target.getName()
-                    +(filter.label != null ? " (" + filter.label + ")" : "");
+    public Map<String, Object> generateSnipePlaylist(SnipeSelection selection, SnipeQuery query, String syncUrl) {
+        String title = "AccSaber: Snipe " + selection.target().getName()
+                + (selection.categoryLabel() != null ? " (" + selection.categoryLabel() + ")" : "")
+                + (query.isDefaultOrder() ? "" : " - " + query.orderLabel());
 
         return playlistAssembler.assemble(
                 title,
-                playlistAssembler.fetchAndEncodeImage(target.getAvatarUrl()),
+                playlistAssembler.fetchAndEncodeImage(selection.target().getAvatarUrl()),
                 syncUrl,
-                difficulties);
-    }
-
-    private SnipeCategoryFilter resolveSnipeCategoryFilter(String categoryCode) {
-        if (categoryCode == null || categoryCode.isBlank()) {
-            return new SnipeCategoryFilter(null, false, null);
-        }
-        if (OVERALL_CODE.equalsIgnoreCase(categoryCode)) {
-            Category overall = requireCategory(OVERALL_CODE);
-            return new SnipeCategoryFilter(null, true, overall.getName());
-        }
-        Category category = requireCategory(categoryCode);
-        return new SnipeCategoryFilter(category.getId(), false, category.getName());
-    }
-
-    private record SnipeCategoryFilter(UUID categoryId, boolean overallOnly, String label) {
+                selection.difficulties());
     }
 
     @Caching(evict = {

@@ -1,0 +1,184 @@
+package com.accsaber.backend.repository.score;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+
+import com.accsaber.backend.model.entity.Category;
+import com.accsaber.backend.model.entity.map.Difficulty;
+import com.accsaber.backend.model.entity.map.Map;
+import com.accsaber.backend.model.entity.map.MapDifficulty;
+import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
+import com.accsaber.backend.model.entity.score.Score;
+import com.accsaber.backend.model.entity.score.SnipeSort;
+import com.accsaber.backend.model.entity.user.User;
+import com.accsaber.backend.service.snipe.SnipeQuery;
+
+import jakarta.persistence.EntityManager;
+
+@Tag("integration")
+@Testcontainers
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+class SnipePairQueryTest {
+
+    @Container
+    @ServiceConnection
+    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18-alpine");
+
+    private static final Long SNIPER_ID = 76561190000000011L;
+    private static final Long TARGET_ID = 76561190000000012L;
+
+    @Autowired
+    private EntityManager entityManager;
+    @Autowired
+    private ScoreRepository scoreRepository;
+
+    private UUID closeGap;
+    private UUID wideGap;
+    private UUID tightestGap;
+
+    @BeforeEach
+    void seed() {
+        Category trueAcc = entityManager
+                .createQuery("SELECT c FROM Category c WHERE c.code = 'true_acc' AND c.active = true", Category.class)
+                .getSingleResult();
+        User sniper = persistUser(SNIPER_ID, "Sniper");
+        User target = persistUser(TARGET_ID, "Target");
+
+        closeGap = persistPair(trueAcc, sniper, target, 1_000_000, 940_000, 480.0, 5, 950_000, 500.0, 1);
+        wideGap = persistPair(trueAcc, sniper, target, 1_000_000, 900_000, 400.0, 30, 990_000, 600.0, 2);
+        tightestGap = persistPair(trueAcc, sniper, target, 2_000_000, 1_890_000, 690.0, 4, 1_900_000, 700.0, 3);
+        entityManager.flush();
+    }
+
+    @Test
+    @DisplayName("the default order is the smallest accuracy gap first")
+    void defaultOrderIsClosestGapFirst() {
+        assertThat(orderedBy(SnipeSort.GAP, null)).containsExactly(tightestGap, closeGap, wideGap);
+    }
+
+    @Test
+    @DisplayName("flipping the direction puts the biggest accuracy gap on top")
+    void reversedGapPutsTheBiggestGapFirst() {
+        assertThat(orderedBy(SnipeSort.GAP, Sort.Direction.DESC)).containsExactly(wideGap, closeGap, tightestGap);
+    }
+
+    @Test
+    @DisplayName("AP_GAP leads with the map holding the most AP to take back")
+    void apGapLeadsWithTheMostAvailableAp() {
+        assertThat(orderedBy(SnipeSort.AP_GAP, null)).containsExactly(wideGap, closeGap, tightestGap);
+    }
+
+    @Test
+    @DisplayName("TARGET_AP leads with the target's best map")
+    void targetApLeadsWithTheirBestMap() {
+        assertThat(orderedBy(SnipeSort.TARGET_AP, null)).containsExactly(tightestGap, wideGap, closeGap);
+    }
+
+    @Test
+    @DisplayName("YOUR_AP leads with the sniper's own best map")
+    void yourApLeadsWithYourBestMap() {
+        assertThat(orderedBy(SnipeSort.YOUR_AP, null)).containsExactly(tightestGap, closeGap, wideGap);
+    }
+
+    @Test
+    @DisplayName("RANK_GAP leads with the widest leaderboard distance")
+    void rankGapLeadsWithTheWidestLeaderboardDistance() {
+        assertThat(orderedBy(SnipeSort.RANK_GAP, null)).containsExactly(wideGap, closeGap, tightestGap);
+    }
+
+    @Test
+    @DisplayName("a paged request keeps both the ordering and the unsorted count query")
+    void pagedRequestKeepsOrderingAndCount() {
+        SnipeQuery query = new SnipeQuery(SNIPER_ID, TARGET_ID, null, SnipeSort.AP_GAP, null);
+        var page = scoreRepository.findSnipePairs(SNIPER_ID, TARGET_ID, null, false,
+                PageRequest.of(0, 2, query.toSort()));
+
+        assertThat(page.getTotalElements()).isEqualTo(3);
+        assertThat(difficultyIds(page.getContent())).containsExactly(wideGap, closeGap);
+    }
+
+    @Test
+    @DisplayName("a null rank sorts last instead of hijacking the top of a descending list")
+    void nullRanksSortLast() {
+        entityManager.createQuery("UPDATE Score s SET s.rank = NULL WHERE s.mapDifficulty.id = :id")
+                .setParameter("id", wideGap)
+                .executeUpdate();
+        entityManager.clear();
+
+        assertThat(orderedBy(SnipeSort.RANK_GAP, null)).containsExactly(closeGap, tightestGap, wideGap);
+    }
+
+    private List<UUID> orderedBy(SnipeSort sort, Sort.Direction direction) {
+        SnipeQuery query = new SnipeQuery(SNIPER_ID, TARGET_ID, null, sort, direction);
+        return difficultyIds(scoreRepository
+                .findSnipePairs(SNIPER_ID, TARGET_ID, null, false, Pageable.unpaged(query.toSort()))
+                .getContent());
+    }
+
+    private List<UUID> difficultyIds(List<Object[]> rows) {
+        return rows.stream().map(row -> ((Score) row[0]).getMapDifficulty().getId()).toList();
+    }
+
+    private User persistUser(Long id, String name) {
+        User user = User.builder().id(id).name(name).country("ES").build();
+        entityManager.persist(user);
+        return user;
+    }
+
+    private UUID persistPair(Category category, User sniper, User target, int maxScore,
+            int sniperScore, double sniperAp, int sniperRank, int targetScore, double targetAp, int targetRank) {
+        Map map = Map.builder()
+                .songName("Song")
+                .songAuthor("Author")
+                .songHash("hash-" + UUID.randomUUID())
+                .mapAuthor("Mapper")
+                .build();
+        entityManager.persist(map);
+
+        MapDifficulty difficulty = MapDifficulty.builder()
+                .map(map)
+                .category(category)
+                .difficulty(Difficulty.EXPERT_PLUS)
+                .characteristic("Standard")
+                .status(MapDifficultyStatus.RANKED)
+                .maxScore(maxScore)
+                .build();
+        entityManager.persist(difficulty);
+
+        persistScore(sniper, difficulty, sniperScore, sniperAp, sniperRank);
+        persistScore(target, difficulty, targetScore, targetAp, targetRank);
+        return difficulty.getId();
+    }
+
+    private void persistScore(User user, MapDifficulty difficulty, int value, double ap, int rank) {
+        entityManager.persist(Score.builder()
+                .user(user)
+                .mapDifficulty(difficulty)
+                .score(value)
+                .scoreNoMods(value)
+                .rank(rank)
+                .rankWhenSet(rank)
+                .ap(ap)
+                .weightedAp(ap)
+                .active(true)
+                .build());
+    }
+}

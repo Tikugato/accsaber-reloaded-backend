@@ -9,6 +9,7 @@ import com.accsaber.backend.exception.ResourceNotFoundException;
 import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.entity.campaign.Campaign;
 import com.accsaber.backend.model.entity.map.Batch;
+import com.accsaber.backend.model.entity.score.SnipeSort;
 import com.accsaber.backend.repository.campaign.CampaignRepository;
 import com.accsaber.backend.repository.map.BatchRepository;
 import org.springframework.data.domain.Pageable;
@@ -21,9 +22,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import com.accsaber.backend.service.infra.CategoryService;
 import com.accsaber.backend.service.playlist.PlaylistService;
+import com.accsaber.backend.service.snipe.SnipeQuery;
+import com.accsaber.backend.service.snipe.SnipeSelection;
+import com.accsaber.backend.service.snipe.SnipeService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -40,6 +45,7 @@ public class PlaylistController {
         private final CategoryService categoryService;
         private final BatchRepository batchRepository;
         private final CampaignRepository campaignRepository;
+        private final SnipeService snipeService;
 
         @Operation(summary = "Download the playlist for a category", description = "Every ranked map in a category as a Beat "
                         + "Saber playlist file. Drop it in your playlists folder or hand the URL to a mod manager, and the "
@@ -70,13 +76,17 @@ public class PlaylistController {
         }
 
         @Operation(summary = "Download a snipe playlist", description = "Every map where the target player is ahead of you, "
-                        + "closest gap first, so the ones you have the best shot at taking back come up early. The playlist "
-                        + "picture is the target's avatar. This form gives you all of them across every category.")
+                        + "closest gap first, so the ones you have the best shot at taking back come up early. Pass sort if "
+                        + "you would rather order it by the AP going spare, by either player's AP or by the leaderboard gap, "
+                        + "and direction to flip any of those around. The playlist picture is the target's avatar. This form "
+                        + "gives you all of them across every category.")
         @GetMapping(value = "/snipe/{sniperId}/{targetId}", produces = "application/json")
         public ResponseEntity<Map<String, Object>> getSnipePlaylist(
                         @Parameter(description = "User ID of the sniping player") @PathVariable Long sniperId,
-                        @Parameter(description = "User ID of the target player") @PathVariable Long targetId) {
-                return buildSnipePlaylistResponse(sniperId, targetId, 0, null);
+                        @Parameter(description = "User ID of the target player") @PathVariable Long targetId,
+                        @Parameter(description = "GAP, AP_GAP, TARGET_AP, YOUR_AP or RANK_GAP") @RequestParam(defaultValue = "GAP") SnipeSort sort,
+                        @Parameter(description = "ASC or DESC; each sort has its own sensible default") @RequestParam(required = false) Sort.Direction direction) {
+                return buildSnipePlaylistResponse(new SnipeQuery(sniperId, targetId, null, sort, direction), 0);
         }
 
         @Operation(summary = "Download a snipe playlist with a size cap", description = "The same snipe playlist but stopping "
@@ -86,8 +96,10 @@ public class PlaylistController {
         public ResponseEntity<Map<String, Object>> getSnipePlaylistBySize(
                         @Parameter(description = "User ID of the sniping player") @PathVariable Long sniperId,
                         @Parameter(description = "User ID of the target player") @PathVariable Long targetId,
-                        @Parameter(description = "Map count cap (0 = unlimited)") @PathVariable int size) {
-                return buildSnipePlaylistResponse(sniperId, targetId, size, null);
+                        @Parameter(description = "Map count cap (0 = unlimited)") @PathVariable int size,
+                        @Parameter(description = "GAP, AP_GAP, TARGET_AP, YOUR_AP or RANK_GAP") @RequestParam(defaultValue = "GAP") SnipeSort sort,
+                        @Parameter(description = "ASC or DESC; each sort has its own sensible default") @RequestParam(required = false) Sort.Direction direction) {
+                return buildSnipePlaylistResponse(new SnipeQuery(sniperId, targetId, null, sort, direction), size);
         }
 
         @Operation(summary = "Download a snipe playlist for one category", description = "A snipe playlist narrowed to a single "
@@ -98,8 +110,10 @@ public class PlaylistController {
                         @Parameter(description = "User ID of the sniping player") @PathVariable Long sniperId,
                         @Parameter(description = "User ID of the target player") @PathVariable Long targetId,
                         @Parameter(description = "Map count cap (0 = unlimited)") @PathVariable int size,
-                        @Parameter(description = "Category code") @PathVariable String category) {
-                return buildSnipePlaylistResponse(sniperId, targetId, size, category);
+                        @Parameter(description = "Category code") @PathVariable String category,
+                        @Parameter(description = "GAP, AP_GAP, TARGET_AP, YOUR_AP or RANK_GAP") @RequestParam(defaultValue = "GAP") SnipeSort sort,
+                        @Parameter(description = "ASC or DESC; each sort has its own sensible default") @RequestParam(required = false) Sort.Direction direction) {
+                return buildSnipePlaylistResponse(new SnipeQuery(sniperId, targetId, category, sort, direction), size);
         }
 
         @Operation(summary = "Download a player's own scores as a playlist", description = "The maps behind a slice of a "
@@ -188,23 +202,26 @@ public class PlaylistController {
                                 .body(playlist);
         }
 
-        private ResponseEntity<Map<String, Object>> buildSnipePlaylistResponse(Long sniperId, Long targetId,
-                        int size, String category) {
-                Optional<String> categoryParam = Optional.ofNullable(category).filter(c -> !c.isBlank());
+        private ResponseEntity<Map<String, Object>> buildSnipePlaylistResponse(SnipeQuery query, int size) {
+                Optional<String> categoryParam = Optional.ofNullable(query.categoryCode()).filter(c -> !c.isBlank());
+                UriComponentsBuilder syncBuilder = ServletUriComponentsBuilder.fromCurrentContextPath()
+                                .path(categoryParam.isPresent()
+                                                ? "/v1/playlists/snipe/{sniperId}/{targetId}/{size}/{category}"
+                                                : "/v1/playlists/snipe/{sniperId}/{targetId}/{size}");
+                if (!query.isDefaultOrder()) {
+                        syncBuilder.queryParam("sort", query.sort()).queryParam("direction", query.direction());
+                }
                 String syncUrl = categoryParam
-                                .map(c -> ServletUriComponentsBuilder.fromCurrentContextPath()
-                                                .path("/v1/playlists/snipe/{sniperId}/{targetId}/{size}/{category}")
-                                                .buildAndExpand(sniperId, targetId, size, c)
-                                                .toUriString())
-                                .orElseGet(() -> ServletUriComponentsBuilder.fromCurrentContextPath()
-                                                .path("/v1/playlists/snipe/{sniperId}/{targetId}/{size}")
-                                                .buildAndExpand(sniperId, targetId, size)
-                                                .toUriString());
-                Map<String, Object> playlist = playlistService.generateSnipePlaylist(sniperId, targetId, category, size,
-                                syncUrl);
+                                .map(c -> syncBuilder.buildAndExpand(query.sniperId(), query.targetId(), size, c))
+                                .orElseGet(() -> syncBuilder.buildAndExpand(query.sniperId(), query.targetId(), size))
+                                .toUriString();
+                SnipeSelection selection = snipeService.findSnipeDifficulties(query, size);
+                Map<String, Object> playlist = playlistService.generateSnipePlaylist(selection, query, syncUrl);
 
-                String filenameSuffix = categoryParam.map(c -> "-" + c.replace("_", "-")).orElse("");
-                String filename = "accsaber-snipe-" + sniperId + "-" + targetId + filenameSuffix + ".bplist";
+                String filenameSuffix = categoryParam.map(c -> "-" + c.replace("_", "-")).orElse("")
+                                + (query.isDefaultOrder() ? "" : "-" + query.orderSlug());
+                String filename = "accsaber-snipe-" + query.sniperId() + "-" + query.targetId() + filenameSuffix
+                                + ".bplist";
 
                 return ResponseEntity.ok()
                                 .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")

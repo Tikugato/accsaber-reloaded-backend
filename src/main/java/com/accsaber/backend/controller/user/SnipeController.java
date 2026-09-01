@@ -3,6 +3,7 @@ package com.accsaber.backend.controller.user;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.accsaber.backend.model.dto.response.score.SnipeComparisonResponse;
+import com.accsaber.backend.model.entity.score.SnipeSort;
+import com.accsaber.backend.service.snipe.SnipeQuery;
 import com.accsaber.backend.service.snipe.SnipeService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,7 +34,8 @@ public class SnipeController {
     @Operation(summary = "Find where you are closest to catching someone", description = "The difficulties where a target "
             + "player is ahead of the sniper, smallest gap first, so the ones worth going after come up first. Each row "
             + "carries both players' current scores so you can show the comparison without a second call. Pass category to "
-            + "narrow it. This is the data behind the snipe playlists, if you want the same thing as a downloadable file "
+            + "narrow it, and sort if you care about something other than the gap, like where there is the most AP sitting "
+            + "on the table. This is the data behind the snipe playlists, if you want the same thing as a downloadable file "
             + "instead.")
     @GetMapping("/{sniperId}/closest-to/{targetId}")
     public ResponseEntity<Page<SnipeComparisonResponse>> getClosestScores(
@@ -39,8 +43,11 @@ public class SnipeController {
             @Parameter(description = "User ID of the target player") @PathVariable Long targetId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @Parameter(description = "Optional category code; omit for all categories") @RequestParam(required = false) String category) {
+            @Parameter(description = "Optional category code; omit for all categories") @RequestParam(required = false) String category,
+            @Parameter(description = "What to order by: GAP (accuracy gap), AP_GAP, TARGET_AP, YOUR_AP or RANK_GAP") @RequestParam(defaultValue = "GAP") SnipeSort sort,
+            @Parameter(description = "ASC or DESC; each sort has its own sensible default") @RequestParam(required = false) Sort.Direction direction) {
         Pageable pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE));
-        return ResponseEntity.ok(snipeService.findClosestScores(sniperId, targetId, category, pageable));
+        SnipeQuery query = new SnipeQuery(sniperId, targetId, category, sort, direction);
+        return ResponseEntity.ok(snipeService.findSnipeComparisons(query, pageable));
     }
 }

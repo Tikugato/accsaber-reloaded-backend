@@ -3,11 +3,8 @@ package com.accsaber.backend.service.playlist;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,26 +21,24 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
 import com.accsaber.backend.exception.ResourceNotFoundException;
-import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.campaign.Campaign;
 import com.accsaber.backend.model.entity.campaign.CampaignDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
-import com.accsaber.backend.model.entity.score.Score;
+import com.accsaber.backend.model.entity.score.SnipeSort;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.CategoryRepository;
 import com.accsaber.backend.repository.campaign.CampaignDifficultyRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
-import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.score.ScoreService;
+import com.accsaber.backend.service.snipe.SnipeQuery;
+import com.accsaber.backend.service.snipe.SnipeSelection;
 
 @ExtendWith(MockitoExtension.class)
 class PlaylistServiceTest {
@@ -57,8 +52,6 @@ class PlaylistServiceTest {
     private CategoryRepository categoryRepository;
     @Mock
     private MapDifficultyRepository mapDifficultyRepository;
-    @Mock
-    private ScoreRepository scoreRepository;
     @Mock
     private UserRepository userRepository;
     @Mock
@@ -193,23 +186,16 @@ class PlaylistServiceTest {
     class GenerateSnipePlaylist {
 
         @Test
-        void buildsPlaylistFromTargetScoreDifficulties() {
-            User target = userWith(TARGET_ID, "Victim", AVATAR);
-            mockUsersExist(target);
-
+        void buildsPlaylistFromTheSelectedDifficulties() {
             MapDifficulty diffA = MapDifficulty.builder().id(UUID.randomUUID()).build();
             MapDifficulty diffB = MapDifficulty.builder().id(UUID.randomUUID()).build();
-            Page<Object[]> page = new PageImpl<>(List.<Object[]>of(
-                    new Object[] { scoreOn(diffA), scoreOn(diffA) },
-                    new Object[] { scoreOn(diffB), scoreOn(diffB) }));
-            when(scoreRepository.findClosestSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false),
-                    any(Pageable.class))).thenReturn(page);
+            SnipeSelection selection = selectionOf(null, List.of(diffA, diffB));
             when(playlistAssembler.fetchAndEncodeImage(AVATAR)).thenReturn("data:image/png;base64,XXX");
             Map<String, Object> assembled = Map.of("playlistTitle", "AccSaber: Snipe Victim");
             when(playlistAssembler.assemble(eq("AccSaber: Snipe Victim"), eq("data:image/png;base64,XXX"),
                     eq(SYNC_URL), any())).thenReturn(assembled);
 
-            Map<String, Object> result = playlistService.generateSnipePlaylist(SNIPER_ID, TARGET_ID, null, 20, SYNC_URL);
+            Map<String, Object> result = playlistService.generateSnipePlaylist(selection, query(null, null), SYNC_URL);
 
             assertThat(result).isSameAs(assembled);
             ArgumentCaptor<List<MapDifficulty>> diffCaptor = captureDifficulties();
@@ -219,109 +205,51 @@ class PlaylistServiceTest {
 
         @Test
         void appendsCategoryLabelToTitle() {
-            mockUsersExist(userWith(TARGET_ID, "Victim", AVATAR));
-            UUID catId = UUID.randomUUID();
-            when(categoryRepository.findByCodeAndActiveTrue("true_acc"))
-                    .thenReturn(Optional.of(Category.builder().id(catId).code("true_acc").name("True Acc").build()));
-            when(scoreRepository.findClosestSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), eq(catId), eq(false),
-                    any(Pageable.class))).thenReturn(new PageImpl<>(List.<Object[]>of()));
             when(playlistAssembler.assemble(eq("AccSaber: Snipe Victim (True Acc)"), any(), anyString(), any()))
                     .thenReturn(Map.of());
 
-            playlistService.generateSnipePlaylist(SNIPER_ID, TARGET_ID, "true_acc", 20, SYNC_URL);
+            playlistService.generateSnipePlaylist(selectionOf("True Acc", List.of()), query(null, null), SYNC_URL);
 
             verify(playlistAssembler).assemble(eq("AccSaber: Snipe Victim (True Acc)"), any(), anyString(), any());
         }
 
         @Test
-        void overallCategoryFlipsFlag() {
-            mockUsersExist(userWith(TARGET_ID, "Victim", AVATAR));
-            when(categoryRepository.findByCodeAndActiveTrue("overall"))
-                    .thenReturn(Optional.of(Category.builder().code("overall").name("Overall").build()));
-            when(scoreRepository.findClosestSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(true),
-                    any(Pageable.class))).thenReturn(new PageImpl<>(List.<Object[]>of()));
+        void appendsOrderLabelToTitleWhenItIsNotTheDefault() {
             when(playlistAssembler.assemble(anyString(), any(), anyString(), any())).thenReturn(Map.of());
 
-            playlistService.generateSnipePlaylist(SNIPER_ID, TARGET_ID, "overall", 20, SYNC_URL);
+            playlistService.generateSnipePlaylist(selectionOf(null, List.of()), query(SnipeSort.AP_GAP, null),
+                    SYNC_URL);
 
-            verify(scoreRepository).findClosestSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(true),
-                    any(Pageable.class));
+            verify(playlistAssembler).assemble(eq("AccSaber: Snipe Victim - AP gap high to low"), any(), anyString(),
+                    any());
         }
 
         @Test
-        void honorsExplicitSize() {
-            mockUsersExist(userWith(TARGET_ID, "Victim", AVATAR));
-            when(scoreRepository.findClosestSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), any(), anyBoolean(),
-                    argThat(p -> p.isPaged() && p.getPageSize() == 50)))
-                    .thenReturn(new PageImpl<>(List.<Object[]>of()));
+        void leavesTheTitleAloneForTheDefaultOrder() {
             when(playlistAssembler.assemble(anyString(), any(), anyString(), any())).thenReturn(Map.of());
 
-            playlistService.generateSnipePlaylist(SNIPER_ID, TARGET_ID, null, 50, SYNC_URL);
+            playlistService.generateSnipePlaylist(selectionOf(null, List.of()), query(SnipeSort.GAP, null), SYNC_URL);
 
-            verify(scoreRepository).findClosestSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), any(), anyBoolean(),
-                    argThat(p -> p.isPaged() && p.getPageSize() == 50));
-        }
-
-        @Test
-        void zeroOrNegativeSizeMeansUnlimited() {
-            mockUsersExist(userWith(TARGET_ID, "Victim", AVATAR));
-            when(scoreRepository.findClosestSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), any(), anyBoolean(),
-                    argThat(p -> !p.isPaged())))
-                    .thenReturn(new PageImpl<>(List.<Object[]>of()));
-            when(playlistAssembler.assemble(anyString(), any(), anyString(), any())).thenReturn(Map.of());
-
-            playlistService.generateSnipePlaylist(SNIPER_ID, TARGET_ID, null, 0, SYNC_URL);
-
-            verify(scoreRepository).findClosestSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), any(), anyBoolean(),
-                    argThat(p -> !p.isPaged()));
+            verify(playlistAssembler).assemble(eq("AccSaber: Snipe Victim"), any(), anyString(), any());
         }
 
         @Test
         void emptyResultStillProducesPlaylistWithNoSongs() {
-            mockUsersExist(userWith(TARGET_ID, "Victim", AVATAR));
-            when(scoreRepository.findClosestSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), any(), anyBoolean(),
-                    any(Pageable.class))).thenReturn(new PageImpl<>(List.<Object[]>of()));
             when(playlistAssembler.assemble(anyString(), any(), anyString(), any())).thenReturn(Map.of());
 
-            playlistService.generateSnipePlaylist(SNIPER_ID, TARGET_ID, null, 20, SYNC_URL);
+            playlistService.generateSnipePlaylist(selectionOf(null, List.of()), query(null, null), SYNC_URL);
 
             ArgumentCaptor<List<MapDifficulty>> diffCaptor = captureDifficulties();
             verify(playlistAssembler).assemble(anyString(), any(), anyString(), diffCaptor.capture());
             assertThat(diffCaptor.getValue()).isEmpty();
         }
 
-        @Test
-        void rejectsSelfSnipe() {
-            assertThatThrownBy(() -> playlistService.generateSnipePlaylist(SNIPER_ID, SNIPER_ID, null, 20, SYNC_URL))
-                    .isInstanceOf(ValidationException.class);
-            verify(userRepository, never()).findByIdAndActiveTrue(any());
-            verify(scoreRepository, never()).findClosestSnipePairs(any(), any(), any(), anyBoolean(), any());
+        private SnipeSelection selectionOf(String categoryLabel, List<MapDifficulty> difficulties) {
+            return new SnipeSelection(userWith(TARGET_ID, "Victim", AVATAR), categoryLabel, difficulties);
         }
 
-        @Test
-        void throwsWhenTargetMissing() {
-            when(userRepository.findByIdAndActiveTrue(SNIPER_ID))
-                    .thenReturn(Optional.of(User.builder().id(SNIPER_ID).build()));
-            when(userRepository.findByIdAndActiveTrue(TARGET_ID)).thenReturn(Optional.empty());
-
-            assertThatThrownBy(() -> playlistService.generateSnipePlaylist(SNIPER_ID, TARGET_ID, null, 20, SYNC_URL))
-                    .isInstanceOf(ResourceNotFoundException.class);
-        }
-
-        @Test
-        void unknownCategoryThrows() {
-            mockUsersExist(userWith(TARGET_ID, "Victim", AVATAR));
-            when(categoryRepository.findByCodeAndActiveTrue("nope")).thenReturn(Optional.empty());
-
-            assertThatThrownBy(
-                    () -> playlistService.generateSnipePlaylist(SNIPER_ID, TARGET_ID, "nope", 20, SYNC_URL))
-                    .isInstanceOf(ResourceNotFoundException.class);
-        }
-
-        private void mockUsersExist(User target) {
-            when(userRepository.findByIdAndActiveTrue(SNIPER_ID))
-                    .thenReturn(Optional.of(User.builder().id(SNIPER_ID).build()));
-            when(userRepository.findByIdAndActiveTrue(TARGET_ID)).thenReturn(Optional.of(target));
+        private SnipeQuery query(SnipeSort sort, Sort.Direction direction) {
+            return new SnipeQuery(SNIPER_ID, TARGET_ID, null, sort, direction);
         }
 
         @SuppressWarnings("unchecked")
@@ -331,10 +259,6 @@ class PlaylistServiceTest {
 
         private User userWith(Long id, String name, String avatar) {
             return User.builder().id(id).name(name).avatarUrl(avatar).build();
-        }
-
-        private Score scoreOn(MapDifficulty diff) {
-            return Score.builder().id(UUID.randomUUID()).mapDifficulty(diff).build();
         }
     }
 }

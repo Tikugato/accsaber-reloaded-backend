@@ -33,62 +33,65 @@ import lombok.RequiredArgsConstructor;
 @Tag(name = "Leaderboards")
 public class LeaderboardController {
 
-    private final LeaderboardService leaderboardService;
-    private final UserRelationService userRelationService;
-    private final CategoryService categoryService;
+        private final LeaderboardService leaderboardService;
+        private final UserRelationService userRelationService;
+        private final CategoryService categoryService;
 
-    @Operation(summary = "Get a leaderboard", description = "Everyone ranked in a category, best first. Address the category by "
-            + "UUID or by code, so /v1/leaderboards/true_acc is fine. Pass country with a two letter code like ES or GB to get "
-            + "that country's board instead, which is ranked on country position rather than global, so someone sitting 400th "
-            + "overall can still be first at home. You can also search by player name, filter to one headset, drop inactive "
-            + "players with inactiveUsers=false, or pass a relation to see only the people you follow, which needs a logged in "
-            + "token. These pages are cached for a few minutes, so a fresh score will not appear the second it lands.")
-    @GetMapping("/{category}")
-    public ResponseEntity<Page<LeaderboardResponse>> getBoard(
-            @PathVariable String category,
-            @RequestParam(required = false) String country,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) String hmd,
-            @RequestParam(defaultValue = "true") boolean inactiveUsers,
-            @RequestParam(required = false) UserRelationType relation,
-            @AuthenticationPrincipal PlayerUserDetails principal,
-            @PageableDefault(size = 20) Pageable pageable) {
-        UUID categoryId = categoryService.resolveId(category);
-        if (relation != null) {
-            List<Long> filter = userRelationService.findRelationFilterUserIds(requirePrincipal(principal).getUserId(),
-                    relation);
-            return ResponseEntity.ok(leaderboardService.getBoardFiltered(
-                    categoryId, country, search, hmd, inactiveUsers, filter, pageable));
+        @Operation(summary = "Get a leaderboard", description = "Everyone ranked in a category, best first. Address the category by "
+                        + "UUID or by code, so /v1/leaderboards/true_acc is fine. Pass country with a two letter code like ES or GB to get "
+                        + "that country's board instead, which is ranked on country position rather than global, so someone sitting 400th "
+                        + "overall can still be first at home. You can also search by player name, filter to one headset, drop inactive "
+                        + "players with inactiveUsers=false, or pass a relation to see only the people you follow, which needs a logged in "
+                        + "token. These pages are cached for a few minutes, so a fresh score will not appear the second it lands.")
+        @GetMapping("/{category}")
+        public ResponseEntity<Page<LeaderboardResponse>> getBoard(
+                        @PathVariable String category,
+                        @RequestParam(required = false) String country,
+                        @RequestParam(required = false) String search,
+                        @RequestParam(required = false) String hmd,
+                        @RequestParam(defaultValue = "true") boolean inactiveUsers,
+                        @RequestParam(required = false) UserRelationType relation,
+                        @AuthenticationPrincipal PlayerUserDetails principal,
+                        @PageableDefault(size = 20) Pageable pageable) {
+                UUID categoryId = categoryService.resolveId(category);
+                if (relation != null) {
+                        List<Long> filter = userRelationService.findRelationFilterUserIds(
+                                        requirePrincipal(principal).getUserId(),
+                                        relation);
+                        return ResponseEntity.ok(leaderboardService.getBoardFiltered(
+                                        categoryId, country, search, hmd, inactiveUsers, filter, pageable));
+                }
+                return ResponseEntity.ok(
+                                leaderboardService.getBoard(categoryId, country, search, hmd, inactiveUsers, pageable));
         }
-        return ResponseEntity.ok(
-                leaderboardService.getBoard(categoryId, country, search, hmd, inactiveUsers, pageable));
-    }
 
-    @Operation(summary = "Get the XP leaderboard", description = "Players ranked by total XP rather than AP, which rewards "
-            + "getting through milestones and campaigns as much as raw accuracy. Takes the same country, name, headset, "
-            + "inactive and relation filters as the others.")
-    @GetMapping("/xp")
-    public ResponseEntity<Page<XpLeaderboardResponse>> getXpLeaderboard(
-            @RequestParam(required = false) String country,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) String hmd,
-            @RequestParam(defaultValue = "true") boolean inactiveUsers,
-            @RequestParam(required = false) UserRelationType relation,
-            @AuthenticationPrincipal PlayerUserDetails principal,
-            @PageableDefault(size = 20) Pageable pageable) {
-        if (relation != null) {
-            List<Long> filter = userRelationService.findRelationFilterUserIds(requirePrincipal(principal).getUserId(),
-                    relation);
-            return ResponseEntity.ok(leaderboardService.getXpLeaderboardFiltered(
-                    country, search, hmd, inactiveUsers, filter, pageable));
+        @Operation(summary = "Get the XP leaderboard", description = "Players ranked by total XP rather than AP, which rewards "
+                        + "getting through milestones and campaigns as much as raw accuracy. Takes the same country, name, headset, "
+                        + "inactive and relation filters as the others.")
+        @GetMapping("/xp")
+        public ResponseEntity<Page<XpLeaderboardResponse>> getXpLeaderboard(
+                        @RequestParam(required = false) String country,
+                        @RequestParam(required = false) String search,
+                        @RequestParam(required = false) String hmd,
+                        @RequestParam(defaultValue = "true") boolean inactiveUsers,
+                        @RequestParam(required = false) UserRelationType relation,
+                        @AuthenticationPrincipal PlayerUserDetails principal,
+                        @PageableDefault(size = 20) Pageable pageable) {
+                if (relation != null) {
+                        List<Long> filter = userRelationService.findRelationFilterUserIds(
+                                        requirePrincipal(principal).getUserId(),
+                                        relation);
+                        return ResponseEntity.ok(leaderboardService.getXpLeaderboardFiltered(
+                                        country, search, hmd, inactiveUsers, filter, pageable));
+                }
+                return ResponseEntity
+                                .ok(leaderboardService.getXpLeaderboard(country, search, hmd, inactiveUsers, pageable));
         }
-        return ResponseEntity.ok(leaderboardService.getXpLeaderboard(country, search, hmd, inactiveUsers, pageable));
-    }
 
-    private PlayerUserDetails requirePrincipal(PlayerUserDetails principal) {
-        if (principal == null) {
-            throw new UnauthorizedException("Player authentication required to filter by relation");
+        private PlayerUserDetails requirePrincipal(PlayerUserDetails principal) {
+                if (principal == null) {
+                        throw new UnauthorizedException("Player authentication required to filter by relation");
+                }
+                return principal;
         }
-        return principal;
-    }
 }

@@ -41,7 +41,7 @@ class EventMissionTargetsTest {
     void roundTripsThroughJson() throws Exception {
         EventMissionTargets original = new EventMissionTargets(UUID.randomUUID(), null, "76561198000000001",
                 null, 5.0, null, 10, null, null, null,
-                Instant.parse("2023-01-01T00:00:00Z"), true, true);
+                Instant.parse("2023-01-01T00:00:00Z"), true, true, 5);
 
         EventMissionTargets round = mapper.readValue(mapper.writeValueAsString(original),
                 EventMissionTargets.class);
@@ -51,6 +51,7 @@ class EventMissionTargetsTest {
         assertThat(round.playerIdAsLong()).isEqualTo(76561198000000001L);
         assertThat(round.categoryId()).isEqualTo(original.categoryId());
         assertThat(round.requirePass()).isEqualTo(original.requirePass());
+        assertThat(round.maxPerUser()).isEqualTo(original.maxPerUser());
     }
 
     @Test

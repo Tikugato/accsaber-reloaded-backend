@@ -25,7 +25,7 @@ public class MissionRolloverService {
             case weekly -> nextDaily
                     .with(TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY))
                     .atZone(zone).toInstant();
-            case event -> nextDaily.plusYears(10).atZone(zone).toInstant();
+            case event, community -> nextDaily.plusYears(10).atZone(zone).toInstant();
         };
     }
 

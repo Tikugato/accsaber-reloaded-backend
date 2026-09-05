@@ -187,7 +187,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
                 SELECT um.user_id, 'mission', CAST(um.xp_reward AS numeric)
                 FROM user_missions um
                 WHERE um.status = 'completed'
+                  AND um.user_id IS NOT NULL
                   AND (CAST(:userId AS bigint) IS NULL OR um.user_id = CAST(:userId AS bigint))
+                UNION ALL
+                SELECT cmc.user_id, 'mission', CAST(cm.xp_reward AS numeric)
+                FROM community_mission_contributions cmc
+                JOIN user_missions cm ON cm.id = cmc.user_mission_id
+                WHERE cmc.rewarded_at IS NOT NULL
+                  AND (CAST(:userId AS bigint) IS NULL OR cmc.user_id = CAST(:userId AS bigint))
                 UNION ALL
                 SELECT uep.user_id, 'mission', CAST(uep.bonus_xp AS numeric)
                 FROM user_event_profiles uep
@@ -258,6 +265,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
                 SELECT um.completed_at, um.xp_reward
                 FROM user_missions um
                 WHERE um.user_id = :userId AND um.status = 'completed'
+                UNION ALL
+                SELECT cmc.rewarded_at, cm.xp_reward
+                FROM community_mission_contributions cmc
+                JOIN user_missions cm ON cm.id = cmc.user_mission_id
+                WHERE cmc.user_id = :userId AND cmc.rewarded_at IS NOT NULL
                 UNION ALL
                 SELECT uep.bonus_awarded_at, uep.bonus_xp
                 FROM user_event_profiles uep

@@ -133,19 +133,31 @@ public class MissionTemplate {
     private Instant updatedAt;
 
     public Instant unlockInstant(Event forEvent) {
-        return unlocksAt != null ? unlocksAt : forEvent.getStartsAt();
+        if (unlocksAt != null) {
+            return unlocksAt;
+        }
+        return forEvent != null ? forEvent.getStartsAt() : createdAt;
     }
 
     public Instant closeInstant(Event forEvent) {
+        if (forEvent == null) {
+            return completableUntil;
+        }
         Instant until = completableUntil != null ? completableUntil : forEvent.getEndsAt();
         return until.isBefore(forEvent.getEndsAt()) ? until : forEvent.getEndsAt();
     }
 
     public boolean isOpenAt(Event forEvent, Instant now) {
-        return !unlockInstant(forEvent).isAfter(now) && closeInstant(forEvent).isAfter(now);
+        Instant unlock = unlockInstant(forEvent);
+        Instant close = closeInstant(forEvent);
+        return unlock != null && !unlock.isAfter(now) && close != null && close.isAfter(now);
     }
 
     public int weekOf(Event forEvent) {
-        return forEvent.weekOf(unlockInstant(forEvent));
+        return forEvent != null ? forEvent.weekOf(unlockInstant(forEvent)) : 1;
+    }
+
+    public boolean isCommunity() {
+        return pool == MissionPool.community;
     }
 }

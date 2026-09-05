@@ -2,9 +2,12 @@ package com.accsaber.backend.service.mission;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -32,6 +35,8 @@ import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.campaign.CampaignStatus;
 import com.accsaber.backend.model.entity.map.Batch;
 import com.accsaber.backend.model.entity.map.BatchStatus;
+import com.accsaber.backend.model.entity.map.MapDifficulty;
+import com.accsaber.backend.model.entity.mission.Event;
 import com.accsaber.backend.model.entity.mission.MissionPool;
 import com.accsaber.backend.model.entity.mission.MissionStatus;
 import com.accsaber.backend.model.entity.mission.MissionTemplate;
@@ -39,9 +44,12 @@ import com.accsaber.backend.model.entity.mission.MissionType;
 import com.accsaber.backend.model.entity.mission.UserMission;
 import com.accsaber.backend.model.entity.user.UserRelationType;
 import com.accsaber.backend.model.event.CampaignCompletedEvent;
+import com.accsaber.backend.model.event.CommunityMissionCompletedEvent;
 import com.accsaber.backend.model.event.ScoreSubmittedEvent;
 import com.accsaber.backend.repository.map.BatchRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
+import com.accsaber.backend.repository.mission.CommunityMissionContributionRepository;
+import com.accsaber.backend.repository.mission.UserEventProfileRepository;
 import com.accsaber.backend.repository.mission.UserMissionRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
@@ -59,6 +67,10 @@ class MissionProgressServiceTest {
 
         @Mock
         private UserMissionRepository userMissionRepository;
+        @Mock
+        private CommunityMissionContributionRepository contributionRepository;
+        @Mock
+        private UserEventProfileRepository eventProfileRepository;
         @Mock
         private ScoreRepository scoreRepository;
         @Mock
@@ -533,7 +545,7 @@ class MissionProgressServiceTest {
                 private UserMission passOnly(MissionType type) {
                         UserMission m = mission(type);
                         m.getTemplate().setEventTargets(new EventMissionTargets(null, null, null, null, null,
-                                        null, 20, null, null, null, null, null, true));
+                                        null, 20, null, null, null, null, null, true, null));
                         m.setTargetCount(20);
                         return m;
                 }
@@ -610,6 +622,181 @@ class MissionProgressServiceTest {
 
                         assertThat(m.getProgressCount()).isZero();
                         verify(batchRepository, never()).findFirstByStatusOrderByReleasedAtDesc(any());
+                }
+        }
+
+        @Nested
+        class Community {
+
+                private UserMission communityMission(MissionType type) {
+                        UserMission m = mission(type);
+                        m.setPool(MissionPool.community);
+                        m.setUser(null);
+                        m.getTemplate().setPool(MissionPool.community);
+                        return m;
+                }
+
+                private void givenCommunity(UserMission... missions) {
+                        when(userMissionRepository.findAllActiveByUser(USER_ID)).thenReturn(List.of());
+                        when(userMissionRepository.findActiveCommunity()).thenReturn(List.of(missions));
+                }
+
+                private void accepting(UserMission m, double amount) {
+                        when(contributionRepository.acceptContribution(eq(m.getId()), eq(USER_ID), anyDouble(),
+                                        any(), any())).thenReturn(amount);
+                }
+
+                @Test
+                void aScoreBanksIntoTheSharedRowWithoutTouchingItInMemory() {
+                        UserMission m = communityMission(MissionType.SCORES_N);
+                        m.setTargetCount(500);
+                        givenCommunity(m);
+                        accepting(m, 1.0);
+
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
+
+                        verify(userMissionRepository).bankCommunityProgress(m.getId(), 1, 0.0);
+                        assertThat(m.getProgressCount()).isZero();
+                }
+
+                @Test
+                void streakSumContributesTheWholeStreakNotOne() {
+                        UserMission m = communityMission(MissionType.STREAK_SUM_N);
+                        m.setTargetCount(100000);
+                        givenCommunity(m);
+                        accepting(m, 42.0);
+
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(
+                                        score(true).toBuilder().streak115(42).build()));
+
+                        verify(contributionRepository).acceptContribution(eq(m.getId()), eq(USER_ID), eq(42.0),
+                                        isNull(), any());
+                        verify(userMissionRepository).bankCommunityProgress(m.getId(), 42, 0.0);
+                }
+
+                @Test
+                void apMissionsBankIntoTheApColumn() {
+                        UserMission m = communityMission(MissionType.AP_GAIN_OVERALL);
+                        m.setTargetAp(10000.0);
+                        givenCommunity(m);
+                        when(statisticsRepository.findActiveApGainOverPrevious(USER_ID, OVERALL))
+                                        .thenReturn(Optional.of(3.5));
+                        accepting(m, 3.5);
+
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
+
+                        verify(userMissionRepository).bankCommunityProgress(m.getId(), 0, 3.5);
+                        assertThat(m.getProgressAp()).isEqualByComparingTo(0.0);
+                }
+
+                @Test
+                void whoeverCrossesTheTargetPublishesTheCompletionOnce() {
+                        UserMission m = communityMission(MissionType.SCORES_N);
+                        m.setTargetCount(1);
+                        givenCommunity(m);
+                        accepting(m, 1.0);
+                        when(userMissionRepository.claimCommunityCompletion(eq(m.getId()), any())).thenReturn(1);
+
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
+
+                        verify(eventPublisher).publishEvent(new CommunityMissionCompletedEvent(m.getId()));
+                }
+
+                @Test
+                void losingTheCompletionRacePublishesNothing() {
+                        UserMission m = communityMission(MissionType.SCORES_N);
+                        m.setTargetCount(1);
+                        givenCommunity(m);
+                        accepting(m, 1.0);
+                        when(userMissionRepository.claimCommunityCompletion(eq(m.getId()), any())).thenReturn(0);
+
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
+
+                        verify(eventPublisher, never()).publishEvent(any(CommunityMissionCompletedEvent.class));
+                }
+
+                @Test
+                void aPlayerAtTheirCapAddsNothingToTheBar() {
+                        UserMission m = communityMission(MissionType.SCORES_N);
+                        m.setTargetCount(500);
+                        givenCommunity(m);
+                        accepting(m, 0.0);
+
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
+
+                        verify(userMissionRepository, never()).bankCommunityProgress(any(), anyInt(), anyDouble());
+                        verify(userMissionRepository, never()).claimCommunityCompletion(any(), any());
+                }
+
+                @Test
+                void maxPerUserIsPassedAsTheCap() {
+                        UserMission m = communityMission(MissionType.SCORES_N);
+                        m.setTargetCount(500);
+                        m.getTemplate().setEventTargets(new EventMissionTargets(null, null, null, null, null,
+                                        null, 500, null, null, null, null, null, null, 5));
+                        givenCommunity(m);
+                        accepting(m, 1.0);
+
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
+
+                        verify(contributionRepository).acceptContribution(eq(m.getId()), eq(USER_ID), eq(1.0),
+                                        eq(5.0), any());
+                }
+
+                @Test
+                void binaryMissionsCountEachPlayerOnceHoweverOftenTheyReplay() {
+                        UserMission m = communityMission(MissionType.PB_SPECIFIC_MAP);
+                        m.setTargetCount(500);
+                        m.setTargetMapDifficulty(MapDifficulty.builder().id(mapDifficultyId).build());
+                        givenCommunity(m);
+                        accepting(m, 1.0);
+
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
+
+                        verify(contributionRepository).acceptContribution(eq(m.getId()), eq(USER_ID), eq(1.0),
+                                        eq(1.0), any());
+                }
+
+                @Test
+                void anEventScopedOneIgnoresPlayersWhoNeverJoined() {
+                        UserMission m = communityMission(MissionType.SCORES_N);
+                        m.setTargetCount(500);
+                        m.getTemplate().setEvent(Event.builder().id(UUID.randomUUID()).build());
+                        givenCommunity(m);
+                        when(eventProfileRepository.findEventIdsByUser(USER_ID)).thenReturn(List.of());
+
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
+
+                        verify(contributionRepository, never()).acceptContribution(any(), anyLong(), anyDouble(),
+                                        any(), any());
+                }
+
+                @Test
+                void anEventScopedOneCountsPlayersWhoJoined() {
+                        UserMission m = communityMission(MissionType.SCORES_N);
+                        m.setTargetCount(500);
+                        UUID eventId = UUID.randomUUID();
+                        m.getTemplate().setEvent(Event.builder().id(eventId).build());
+                        givenCommunity(m);
+                        when(eventProfileRepository.findEventIdsByUser(USER_ID)).thenReturn(List.of(eventId));
+                        accepting(m, 1.0);
+
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
+
+                        verify(userMissionRepository).bankCommunityProgress(m.getId(), 1, 0.0);
+                }
+
+                @Test
+                void anExpiredCommunityMissionTakesNothing() {
+                        UserMission m = communityMission(MissionType.SCORES_N);
+                        m.setTargetCount(500);
+                        m.setExpiresAt(Instant.now().minusSeconds(60));
+                        givenCommunity(m);
+
+                        service.onScoreSubmitted(new ScoreSubmittedEvent(score(true)));
+
+                        verify(contributionRepository, never()).acceptContribution(any(), anyLong(), anyDouble(),
+                                        any(), any());
                 }
         }
 }

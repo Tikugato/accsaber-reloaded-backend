@@ -41,7 +41,7 @@ public class UserMission {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id")
     private User user;
 
     @ManyToOne(fetch = FetchType.EAGER)
@@ -133,4 +133,8 @@ public class UserMission {
 
     @Column(name = "completed_at")
     private Instant completedAt;
+
+    public boolean isCommunity() {
+        return pool == MissionPool.community;
+    }
 }

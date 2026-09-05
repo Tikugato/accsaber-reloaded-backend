@@ -48,6 +48,7 @@ public class SecurityConfig {
             "/v1/levels",
             "/v1/campaigns",
             "/v1/events",
+            "/v1/missions",
             "/v1/items",
             "/v1/item-types",
             "/v1/item-modifiers",
@@ -146,6 +147,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/v1/levels/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/campaigns/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/events/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/v1/missions/community", "/v1/missions/community/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/crates/*/contents", "/v1/crates/*/modifiers", "/v1/crates/*/unusual-effects").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/item-types", "/v1/item-modifiers", "/v1/unusual-effects", "/v1/unusual-effects/grouped", "/v1/items", "/v1/items/*", "/v1/items/*/holders").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/market/listings", "/v1/market/listings/*", "/v1/market/listings/*/bids").permitAll()

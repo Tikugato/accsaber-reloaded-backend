@@ -21,6 +21,7 @@ import com.accsaber.backend.model.dto.response.mission.MissionTemplateResponse;
 import com.accsaber.backend.model.dto.response.mission.MissionResponse;
 import com.accsaber.backend.model.entity.mission.MissionPool;
 import com.accsaber.backend.model.entity.mission.UserMission;
+import com.accsaber.backend.service.mission.CommunityMissionService;
 import com.accsaber.backend.service.mission.MissionAssignmentService;
 import com.accsaber.backend.service.mission.MissionQueryService;
 import com.accsaber.backend.service.mission.MissionTemplateService;
@@ -40,6 +41,7 @@ public class AdminMissionController {
     private final MissionTemplateService templateService;
     private final MissionAssignmentService assignmentService;
     private final MissionQueryService queryService;
+    private final CommunityMissionService communityMissionService;
 
     @Operation(summary = "List all mission templates")
     @GetMapping("/templates")
@@ -97,6 +99,15 @@ public class AdminMissionController {
         return pool == null
                 ? queryService.listActive(userId)
                 : queryService.listActiveByPool(userId, pool);
+    }
+
+    @Operation(summary = "Open any community missions whose window is already running",
+            description = "Community missions open on their own every hour, so this only exists to skip that wait after "
+                    + "creating or editing a template. Safe to call repeatedly: it opens nothing that is already open, "
+                    + "still closed, or past its completion cap. Returns how many it opened.")
+    @PostMapping("/community/open")
+    public ResponseEntity<Integer> openCommunityMissions() {
+        return ResponseEntity.ok(communityMissionService.openMissing());
     }
 
     @Operation(summary = "Force a fresh mission rollout for ALL eligible users",

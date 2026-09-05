@@ -143,9 +143,7 @@ public class MissionAssignmentService {
 
     @Transactional
     public List<UserMission> regenerateForUser(Long userId, MissionPool pool) {
-        if (pool == MissionPool.event) {
-            throw new ValidationException("pool", "event missions are managed via the event endpoints");
-        }
+        assertRollable(pool);
         MissionPoolCache cache = loadPoolCache();
         if (pool == null) {
             userMissionRepository.deleteActiveForUserAndPool(userId, MissionPool.daily);
@@ -160,10 +158,17 @@ public class MissionAssignmentService {
     }
 
     public void rolloutPool(MissionPool pool, boolean freshSeed) {
+        assertRollable(pool);
+        purgeAndRollPool(pool, freshSeed);
+    }
+
+    private void assertRollable(MissionPool pool) {
         if (pool == MissionPool.event) {
             throw new ValidationException("pool", "event missions are managed via the event endpoints");
         }
-        purgeAndRollPool(pool, freshSeed);
+        if (pool == MissionPool.community) {
+            throw new ValidationException("pool", "community missions are not assigned per user");
+        }
     }
 
     private boolean hasCurrentCycle(Long userId, MissionPool pool) {
@@ -212,7 +217,7 @@ public class MissionAssignmentService {
         return switch (pool) {
             case daily -> assignDaily(ctx, cache, freshSeed);
             case weekly -> assignWeekly(ctx, cache, freshSeed);
-            case event -> List.of();
+            case event, community -> List.of();
         };
     }
 

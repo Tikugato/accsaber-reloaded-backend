@@ -18,4 +18,7 @@ public interface UserEventProfileRepository extends JpaRepository<UserEventProfi
 
     @Query("SELECT p.user.id FROM UserEventProfile p WHERE p.event.id = :eventId")
     List<Long> findUserIdsByEvent(@Param("eventId") UUID eventId);
+
+    @Query("SELECT p.event.id FROM UserEventProfile p WHERE p.user.id = :userId")
+    List<UUID> findEventIdsByUser(@Param("userId") Long userId);
 }

@@ -76,13 +76,15 @@ It deliberately does not cover the other two things that make Marathon cheap: no
 
 ### Triggers
 
-`MissionType` carries a `MissionTrigger` (`SCORE` or `CAMPAIGN`). `MissionProgressService.openMissionsFor(userId, trigger)` filters by it before dispatch, so each listener only ever sees missions it can evaluate. The score switch throws `IllegalStateException` on a non-SCORE type rather than returning false - it's unreachable by construction, and a throw fails loudly if the filter ever regresses instead of silently never completing. Adding a new type is still a compile error in both switches, plus the two progress-display switches in `MissionResponse`.
+`MissionType` carries a `MissionTrigger` (`SCORE` or `CAMPAIGN`). `MissionProgressService.openMissionsFor(userId, trigger)` filters by it before dispatch, so each listener only ever sees missions it can evaluate. The score switch throws `IllegalStateException` on a non-SCORE type rather than returning false - it's unreachable by construction, and a throw fails loudly if the filter ever regresses instead of silently never completing. Adding a new type is still a compile error in both switches, and in `MissionType`'s own constructor, which is where the progress axis below gets declared.
 - **COMEBACK_PB** - random active score older than a year. No target AP, because completion is `evalPbSpecificMap`, which only wants a new PB on that map, so the build skips the map pool, the curve math and every cap. The band comes off `rawApForOneGain` (under 600 easy, under 950 medium, above that hard) and only decides XP. Its template description has no `{ap}` placeholder, so nothing renders a missing number.
 - **SCORES_N** - always re-bands to easy or medium, XP scaled by `0.5 + 0.5 * count`.
 
 ### Progress display
 
-Every accumulating type banks into a *different* pair of columns - `progressCount`/`targetCount` for the count types, `progressCount`/`targetXp` for `XP_IN_WINDOW`, `progressAp`/`targetAp` for `AP_GAIN_OVERALL` - so a client that binds a bar to `progressCount / targetCount` silently renders nothing for the other two. `MissionResponse.progressValue` / `targetValue` are the normalised pair to bind to: same numbers, one field, resolved per type by two exhaustive switches in `MissionResponse`. The raw columns stay on the DTO, so nothing that already reads them breaks.
+Every accumulating type banks into a *different* pair of columns - `progressCount`/`targetCount` for the count types, `progressCount`/`targetXp` for `XP_IN_WINDOW`, `progressAp`/`targetAp` for `AP_GAIN_OVERALL` - so a client that binds a bar to `progressCount / targetCount` silently renders nothing for the other two. `MissionResponse.progressValue` / `targetValue` are the normalised pair to bind to: same numbers, one field. Which pair a type uses is declared once on the type itself as a `MissionProgressAxis` (`COUNT`, `XP`, `AP`, `BINARY`), so there is no per-type switch to keep in sync any more. The raw columns stay on the DTO, so nothing that already reads them breaks.
+
+That axis is also what lets one banking path serve both personal and community missions. `evaluate` returns **how much** a score contributed rather than a boolean, and the caller decides where to put it: `bankPersonal` writes it onto the entity, `contribute` sends it to the shared community row.
 
 Binary types (`ACC_ON_MAP`, `AP_ON_MAP`, `PB_SPECIFIC_MAP`, `COMEBACK_PB`, `SNIPE_PLAYER_ON_MAP`, `STREAK_ON_MAP`) complete off a single score and accumulate nothing, so both fields are null - that's the signal to draw no bar, not a bug. On a template response (`fromTemplate`, i.e. a locked or not-yet-started mission) only `targetValue` is populated; treat the missing `progressValue` as 0.
 
@@ -107,7 +109,7 @@ Everything from `skillAnchored` down lives in `cappedTargetForPick`, which ACC_O
 | `target = blendSkillAndMapTarget` | 30% skill / 70% map | map weight dominates so weak maps don't get inflated targets |
 | `target = max(target, skillAnchored * skillFloorFraction(band))` | floor: don't go below skill anchor by too much | fractions 0.935 / 0.95 / 0.965 / 0.975 |
 | `target = max(target, bandLiftedFloorAp(existing, complexity, band))` | only if user has a score | ensures PB missions actually beat the existing PB |
-| `target = capExtremeAtTopAp(target, band, skill, skillLevel)` | hard ceiling vs topAp | factors 0.96 / 0.97 / 0.98 / 1.005; for skill < 70 the easy/medium/hard factors get a smoothstep nerf (up to ~7% at skill 0) so a 46-skill player doesn't get told to score 98% of their topAp on a hard map. Extreme is exempt — it should stay the only band that stretches past topAp |
+| `target = capExtremeAtTopAp(target, band, skill, skillLevel)` | hard ceiling vs topAp | factors 0.96 / 0.97 / 0.98 / 1.005; for skill < 70 the easy/medium/hard factors get a smoothstep nerf (up to ~7% at skill 0) so a 46-skill player doesn't get told to score 98% of their topAp on a hard map. Extreme is exempt - it should stay the only band that stretches past topAp |
 | `target = capAtMapRealisticCeiling(...)` | skill-aware fraction of map WR | prevents "beat the WR" assignments |
 | `target = applyLeaderboardDensityDampener(...)` | drop if the top of the leaderboard is too dense | only fires on hard/extreme |
 | `target = applyComplexityAwareScoreTargetCap(...)` | ceiling from how you actually accuracy at this complexity | compares in normalized space (`ap / (complexity - shift)`) and multiplies back out by the picked map's own complexity, so it does not care where in the band the map sits; band multipliers 1.03 / 1.06 / 1.10 / 1.15. Sample is your top scores in the map's 3-wide complexity band, 5 minimum, otherwise a category-wide normalized sample. Sampled once per band per user, memoized on `MissionAssignmentContext` alongside `complexityBandAbility` |
@@ -196,5 +198,36 @@ For a known player, dump:
    - extreme: 0.97-1.005 (exempt from the skill nerf, same at any skill)
 
 If extreme is consistently coming out below 0.95, the density dampener or `minMeaningfulTarget` is rejecting the strong candidates and falling back to a soft one - check the `LAST_FAIL_REASON` distribution before tweaking any constant
+
+---
+
+## 4. Community missions
+
+A community mission is one the whole playerbase chips away at together. There is exactly one row for it, in `user_missions`, with `user_id` null, and everybody's plays land on that same row. `pool = 'community'`; whether it belongs to an event is just `mission_templates.event_id`, same as it has always been, so there is no second enum value for "community event mission".
+
+Targets are fixed in `event_targets` like event missions, so none of the band/skill/map-pick pipeline above runs. `MissionBuilderService` never sees these.
+
+### The bit you must not break
+
+Every player submitting a score hits the same row, so the shared counter is bumped by a native atomic `progress_count = progress_count + :n`. **Never touch it through JPA.** Two concurrent submissions doing read-modify-write on a managed entity silently lose one of the increments, and nothing would ever tell you. `contribute()` deliberately calls no setter on the shared mission.
+
+Completion is claimed by a conditional native UPDATE that only fires when the row is still active and already past its target. Whichever transaction gets the 1 back owns the payout and publishes `CommunityMissionCompletedEvent`. Everyone else gets 0 and does nothing, so the reward fan-out happens once even under a pile-up.
+
+### Contributions are the authority, the bar is not
+
+`community_mission_contributions` holds one row per player per mission. `acceptContribution` is a single statement that snapshots the prior value in a CTE, upserts with `LEAST(..., COALESCE(cap, ...))`, and returns **the accepted delta**. That delta is what gets banked, which is what keeps the bar equal to the sum of contributions even when a cap clips someone. `CommunityContributionQueryTest` pins this against a real Postgres, so run it if you go near that SQL.
+
+Per-player cap is `event_targets.maxPerUser`, null meaning uncapped. BINARY types are hard-capped at 1 in code whatever the template says, which is what turns "get 95% on this map" into "500 different players get 95% on this map" instead of one person replaying it.
+
+### Who gets paid
+
+Every contributor, XP and item both. `CommunityMissionService.payRewards` walks them in `first_at` order because level and milestone reward items are serialized and serials go out in grant order. It pages, gives each player their own transaction, and stamps `rewarded_at` before awarding, so a crash mid-payout resumes instead of double-paying. The hourly sweep retries anyone still unpaid and opens missions whose window has come round.
+
+### Two things that are deliberate
+
+- **Community missions never gate event week progression or the event bonus.** `recomputeProgression` and `ensureAssignments` skip them. If they counted, one community goal the playerbase never finished would strand everyone below the next week forever.
+- **Event-scoped ones only take plays from people who joined the event**, checked per score against the player's `UserEventProfile` set (memoised on `EvalContext`). Week scoping is the template's own `unlocks_at` / `completable_until`, so it is wall-clock, not the player's `unlockedWeek`.
+
+The XP rebuild reads community reward XP from the contributions table, not the shared row, and the plain `user_missions` branch filters `user_id IS NOT NULL` so the shared row never gets summed into anybody's total. `rebuildXpTotals` and `findXpTimeline` both had to learn this, keep them in step.
 
 Okay thanks bye

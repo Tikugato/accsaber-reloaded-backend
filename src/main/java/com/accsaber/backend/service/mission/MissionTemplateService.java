@@ -81,7 +81,7 @@ public class MissionTemplateService {
             builder.bandHard(req.getBandHard());
         MissionTemplate template = builder.build();
         applyEventFields(template, req);
-        validateEventConsistency(template);
+        validateScheduling(template);
         return templateRepository.save(template);
     }
 
@@ -124,7 +124,7 @@ public class MissionTemplateService {
         if (req.getActive() != null)
             template.setActive(req.getActive());
         applyEventFields(template, req);
-        validateEventConsistency(template);
+        validateScheduling(template);
         return templateRepository.save(template);
     }
 
@@ -174,18 +174,29 @@ public class MissionTemplateService {
                 throw new ResourceNotFoundException("User", playerId);
             }
         }
+        if (targets.maxPerUser() != null && targets.maxPerUser() < 1) {
+            throw new ValidationException("targets.maxPerUser", "must be at least 1");
+        }
     }
 
-    private void validateEventConsistency(MissionTemplate template) {
+    private void validateScheduling(MissionTemplate template) {
         Event event = template.getEvent();
         if (event == null) {
             if (template.getPool() == MissionPool.event) {
                 throw new ValidationException("eventId", "required for event pool templates");
             }
+            if (template.isCommunity() && template.getCompletableUntil() == null) {
+                throw new ValidationException("completableUntil",
+                        "required for community templates that are not tied to an event");
+            }
+            if (template.isCommunity() && template.getUnlocksAt() != null
+                    && !template.getCompletableUntil().isAfter(template.getUnlocksAt())) {
+                throw new ValidationException("completableUntil", "must be after the unlock");
+            }
             return;
         }
-        if (template.getPool() != MissionPool.event) {
-            throw new ValidationException("pool", "must be event when eventId is set");
+        if (template.getPool() != MissionPool.event && !template.isCommunity()) {
+            throw new ValidationException("pool", "must be event or community when eventId is set");
         }
         if (template.getUnlocksAt() != null
                 && (template.getUnlocksAt().isBefore(event.getStartsAt())

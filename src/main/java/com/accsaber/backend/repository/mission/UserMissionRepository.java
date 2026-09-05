@@ -2,6 +2,7 @@ package com.accsaber.backend.repository.mission;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -122,11 +123,88 @@ public interface UserMissionRepository extends JpaRepository<UserMission, UUID> 
         @Query("""
                         UPDATE UserMission m
                         SET m.status = com.accsaber.backend.model.entity.mission.MissionStatus.expired
-                        WHERE m.pool = com.accsaber.backend.model.entity.mission.MissionPool.event
+                        WHERE m.pool IN (com.accsaber.backend.model.entity.mission.MissionPool.event,
+                                         com.accsaber.backend.model.entity.mission.MissionPool.community)
                           AND m.status = com.accsaber.backend.model.entity.mission.MissionStatus.active
                           AND m.expiresAt < :now
                         """)
-        int expireEventMissions(@Param("now") Instant now);
+        int expireOutOfWindowMissions(@Param("now") Instant now);
+
+        @Query("""
+                        SELECT m FROM UserMission m
+                        JOIN FETCH m.template t
+                        LEFT JOIN FETCH t.event
+                        LEFT JOIN FETCH m.category
+                        LEFT JOIN FETCH m.targetMapDifficulty d
+                        LEFT JOIN FETCH d.map
+                        LEFT JOIN FETCH m.targetPlayer
+                        LEFT JOIN FETCH m.itemReward ir
+                        LEFT JOIN FETCH ir.type
+                        WHERE m.pool = com.accsaber.backend.model.entity.mission.MissionPool.community
+                          AND m.status = com.accsaber.backend.model.entity.mission.MissionStatus.active
+                        """)
+        List<UserMission> findActiveCommunity();
+
+        @Query("""
+                        SELECT m FROM UserMission m
+                        JOIN FETCH m.template t
+                        LEFT JOIN FETCH t.event
+                        LEFT JOIN FETCH m.category
+                        LEFT JOIN FETCH m.targetMapDifficulty d
+                        LEFT JOIN FETCH d.map
+                        LEFT JOIN FETCH m.targetPlayer
+                        LEFT JOIN FETCH m.itemReward ir
+                        LEFT JOIN FETCH ir.type
+                        WHERE m.pool = com.accsaber.backend.model.entity.mission.MissionPool.community
+                          AND (:eventId IS NULL OR t.event.id = :eventId)
+                          AND (:activeOnly = false
+                               OR m.status = com.accsaber.backend.model.entity.mission.MissionStatus.active)
+                        ORDER BY m.assignedAt ASC
+                        """)
+        List<UserMission> findCommunity(@Param("eventId") UUID eventId,
+                        @Param("activeOnly") boolean activeOnly);
+
+        @Query("""
+                        SELECT m FROM UserMission m
+                        JOIN FETCH m.template t
+                        LEFT JOIN FETCH t.event
+                        LEFT JOIN FETCH m.itemReward ir
+                        LEFT JOIN FETCH ir.type
+                        WHERE m.id = :id
+                          AND m.pool = com.accsaber.backend.model.entity.mission.MissionPool.community
+                        """)
+        Optional<UserMission> findCommunityById(@Param("id") UUID id);
+
+        @Query("""
+                        SELECT m.template.id FROM UserMission m
+                        WHERE m.pool = com.accsaber.backend.model.entity.mission.MissionPool.community
+                          AND m.status = com.accsaber.backend.model.entity.mission.MissionStatus.active
+                        """)
+        List<UUID> findTemplateIdsWithActiveCommunityMission();
+
+        @Modifying
+        @Query(value = """
+                        UPDATE user_missions
+                        SET progress_count = progress_count + :count,
+                            progress_ap    = progress_ap + :ap
+                        WHERE id = :id
+                          AND user_id IS NULL
+                          AND status = 'active'
+                        """, nativeQuery = true)
+        int bankCommunityProgress(@Param("id") UUID id, @Param("count") int count, @Param("ap") double ap);
+
+        @Modifying
+        @Query(value = """
+                        UPDATE user_missions
+                        SET status = 'completed', completed_at = :now
+                        WHERE id = :id
+                          AND user_id IS NULL
+                          AND status = 'active'
+                          AND ((target_count IS NOT NULL AND progress_count >= target_count)
+                            OR (target_xp    IS NOT NULL AND progress_count >= target_xp)
+                            OR (target_ap    IS NOT NULL AND progress_ap    >= target_ap))
+                        """, nativeQuery = true)
+        int claimCommunityCompletion(@Param("id") UUID id, @Param("now") Instant now);
 
         @Query(value = """
                         SELECT COALESCE(SUM(xp_reward), 0)
@@ -138,6 +216,8 @@ public interface UserMissionRepository extends JpaRepository<UserMission, UUID> 
         double sumMissionXpGainedLast24h(@Param("userId") Long userId);
 
         long countByUser_IdAndTemplate_IdAndStatus(Long userId, UUID templateId, MissionStatus status);
+
+        long countByTemplate_IdAndUserIsNullAndStatus(UUID templateId, MissionStatus status);
 
         interface TemplateStatusView {
                 UUID getTemplateId();

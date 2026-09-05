@@ -66,6 +66,10 @@ class EventMissionServiceTest {
         @Mock
         private ItemService itemService;
         @Mock
+        private MissionRowFactory missionRowFactory;
+        @Mock
+        private CommunityContextLoader communityContextLoader;
+        @Mock
         private org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
         @InjectMocks
@@ -99,6 +103,11 @@ class EventMissionServiceTest {
                                 .thenReturn(Optional.of(profile));
                 lenient().when(userRepository.getReferenceById(USER_ID))
                                 .thenReturn(User.builder().id(USER_ID).build());
+                MissionRowFactory realFactory = new MissionRowFactory(userRepository, categoryRepository,
+                                mapDifficultyRepository);
+                lenient().when(missionRowFactory.build(anyLong(), any(), any()))
+                                .thenAnswer(call -> realFactory.build(call.getArgument(0), call.getArgument(1),
+                                                call.getArgument(2)));
         }
 
         private MissionTemplate template(MissionType type, boolean isRepeatable) {

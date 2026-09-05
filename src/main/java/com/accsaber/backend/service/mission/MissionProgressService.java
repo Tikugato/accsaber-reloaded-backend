@@ -2,9 +2,9 @@ package com.accsaber.backend.service.mission;
 
 import com.accsaber.backend.util.Rounding;
 
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -25,7 +25,9 @@ import com.accsaber.backend.model.entity.campaign.CampaignStatus;
 import com.accsaber.backend.model.entity.item.ItemSource;
 import com.accsaber.backend.model.entity.map.Batch;
 import com.accsaber.backend.model.entity.map.BatchStatus;
+import com.accsaber.backend.model.entity.mission.Event;
 import com.accsaber.backend.model.entity.mission.MissionPool;
+import com.accsaber.backend.model.entity.mission.MissionProgressAxis;
 import com.accsaber.backend.model.entity.mission.MissionStatus;
 import com.accsaber.backend.model.entity.mission.MissionTrigger;
 import com.accsaber.backend.model.entity.mission.MissionType;
@@ -34,10 +36,13 @@ import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.model.entity.user.UserRelationType;
 import com.accsaber.backend.model.event.CampaignCompletedEvent;
+import com.accsaber.backend.model.event.CommunityMissionCompletedEvent;
 import com.accsaber.backend.model.event.MissionCompletedEvent;
 import com.accsaber.backend.model.event.ScoreSubmittedEvent;
 import com.accsaber.backend.repository.map.BatchRepository;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
+import com.accsaber.backend.repository.mission.CommunityMissionContributionRepository;
+import com.accsaber.backend.repository.mission.UserEventProfileRepository;
 import com.accsaber.backend.repository.mission.UserMissionRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
 import com.accsaber.backend.repository.user.UserCategoryStatisticsRepository;
@@ -57,6 +62,8 @@ public class MissionProgressService {
     private static final String OVERALL_CODE = "overall";
 
     private final UserMissionRepository userMissionRepository;
+    private final CommunityMissionContributionRepository contributionRepository;
+    private final UserEventProfileRepository eventProfileRepository;
     private final ScoreRepository scoreRepository;
     private final LevelUpAwardService levelUpAwardService;
     private final ItemService itemService;
@@ -89,13 +96,17 @@ public class MissionProgressService {
         if (!missionsEnabled) {
             return;
         }
+        EvalContext ctx = new EvalContext(event.userId());
+        Instant completedAt = event.completedAt() != null ? event.completedAt() : Instant.now();
         for (UserMission mission : openMissionsFor(event.userId(), MissionTrigger.CAMPAIGN)) {
             if (mission.getStatus() != MissionStatus.active)
                 continue;
-            if (evalCampaignComplete(mission, event)) {
-                completeMission(mission, event.userId(),
-                        event.completedAt() != null ? event.completedAt() : Instant.now());
+            if (bankPersonal(mission, evalCampaignComplete(mission, event))) {
+                completeMission(mission, event.userId(), completedAt);
             }
+        }
+        for (UserMission mission : communityMissionsFor(MissionTrigger.CAMPAIGN, ctx)) {
+            contribute(mission, event.userId(), evalCampaignComplete(mission, event));
         }
     }
 
@@ -108,6 +119,19 @@ public class MissionProgressService {
                 .toList();
     }
 
+    private List<UserMission> communityMissionsFor(MissionTrigger trigger, EvalContext ctx) {
+        List<UserMission> open = userMissionRepository.findActiveCommunity();
+        if (open.isEmpty()) {
+            return List.of();
+        }
+        Instant now = Instant.now();
+        return open.stream()
+                .filter(m -> m.getExpiresAt() == null || !m.getExpiresAt().isBefore(now))
+                .filter(m -> m.getTemplate().getType().getTrigger() == trigger)
+                .filter(m -> ctx.participatesIn(m.getTemplate().getEvent()))
+                .toList();
+    }
+
     private void evaluateAllForUser(Long userId, ScoreResponse latestScore) {
         EvalContext ctx = new EvalContext(userId);
         for (UserMission mission : openMissionsFor(userId, MissionTrigger.SCORE)) {
@@ -115,11 +139,64 @@ public class MissionProgressService {
                 continue;
             if (!isCreditable(mission, latestScore))
                 continue;
-            if (evaluate(mission, latestScore, ctx)) {
+            if (bankPersonal(mission, evaluate(mission, latestScore, ctx))) {
                 completeMission(mission, userId,
                         latestScore.getTimeSet() != null ? latestScore.getTimeSet() : Instant.now());
             }
         }
+        for (UserMission mission : communityMissionsFor(MissionTrigger.SCORE, ctx)) {
+            if (!isCreditable(mission, latestScore))
+                continue;
+            contribute(mission, userId, evaluate(mission, latestScore, ctx));
+        }
+    }
+
+    private boolean bankPersonal(UserMission mission, double contribution) {
+        if (contribution <= 0) {
+            return false;
+        }
+        return switch (mission.getTemplate().getType().getAxis()) {
+            case BINARY -> true;
+            case AP -> {
+                mission.setProgressAp(mission.getProgressAp() + contribution);
+                yield mission.getTargetAp() != null && mission.getProgressAp() >= mission.getTargetAp();
+            }
+            case XP -> {
+                mission.setProgressCount(mission.getProgressCount() + (int) contribution);
+                yield mission.getTargetXp() != null && mission.getProgressCount() >= mission.getTargetXp();
+            }
+            case COUNT -> {
+                mission.setProgressCount(mission.getProgressCount() + (int) contribution);
+                yield mission.getTargetCount() != null && mission.getProgressCount() >= mission.getTargetCount();
+            }
+        };
+    }
+
+    private void contribute(UserMission mission, Long userId, double contribution) {
+        if (contribution <= 0) {
+            return;
+        }
+        Instant now = Instant.now();
+        double accepted = contributionRepository.acceptContribution(
+                mission.getId(), userId, contribution, contributionCap(mission), now);
+        if (accepted <= 0) {
+            return;
+        }
+        boolean banksAp = mission.getTemplate().getType().getAxis() == MissionProgressAxis.AP;
+        userMissionRepository.bankCommunityProgress(mission.getId(),
+                banksAp ? 0 : (int) accepted, banksAp ? accepted : 0.0);
+        if (userMissionRepository.claimCommunityCompletion(mission.getId(), now) == 1) {
+            eventPublisher.publishEvent(new CommunityMissionCompletedEvent(mission.getId()));
+        }
+    }
+
+    private Double contributionCap(UserMission mission) {
+        if (mission.getTemplate().getType().getAxis() == MissionProgressAxis.BINARY) {
+            return 1.0;
+        }
+        EventMissionTargets targets = mission.getTemplate().getEventTargets();
+        Integer maxPerUser = targets != null ? targets.maxPerUser() : null;
+        return maxPerUser != null ? maxPerUser.doubleValue() : null;
     }
 
     private boolean isCreditable(UserMission mission, ScoreResponse score) {
@@ -130,64 +207,62 @@ public class MissionProgressService {
         return !score.isPartial() && !modifierCacheService.containsNoFail(score.getModifierIds());
     }
 
-    private boolean evalCampaignComplete(UserMission mission, CampaignCompletedEvent event) {
+    private double evalCampaignComplete(UserMission mission, CampaignCompletedEvent event) {
         if (Boolean.TRUE.equals(mission.getTargetCuratedOnly())
                 && event.campaignStatus() != CampaignStatus.CURATED) {
-            return false;
+            return 0;
         }
-        return addProgress(mission, 1);
+        return 1;
     }
 
-    private boolean evalSnipeRivalAnyMap(UserMission mission, ScoreResponse score, EvalContext ctx) {
+    private double evalSnipeRivalAnyMap(UserMission mission, ScoreResponse score, EvalContext ctx) {
         if (!matchesCategoryScope(mission, score))
-            return false;
+            return 0;
         if (!score.isActive() || score.getScore() == null)
-            return false;
+            return 0;
         List<Long> rivalIds = ctx.rivals();
         if (rivalIds.isEmpty())
-            return false;
+            return 0;
         if (!scoreRepository.existsRivalScoreBelow(score.getMapDifficultyId(), rivalIds, score.getScore()))
-            return false;
-        return addProgress(mission, 1);
+            return 0;
+        return 1;
     }
 
-    private boolean evalApGainOverall(UserMission mission, ScoreResponse score, EvalContext ctx) {
-        if (!score.isActive() || mission.getTargetAp() == null)
-            return false;
+    private double evalApGainOverall(ScoreResponse score, EvalContext ctx) {
+        if (!score.isActive())
+            return 0;
         Double gained = statisticsRepository
                 .findActiveApGainOverPrevious(ctx.userId, OVERALL_CODE)
                 .orElse(0.0);
-        if (Math.signum(gained) <= 0)
-            return false;
-        mission.setProgressAp((mission.getProgressAp() + gained));
-        return (mission.getProgressAp() >= mission.getTargetAp());
+        return Math.signum(gained) > 0 ? gained : 0;
     }
 
-    private boolean evalBatchPlayN(UserMission mission, ScoreResponse score, EvalContext ctx) {
+    private double evalBatchPlayN(UserMission mission, ScoreResponse score, EvalContext ctx) {
         if (!matchesCategoryScope(mission, score))
-            return false;
+            return 0;
         UUID latestBatchId = ctx.latestReleasedBatchId();
         if (latestBatchId == null)
-            return false;
+            return 0;
         if (!mapDifficultyRepository.existsByIdAndBatch_Id(score.getMapDifficultyId(), latestBatchId))
-            return false;
-        return addProgress(mission, 1);
+            return 0;
+        return 1;
     }
 
-    private boolean evalPbRankedBefore(UserMission mission, ScoreResponse score) {
+    private double evalPbRankedBefore(UserMission mission, ScoreResponse score) {
         if (!matchesCategoryScope(mission, score))
-            return false;
+            return 0;
         if (!score.isActive() || mission.getTargetRankedBefore() == null)
-            return false;
+            return 0;
         if (!mapDifficultyRepository.existsByIdAndRankedAtBefore(score.getMapDifficultyId(),
                 mission.getTargetRankedBefore()))
-            return false;
-        return addProgress(mission, 1);
+            return 0;
+        return 1;
     }
 
     private final class EvalContext {
         private final Long userId;
         private List<Long> rivals;
+        private Set<UUID> begunEventIds;
         private UUID latestReleasedBatchId;
         private boolean latestReleasedBatchResolved;
 
@@ -203,6 +278,16 @@ public class MissionProgressService {
             return rivals;
         }
 
+        private boolean participatesIn(Event event) {
+            if (event == null) {
+                return true;
+            }
+            if (begunEventIds == null) {
+                begunEventIds = Set.copyOf(eventProfileRepository.findEventIdsByUser(userId));
+            }
+            return begunEventIds.contains(event.getId());
+        }
+
         private UUID latestReleasedBatchId() {
             if (!latestReleasedBatchResolved) {
                 latestReleasedBatchId = batchRepository
@@ -214,13 +299,13 @@ public class MissionProgressService {
         }
     }
 
-    private boolean evaluate(UserMission mission, ScoreResponse score, EvalContext ctx) {
+    private double evaluate(UserMission mission, ScoreResponse score, EvalContext ctx) {
         MissionType type = mission.getTemplate().getType();
         return switch (type) {
             case CAMPAIGN_COMPLETE_N -> throw new IllegalStateException(
                     "Non-score-triggered mission type reached score evaluation: " + type);
             case SNIPE_RIVAL_ANY_MAP -> evalSnipeRivalAnyMap(mission, score, ctx);
-            case AP_GAIN_OVERALL -> evalApGainOverall(mission, score, ctx);
+            case AP_GAIN_OVERALL -> evalApGainOverall(score, ctx);
             case BATCH_PLAY_N -> evalBatchPlayN(mission, score, ctx);
             case PB_RANKED_BEFORE_N -> evalPbRankedBefore(mission, score);
             case PLAY_N_MAPS -> evalPlayN(mission, score);
@@ -238,46 +323,41 @@ public class MissionProgressService {
         };
     }
 
-    private boolean evalScoresN(UserMission mission, ScoreResponse score) {
+    private double evalScoresN(UserMission mission, ScoreResponse score) {
         if (!score.isActive())
-            return false;
+            return 0;
         if (!matchesCategoryScope(mission, score))
-            return false;
-        return addProgress(mission, 1);
+            return 0;
+        return 1;
     }
 
-    private boolean evalStreakNInCategory(UserMission mission, ScoreResponse score) {
+    private double evalStreakNInCategory(UserMission mission, ScoreResponse score) {
         if (!matchesCategoryScope(mission, score))
-            return false;
+            return 0;
         if (mission.getTargetStreak() == null)
-            return false;
+            return 0;
         Integer streak = score.getStreak115();
         if (streak == null || streak < mission.getTargetStreak())
-            return false;
-        return addProgress(mission, 1);
+            return 0;
+        return 1;
     }
 
-    private boolean evalStreakSum(UserMission mission, ScoreResponse score) {
+    private double evalStreakSum(UserMission mission, ScoreResponse score) {
         if (!matchesCategoryScope(mission, score))
-            return false;
+            return 0;
         Integer streak = score.getStreak115();
         if (streak == null || streak <= 0)
-            return false;
-        return addProgress(mission, streak);
+            return 0;
+        return streak;
     }
 
-    private boolean addProgress(UserMission mission, int amount) {
-        mission.setProgressCount(mission.getProgressCount() + amount);
-        return mission.getTargetCount() != null && mission.getProgressCount() >= mission.getTargetCount();
-    }
-
-    private boolean evalStreakOnMap(UserMission mission, ScoreResponse score) {
+    private double evalStreakOnMap(UserMission mission, ScoreResponse score) {
         if (!matchesTargetMap(mission, score))
-            return false;
+            return 0;
         if (mission.getTargetStreak() == null)
-            return false;
+            return 0;
         Integer streak = score.getStreak115();
-        return streak != null && streak >= mission.getTargetStreak();
+        return streak != null && streak >= mission.getTargetStreak() ? 1 : 0;
     }
 
     private boolean matchesCategoryScope(UserMission mission, ScoreResponse score) {
@@ -288,73 +368,72 @@ public class MissionProgressService {
         return mission.getCategory().getId().equals(score.getCategoryId());
     }
 
-    private boolean evalPlayN(UserMission mission, ScoreResponse score) {
-        if (!matchesCategoryScope(mission, score))
-            return false;
-        return addProgress(mission, 1);
+    private double evalPlayN(UserMission mission, ScoreResponse score) {
+        return matchesCategoryScope(mission, score) ? 1 : 0;
     }
 
-    private boolean evalXpWindow(UserMission mission, ScoreResponse score) {
+    private double evalXpWindow(UserMission mission, ScoreResponse score) {
         if (!matchesCategoryScope(mission, score))
-            return false;
+            return 0;
         if (score.getXpGained() == null)
-            return false;
-        int gained = (int) (Rounding.round(score.getXpGained(), 0));
-        mission.setProgressCount(mission.getProgressCount() + gained);
-        return mission.getTargetXp() != null && mission.getProgressCount() >= mission.getTargetXp();
+            return 0;
+        return Rounding.round(score.getXpGained(), 0);
     }
 
-    private boolean evalAccOnMap(UserMission mission, ScoreResponse score) {
+    private double evalAccOnMap(UserMission mission, ScoreResponse score) {
         if (!matchesTargetMap(mission, score))
-            return false;
+            return 0;
         if (!score.isActive())
-            return false;
-        return score.getAccuracy() != null && mission.getTargetAcc() != null
+            return 0;
+        boolean met = score.getAccuracy() != null && mission.getTargetAcc() != null
                 && displayedAcc(score.getAccuracy()).compareTo(displayedAcc(mission.getTargetAcc())) >= 0;
+        return met ? 1 : 0;
     }
 
     private static Double displayedAcc(Double acc) {
         return Rounding.round(acc, 4);
     }
 
-    private boolean evalApOnMap(UserMission mission, ScoreResponse score) {
+    private double evalApOnMap(UserMission mission, ScoreResponse score) {
         if (!matchesTargetMap(mission, score))
-            return false;
+            return 0;
         if (!score.isActive())
-            return false;
-        return score.getAp() != null && mission.getTargetAp() != null
+            return 0;
+        boolean met = score.getAp() != null && mission.getTargetAp() != null
                 && score.getAp().compareTo(mission.getTargetAp()) >= 0;
+        return met ? 1 : 0;
     }
 
-    private boolean evalPbSpecificMap(UserMission mission, ScoreResponse score) {
+    private double evalPbSpecificMap(UserMission mission, ScoreResponse score) {
         if (!matchesTargetMap(mission, score))
-            return false;
-        return score.isActive();
+            return 0;
+        return score.isActive() ? 1 : 0;
     }
 
-    private boolean evalPbAboveThreshold(UserMission mission, ScoreResponse score) {
+    private double evalPbAboveThreshold(UserMission mission, ScoreResponse score) {
         if (!matchesCategoryScope(mission, score))
-            return false;
+            return 0;
         if (!score.isActive() || score.getAp() == null || mission.getTargetThresholdAp() == null)
-            return false;
+            return 0;
         Score newScore = scoreRepository.findById(score.getId()).orElse(null);
         if (newScore == null || newScore.getSupersedes() == null)
-            return false;
+            return 0;
         Double priorAp = newScore.getSupersedes().getAp();
         if (priorAp == null || priorAp.compareTo(mission.getTargetThresholdAp()) < 0)
-            return false;
+            return 0;
         if (score.getAp().compareTo(priorAp) <= 0)
-            return false;
-        return addProgress(mission, 1);
+            return 0;
+        return 1;
     }
 
-    private boolean evalSnipe(UserMission mission, ScoreResponse score) {
+    private double evalSnipe(UserMission mission, ScoreResponse score) {
         if (!matchesTargetMap(mission, score))
-            return false;
+            return 0;
         if (!score.isActive())
-            return false;
-        return score.getScore() != null && mission.getTargetScore() != null
+            return 0;
+        boolean met = score.getScore() != null && mission.getTargetScore() != null
                 && score.getScore() > mission.getTargetScore();
+        return met ? 1 : 0;
     }
 
     private boolean matchesTargetMap(UserMission mission, ScoreResponse score) {
@@ -409,10 +488,15 @@ public class MissionProgressService {
         for (UserMission window : openMissionsFor(userId, MissionTrigger.SCORE)) {
             if (window.getTemplate().getType() != MissionType.XP_IN_WINDOW)
                 continue;
-            window.setProgressCount(window.getProgressCount() + xpAmount);
-            if (window.getTargetXp() != null && window.getProgressCount() >= window.getTargetXp()) {
+            if (bankPersonal(window, xpAmount)) {
                 completeMission(window, userId, completedAt);
             }
+        }
+        EvalContext ctx = new EvalContext(userId);
+        for (UserMission window : communityMissionsFor(MissionTrigger.SCORE, ctx)) {
+            if (window.getTemplate().getType() != MissionType.XP_IN_WINDOW)
+                continue;
+            contribute(window, userId, xpAmount);
         }
     }
 

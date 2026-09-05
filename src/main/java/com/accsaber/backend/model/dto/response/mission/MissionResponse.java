@@ -2,7 +2,6 @@ package com.accsaber.backend.model.dto.response.mission;
 
 import com.accsaber.backend.util.Rounding;
 
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -12,6 +11,7 @@ import com.accsaber.backend.model.dto.response.item.ItemResponse;
 import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.mission.Event;
+import com.accsaber.backend.model.entity.mission.MissionProgressAxis;
 import com.accsaber.backend.model.entity.mission.MissionTemplate;
 import com.accsaber.backend.model.entity.mission.MissionType;
 import com.accsaber.backend.model.entity.mission.UserMission;
@@ -59,6 +59,9 @@ public class MissionResponse {
     private Double progressAp;
     private Double progressValue;
     private Double targetValue;
+    private Long contributors;
+    private Double yourContribution;
+    private Boolean endsWithWeek;
     private Integer xpReward;
     private ItemResponse itemReward;
 
@@ -75,11 +78,21 @@ public class MissionResponse {
     private Integer maxCompletions;
 
     public static MissionResponse from(UserMission m) {
+        return from(m, CommunityContext.EMPTY);
+    }
+
+    public static MissionResponse from(UserMission m, CommunityContext community) {
+        MissionTemplate template = m.getTemplate();
+        boolean shared = m.isCommunity();
+        Event event = shared ? template.getEvent() : null;
         return MissionResponse.builder()
                 .id(m.getId())
-                .name(m.getTemplate().getName())
+                .code(shared ? template.getCode() : null)
+                .week(shared ? template.weekOf(event) : null)
+                .endsWithWeek(shared ? template.getCompletableUntil() != null : null)
+                .name(template.getName())
                 .description(renderDescription(m))
-                .type(m.getTemplate().getType().name())
+                .type(template.getType().name())
                 .pool(m.getPool().name())
                 .status(m.getStatus().name())
                 .band(m.getBand() != null ? m.getBand().name() : null)
@@ -97,19 +110,21 @@ public class MissionResponse {
                 .targetAcc(roundAcc(m.getTargetAcc()))
                 .targetAp(roundAp(m.getTargetAp()))
                 .targetScore(m.getTargetScore())
-                .targetCount(countTarget(m.getTemplate().getType(), m.getTargetCount(), m.getTargetAp()))
+                .targetCount(countTarget(template.getType(), m.getTargetCount(), m.getTargetAp()))
                 .targetXp(m.getTargetXp())
                 .targetThresholdAp(roundAp(m.getTargetThresholdAp()))
                 .targetStreak(m.getTargetStreak())
                 .targetRankedBefore(m.getTargetRankedBefore())
                 .targetCuratedOnly(m.getTargetCuratedOnly())
-                .progressCount(countProgress(m.getTemplate().getType(), m.getProgressCount(), m.getProgressAp()))
+                .progressCount(countProgress(template.getType(), m.getProgressCount(), m.getProgressAp()))
                 .progressAp(roundProgressAp(m.getProgressAp()))
-                .progressValue(progressValue(m.getTemplate().getType(), m.getProgressCount(), m.getProgressAp()))
-                .targetValue(targetValue(m.getTemplate().getType(), m.getTargetCount(), m.getTargetXp(),
+                .progressValue(progressValue(template.getType(), m.getProgressCount(), m.getProgressAp()))
+                .targetValue(targetValue(template.getType(), m.getTargetCount(), m.getTargetXp(),
                         m.getTargetAp()))
                 .xpReward(m.getXpReward())
                 .itemReward(m.getItemReward() != null ? ItemMapper.toItemResponse(m.getItemReward()) : null)
+                .contributors(community.contributors(m))
+                .yourContribution(community.yourContribution(m))
                 .assignedAt(m.getAssignedAt())
                 .expiresAt(m.getExpiresAt())
                 .completedAt(m.getCompletedAt())
@@ -162,14 +177,14 @@ public class MissionResponse {
     }
 
     private static Integer countTarget(MissionType type, Integer targetCount, Double targetAp) {
-        if (type != MissionType.AP_GAIN_OVERALL || targetCount != null || targetAp == null) {
+        if (type.getAxis() != MissionProgressAxis.AP || targetCount != null || targetAp == null) {
             return targetCount;
         }
         return (int) Math.ceil(targetAp);
     }
 
     private static Integer countProgress(MissionType type, Integer progressCount, Double progressAp) {
-        if (type != MissionType.AP_GAIN_OVERALL || progressAp == null) {
+        if (type.getAxis() != MissionProgressAxis.AP || progressAp == null) {
             return progressCount;
         }
         return (int) Math.floor(progressAp);
@@ -177,23 +192,19 @@ public class MissionResponse {
 
     private static Double targetValue(MissionType type, Integer targetCount, Integer targetXp,
             Double targetAp) {
-        return switch (type) {
-            case AP_GAIN_OVERALL -> roundAp(targetAp);
-            case XP_IN_WINDOW -> targetXp == null ? null : (double) (targetXp);
-            case PLAY_N_MAPS, SCORES_N, STREAK_N_IN_CATEGORY, STREAK_SUM_N, PB_ABOVE_THRESHOLD,
-                    SNIPE_RIVAL_ANY_MAP, BATCH_PLAY_N, PB_RANKED_BEFORE_N, CAMPAIGN_COMPLETE_N ->
-                targetCount == null ? null : (double) (targetCount);
-            case ACC_ON_MAP, AP_ON_MAP, PB_SPECIFIC_MAP, COMEBACK_PB, SNIPE_PLAYER_ON_MAP, STREAK_ON_MAP -> null;
+        return switch (type.getAxis()) {
+            case AP -> roundAp(targetAp);
+            case XP -> targetXp == null ? null : (double) (targetXp);
+            case COUNT -> targetCount == null ? null : (double) (targetCount);
+            case BINARY -> null;
         };
     }
 
     private static Double progressValue(MissionType type, Integer progressCount, Double progressAp) {
-        return switch (type) {
-            case AP_GAIN_OVERALL -> roundProgressAp(progressAp);
-            case XP_IN_WINDOW, PLAY_N_MAPS, SCORES_N, STREAK_N_IN_CATEGORY, STREAK_SUM_N, PB_ABOVE_THRESHOLD,
-                    SNIPE_RIVAL_ANY_MAP, BATCH_PLAY_N, PB_RANKED_BEFORE_N, CAMPAIGN_COMPLETE_N ->
-                progressCount == null ? null : (double) (progressCount);
-            case ACC_ON_MAP, AP_ON_MAP, PB_SPECIFIC_MAP, COMEBACK_PB, SNIPE_PLAYER_ON_MAP, STREAK_ON_MAP -> null;
+        return switch (type.getAxis()) {
+            case AP -> roundProgressAp(progressAp);
+            case XP, COUNT -> progressCount == null ? null : (double) (progressCount);
+            case BINARY -> null;
         };
     }
 
@@ -233,6 +244,21 @@ public class MissionResponse {
                         MissionDescriptionRenderer.formatMap(mapDifficulty),
                         player != null ? player.getName() : null,
                         category != null ? category.getName() : null));
+    }
+
+    public record CommunityContext(
+            Map<UUID, Long> contributorsByMission,
+            Map<UUID, Double> contributionByMission) {
+
+        public static final CommunityContext EMPTY = new CommunityContext(Map.of(), Map.of());
+
+        public Long contributors(UserMission m) {
+            return m.isCommunity() ? contributorsByMission.getOrDefault(m.getId(), 0L) : null;
+        }
+
+        public Double yourContribution(UserMission m) {
+            return m.isCommunity() ? contributionByMission.get(m.getId()) : null;
+        }
     }
 
     public record TargetContext(

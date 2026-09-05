@@ -119,7 +119,7 @@ class MissionResponseTest {
                 .type(MissionType.AP_GAIN_OVERALL)
                 .pool(MissionPool.event)
                 .eventTargets(new EventMissionTargets(null, null, null, null, 5.0,
-                        null, null, null, null, null, null, null, null))
+                        null, null, null, null, null, null, null, null, null))
                 .build();
 
         MissionResponse response = MissionResponse.fromTemplate(template, event, Instant.now(),
@@ -128,6 +128,115 @@ class MissionResponseTest {
         assertThat(response.getTargetValue()).isEqualByComparingTo(5.0);
         assertThat(response.getProgressValue()).isNull();
         assertThat(response.getTargetCount()).isEqualTo(5);
+    }
+
+    @Test
+    void communityMissionsCarryTheSharedHeadcountAndYourOwnShare() {
+        UserMission mission = mission(MissionType.SCORES_N);
+        mission.setPool(MissionPool.community);
+        mission.setProgressCount(3200);
+        mission.setTargetCount(5000);
+
+        MissionResponse response = MissionResponse.from(mission,
+                new MissionResponse.CommunityContext(
+                        Map.of(mission.getId(), 412L),
+                        Map.of(mission.getId(), 27.0)));
+
+        assertThat(response.getProgressValue()).isEqualByComparingTo(3200.0);
+        assertThat(response.getContributors()).isEqualTo(412L);
+        assertThat(response.getYourContribution()).isEqualByComparingTo(27.0);
+    }
+
+    @Test
+    void aCommunityMissionYouHaveNotTouchedReportsNoShareButStillCountsHeads() {
+        UserMission mission = mission(MissionType.SCORES_N);
+        mission.setPool(MissionPool.community);
+        mission.setTargetCount(5000);
+
+        MissionResponse response = MissionResponse.from(mission,
+                new MissionResponse.CommunityContext(Map.of(mission.getId(), 412L), Map.of()));
+
+        assertThat(response.getContributors()).isEqualTo(412L);
+        assertThat(response.getYourContribution()).isNull();
+    }
+
+    @Test
+    void personalMissionsCarryNoCommunityFieldsAtAll() {
+        UserMission mission = mission(MissionType.SCORES_N);
+        mission.setProgressCount(3);
+        mission.setTargetCount(10);
+
+        MissionResponse response = MissionResponse.from(mission);
+
+        assertThat(response.getContributors()).isNull();
+        assertThat(response.getYourContribution()).isNull();
+    }
+
+    @Test
+    void aWeeklyCommunityMissionSaysWhichWeekItDiesWith() {
+        Instant startsAt = Instant.now().minus(Duration.ofDays(20));
+        Event event = Event.builder()
+                .startsAt(startsAt)
+                .endsAt(startsAt.plus(Duration.ofDays(42)))
+                .build();
+        UserMission mission = communityMission(event,
+                startsAt.plus(Duration.ofDays(14)), startsAt.plus(Duration.ofDays(21)));
+
+        MissionResponse response = MissionResponse.from(mission, MissionResponse.CommunityContext.EMPTY);
+
+        assertThat(response.getCode()).isEqualTo("accursed_totality_w3_community_streaks");
+        assertThat(response.getWeek()).isEqualTo(3);
+        assertThat(response.getEndsWithWeek()).isTrue();
+    }
+
+    @Test
+    void anEventLongCommunityMissionSaysItDoesNotDieWithAWeek() {
+        Instant startsAt = Instant.now().minus(Duration.ofDays(20));
+        Event event = Event.builder()
+                .startsAt(startsAt)
+                .endsAt(startsAt.plus(Duration.ofDays(42)))
+                .build();
+        UserMission mission = communityMission(event, startsAt, null);
+
+        MissionResponse response = MissionResponse.from(mission, MissionResponse.CommunityContext.EMPTY);
+
+        assertThat(response.getWeek()).isEqualTo(1);
+        assertThat(response.getEndsWithWeek()).isFalse();
+    }
+
+    @Test
+    void personalMissionsCarryNoSchedulingFieldsFromTheirTemplate() {
+        UserMission mission = mission(MissionType.SCORES_N);
+        mission.getTemplate().setCode("alphas_end_w1_pb");
+
+        MissionResponse response = MissionResponse.from(mission);
+
+        assertThat(response.getCode()).isNull();
+        assertThat(response.getWeek()).isNull();
+        assertThat(response.getEndsWithWeek()).isNull();
+    }
+
+    private UserMission communityMission(Event event, Instant unlocksAt, Instant completableUntil) {
+        MissionTemplate template = MissionTemplate.builder()
+                .code("accursed_totality_w3_community_streaks")
+                .name("Beadwork")
+                .description("The community racks up {count} total 115s together this week.")
+                .type(MissionType.STREAK_SUM_N)
+                .pool(MissionPool.community)
+                .event(event)
+                .unlocksAt(unlocksAt)
+                .completableUntil(completableUntil)
+                .build();
+        return UserMission.builder()
+                .id(UUID.randomUUID())
+                .template(template)
+                .pool(MissionPool.community)
+                .status(MissionStatus.active)
+                .targetCount(9000)
+                .progressCount(0)
+                .progressAp(0.0)
+                .xpReward(250)
+                .build();
     }
 
     private UserMission mission(MissionType type) {

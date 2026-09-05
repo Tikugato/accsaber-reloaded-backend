@@ -168,6 +168,7 @@ public class MissionResponse {
                 .itemReward(t.getAwardsItem() != null ? ItemMapper.toItemResponse(t.getAwardsItem()) : null)
                 .unlocksAt(unlocksAt)
                 .completableUntil(until)
+                .endsWithWeek(t.isCommunity() ? t.getCompletableUntil() != null : null)
                 .week(t.weekOf(event))
                 .unlocked(!unlocksAt.isAfter(now))
                 .open(t.isOpenAt(event, now))

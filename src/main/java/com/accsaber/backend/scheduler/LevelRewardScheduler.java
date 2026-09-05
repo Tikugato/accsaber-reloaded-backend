@@ -1,10 +1,6 @@
 package com.accsaber.backend.scheduler;
 
-import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -21,6 +17,7 @@ import com.accsaber.backend.repository.milestone.LevelThresholdRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.item.LevelUpAwardService;
 import com.accsaber.backend.service.milestone.LevelService;
+import com.accsaber.backend.util.SqlValues;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -146,7 +143,7 @@ public class LevelRewardScheduler {
         Instant last = Instant.EPOCH;
 
         for (Object[] event : userRepository.findXpTimeline(userId)) {
-            Instant at = toInstant(event[0]);
+            Instant at = SqlValues.toInstant(event[0]);
             if (at != null) {
                 last = at;
             }
@@ -161,24 +158,5 @@ public class LevelRewardScheduler {
             }
         }
         return crossings;
-    }
-
-    private Instant toInstant(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Instant instant) {
-            return instant;
-        }
-        if (value instanceof Timestamp timestamp) {
-            return timestamp.toInstant();
-        }
-        if (value instanceof OffsetDateTime offset) {
-            return offset.toInstant();
-        }
-        if (value instanceof LocalDateTime local) {
-            return local.toInstant(ZoneOffset.UTC);
-        }
-        throw new IllegalStateException("Unsupported timestamp type: " + value.getClass());
     }
 }

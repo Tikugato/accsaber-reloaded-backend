@@ -5,6 +5,7 @@ public enum JobFieldKind {
     USER,
     CAMPAIGN,
     MILESTONE,
+    ITEM,
     INSTANT,
     PLATFORM,
     FLAG

@@ -116,9 +116,6 @@ accsaber:
     token-ttl: ${IMPERSONATION_TOKEN_TTL:3600}
   robots:
     disallow-all: false
-  staging-gate:
-    enabled: false
-    key: ${STAGING_GATE_KEY:}
   platforms:
     beatleader:
       base-url: https://api.beatleader.com

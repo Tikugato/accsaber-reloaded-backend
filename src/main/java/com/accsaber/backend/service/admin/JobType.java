@@ -113,6 +113,14 @@ public enum JobType {
             "Sweeps every milestone that has items attached and gives each completer whatever they are missing,"
                     + " oldest completion first. Safe to re-run."),
 
+    RESEQUENCE_ITEM_SERIALS(JobGroup.MISC, "Renumber an item's serials",
+            "Rewrites serial numbers so they follow the order players actually earned the item, and moves"
+                    + " Founder's onto the new lowest five. Only untradeable items whose copies all come from"
+                    + " milestones or milestone sets can be renumbered, since nothing else has an achievement time"
+                    + " to sort by. Run it after a reward backfill, never before.",
+            JobField.optional("itemId", JobFieldKind.ITEM, "Item",
+                    "Leave it off to sweep every eligible item.", RunJobRequest::getItemId)),
+
     REGENERATE_SONG_SUGGEST(JobGroup.MISC, "Regenerate song suggestions",
             "Rebuilds the song suggestion data from current scores.");
 

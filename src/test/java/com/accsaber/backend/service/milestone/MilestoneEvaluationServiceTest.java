@@ -39,13 +39,16 @@ import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.milestone.MilestoneItemRepository;
 import com.accsaber.backend.repository.milestone.MilestoneRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetItemRepository;
+import com.accsaber.backend.repository.milestone.MilestoneSetRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneSetBonusRepository;
 import com.accsaber.backend.model.entity.item.Item;
 import com.accsaber.backend.model.entity.item.ItemSource;
 import com.accsaber.backend.model.entity.item.ItemType;
+import com.accsaber.backend.repository.item.UserItemLinkRepository;
 import com.accsaber.backend.repository.user.UserRepository;
 import com.accsaber.backend.service.item.ItemService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.accsaber.backend.service.item.LevelUpAwardService;
 
 @ExtendWith(MockitoExtension.class)
@@ -69,6 +72,10 @@ class MilestoneEvaluationServiceTest {
         private MilestoneItemRepository milestoneItemRepository;
         @Mock
         private MilestoneSetItemRepository milestoneSetItemRepository;
+        @Mock
+        private MilestoneSetRepository milestoneSetRepository;
+        @Mock
+        private UserItemLinkRepository userItemLinkRepository;
         @Mock
         private ApplicationEventPublisher eventPublisher;
 
@@ -885,6 +892,164 @@ class MilestoneEvaluationServiceTest {
                         List<UserMilestoneLink> saved = captureSavedLinks();
                         assertThat(saved.get(0).isCompleted()).isTrue();
                         assertThat(saved.get(0).getAchievedWithScore()).isNull();
+                }
+        }
+
+        @Nested
+        class SettleSetRewards {
+
+                private final Instant earnedAt = Instant.parse("2025-01-05T10:15:30Z");
+
+                private Item badge(UUID itemId) {
+                        return Item.builder()
+                                        .id(itemId)
+                                        .type(ItemType.builder().id(UUID.randomUUID()).key("badge").name("Badge")
+                                                        .build())
+                                        .name("Set Complete Badge")
+                                        .build();
+                }
+
+                @Test
+                void grantsItemMissingFromAnAlreadyClaimedBonus() {
+                        UUID itemId = UUID.randomUUID();
+                        when(milestoneSetRepository.findById(milestoneSet.getId()))
+                                        .thenReturn(Optional.of(milestoneSet));
+                        when(userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(USER_ID,
+                                        milestoneSet.getId())).thenReturn(true);
+                        when(milestoneSetItemRepository.findBySetIds(List.of(milestoneSet.getId())))
+                                        .thenReturn(List.of(MilestoneSetItem.builder()
+                                                        .milestoneSet(milestoneSet).item(badge(itemId)).quantity(1)
+                                                        .build()));
+                        when(userItemLinkRepository.countByUser_IdAndItem_IdAndSourceAndSourceId(USER_ID, itemId,
+                                        ItemSource.milestone_set, milestoneSet.getId().toString())).thenReturn(0L);
+
+                        int granted = service.settleSetRewards(USER_ID, milestoneSet.getId(), earnedAt);
+
+                        assertThat(granted).isEqualTo(1);
+                        verify(itemService).awardSystem(eq(USER_ID), eq(itemId), eq(ItemSource.milestone_set),
+                                        eq(milestoneSet.getId().toString()),
+                                        eq("Completed milestone set: Test Set"), eq(1));
+                        verify(userMilestoneSetBonusRepository, never()).save(any(UserMilestoneSetBonus.class));
+                        verify(levelUpAwardService, never()).addXp(any(), any(Double.class));
+                }
+
+                @Test
+                void countsARandomActiveCrateGrantByTypeSoTheSweepDoesNotRefillIt() {
+                        UUID sentinelId = UUID.randomUUID();
+                        ItemType crateType = ItemType.builder().id(UUID.randomUUID()).key("crate").name("Crate")
+                                        .build();
+                        Item sentinel = Item.builder()
+                                        .id(sentinelId)
+                                        .type(crateType)
+                                        .name("Random Active Crate")
+                                        .value(new ObjectMapper().createObjectNode().put("grant", "active_crate"))
+                                        .build();
+                        when(milestoneSetRepository.findById(milestoneSet.getId()))
+                                        .thenReturn(Optional.of(milestoneSet));
+                        when(userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(USER_ID,
+                                        milestoneSet.getId())).thenReturn(true);
+                        when(milestoneSetItemRepository.findBySetIds(List.of(milestoneSet.getId())))
+                                        .thenReturn(List.of(MilestoneSetItem.builder()
+                                                        .milestoneSet(milestoneSet).item(sentinel).quantity(1)
+                                                        .build()));
+                        when(userItemLinkRepository.countByUser_IdAndItem_Type_KeyAndSourceAndSourceId(USER_ID,
+                                        "crate", ItemSource.milestone_set, milestoneSet.getId().toString()))
+                                                        .thenReturn(1L);
+
+                        assertThat(service.settleSetRewards(USER_ID, milestoneSet.getId(), earnedAt)).isZero();
+
+                        verify(itemService, never()).awardSystem(any(), any(), any(), any(), any(), anyInt());
+                }
+
+                @Test
+                void grantsARandomActiveCrateWhenTheSetNeverPaidOneOut() {
+                        UUID sentinelId = UUID.randomUUID();
+                        ItemType crateType = ItemType.builder().id(UUID.randomUUID()).key("crate").name("Crate")
+                                        .build();
+                        Item sentinel = Item.builder()
+                                        .id(sentinelId)
+                                        .type(crateType)
+                                        .name("Random Active Crate")
+                                        .value(new ObjectMapper().createObjectNode().put("grant", "active_crate"))
+                                        .build();
+                        when(milestoneSetRepository.findById(milestoneSet.getId()))
+                                        .thenReturn(Optional.of(milestoneSet));
+                        when(userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(USER_ID,
+                                        milestoneSet.getId())).thenReturn(true);
+                        when(milestoneSetItemRepository.findBySetIds(List.of(milestoneSet.getId())))
+                                        .thenReturn(List.of(MilestoneSetItem.builder()
+                                                        .milestoneSet(milestoneSet).item(sentinel).quantity(1)
+                                                        .build()));
+                        when(userItemLinkRepository.countByUser_IdAndItem_Type_KeyAndSourceAndSourceId(USER_ID,
+                                        "crate", ItemSource.milestone_set, milestoneSet.getId().toString()))
+                                                        .thenReturn(0L);
+
+                        assertThat(service.settleSetRewards(USER_ID, milestoneSet.getId(), earnedAt)).isEqualTo(1);
+
+                        verify(itemService).awardSystem(eq(USER_ID), eq(sentinelId), eq(ItemSource.milestone_set),
+                                        eq(milestoneSet.getId().toString()),
+                                        eq("Completed milestone set: Test Set"), eq(1));
+                }
+
+                @Test
+                void skipsItemThePlayerAlreadyHasFromThatSet() {
+                        UUID itemId = UUID.randomUUID();
+                        when(milestoneSetRepository.findById(milestoneSet.getId()))
+                                        .thenReturn(Optional.of(milestoneSet));
+                        when(userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(USER_ID,
+                                        milestoneSet.getId())).thenReturn(true);
+                        when(milestoneSetItemRepository.findBySetIds(List.of(milestoneSet.getId())))
+                                        .thenReturn(List.of(MilestoneSetItem.builder()
+                                                        .milestoneSet(milestoneSet).item(badge(itemId)).quantity(1)
+                                                        .build()));
+                        when(userItemLinkRepository.countByUser_IdAndItem_IdAndSourceAndSourceId(USER_ID, itemId,
+                                        ItemSource.milestone_set, milestoneSet.getId().toString())).thenReturn(1L);
+
+                        int granted = service.settleSetRewards(USER_ID, milestoneSet.getId(), earnedAt);
+
+                        assertThat(granted).isZero();
+                        verify(itemService, never()).awardSystem(any(), any(), any(), any(), any(), anyInt());
+                }
+
+                @Test
+                void claimsBonusAtCompletionTimeWhenNoBonusRowExists() {
+                        milestoneSet.setSetBonusXp(250.0);
+                        when(milestoneSetRepository.findById(milestoneSet.getId()))
+                                        .thenReturn(Optional.of(milestoneSet));
+                        when(userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(USER_ID,
+                                        milestoneSet.getId())).thenReturn(false);
+                        when(milestoneRepository.countActiveBySetId(milestoneSet.getId())).thenReturn(3L);
+                        when(userMilestoneLinkRepository.countCompletedByUserAndSet(USER_ID, milestoneSet.getId()))
+                                        .thenReturn(3L);
+                        when(userRepository.getReferenceById(USER_ID)).thenReturn(User.builder().id(USER_ID).build());
+                        when(milestoneSetItemRepository.findBySetIds(List.of(milestoneSet.getId())))
+                                        .thenReturn(List.of());
+
+                        service.settleSetRewards(USER_ID, milestoneSet.getId(), earnedAt);
+
+                        ArgumentCaptor<UserMilestoneSetBonus> captor = ArgumentCaptor
+                                        .forClass(UserMilestoneSetBonus.class);
+                        verify(userMilestoneSetBonusRepository).save(captor.capture());
+                        assertThat(captor.getValue().getClaimedAt()).isEqualTo(earnedAt);
+                        verify(levelUpAwardService).addXp(USER_ID, 250.0);
+                }
+
+                @Test
+                void doesNothingWhenTheSetIsStillIncomplete() {
+                        when(milestoneSetRepository.findById(milestoneSet.getId()))
+                                        .thenReturn(Optional.of(milestoneSet));
+                        when(userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(USER_ID,
+                                        milestoneSet.getId())).thenReturn(false);
+                        when(milestoneRepository.countActiveBySetId(milestoneSet.getId())).thenReturn(3L);
+                        when(userMilestoneLinkRepository.countCompletedByUserAndSet(USER_ID, milestoneSet.getId()))
+                                        .thenReturn(2L);
+                        when(milestoneSetItemRepository.findBySetIds(List.of(milestoneSet.getId())))
+                                        .thenReturn(List.of());
+
+                        service.settleSetRewards(USER_ID, milestoneSet.getId(), earnedAt);
+
+                        verify(userMilestoneSetBonusRepository, never()).save(any(UserMilestoneSetBonus.class));
+                        verify(levelUpAwardService, never()).addXp(any(), any(Double.class));
                 }
         }
 }

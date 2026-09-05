@@ -36,6 +36,7 @@ import com.accsaber.backend.repository.item.UserItemLinkRepository;
 import com.accsaber.backend.repository.milestone.MilestoneItemRepository;
 import com.accsaber.backend.repository.milestone.MilestoneRepository;
 import com.accsaber.backend.repository.milestone.MilestoneSetItemRepository;
+import com.accsaber.backend.repository.milestone.MilestoneSetRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneLinkRepository;
 import com.accsaber.backend.repository.milestone.UserMilestoneSetBonusRepository;
 import com.accsaber.backend.repository.user.UserRepository;
@@ -56,6 +57,7 @@ public class MilestoneEvaluationService {
     private final MilestoneRepository milestoneRepository;
     private final MilestoneItemRepository milestoneItemRepository;
     private final MilestoneSetItemRepository milestoneSetItemRepository;
+    private final MilestoneSetRepository milestoneSetRepository;
     private final UserMilestoneLinkRepository userMilestoneLinkRepository;
     private final UserMilestoneSetBonusRepository userMilestoneSetBonusRepository;
     private final UserRepository userRepository;
@@ -386,24 +388,67 @@ public class MilestoneEvaluationService {
             MilestoneSet set = milestone.getMilestoneSet();
             if (set == null || !checked.add(set.getId()))
                 continue;
-            if (userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(userId, set.getId()))
-                continue;
-
-            long total = milestoneRepository.countActiveBySetId(set.getId());
-            long completed = userMilestoneLinkRepository.countCompletedByUserAndSet(userId, set.getId());
-            if (completed < total)
-                continue;
-
-            userMilestoneSetBonusRepository.save(UserMilestoneSetBonus.builder()
-                    .user(userRepository.getReferenceById(userId))
-                    .milestoneSet(set)
-                    .claimedAt(Instant.now())
-                    .build());
-
-            earned.add(set);
+            if (claimSetBonus(userId, set, Instant.now()))
+                earned.add(set);
         }
 
         return earned;
+    }
+
+    private boolean claimSetBonus(Long userId, MilestoneSet set, Instant claimedAt) {
+        if (userMilestoneSetBonusRepository.existsByUser_IdAndMilestoneSet_Id(userId, set.getId()))
+            return false;
+
+        long total = milestoneRepository.countActiveBySetId(set.getId());
+        long completed = userMilestoneLinkRepository.countCompletedByUserAndSet(userId, set.getId());
+        if (total == 0 || completed < total)
+            return false;
+
+        userMilestoneSetBonusRepository.save(UserMilestoneSetBonus.builder()
+                .user(userRepository.getReferenceById(userId))
+                .milestoneSet(set)
+                .claimedAt(claimedAt)
+                .build());
+        return true;
+    }
+
+    @Transactional
+    public int settleSetRewards(Long userId, UUID setId, Instant earnedAt) {
+        MilestoneSet set = milestoneSetRepository.findById(setId).orElse(null);
+        if (set == null) {
+            return 0;
+        }
+        if (claimSetBonus(userId, set, earnedAt) && set.getSetBonusXp() > 0) {
+            levelUpAwardService.addXp(userId, set.getSetBonusXp());
+        }
+        return grantMissingSetItems(userId, set);
+    }
+
+    private int grantMissingSetItems(Long userId, MilestoneSet set) {
+        String sourceId = set.getId().toString();
+        String reason = "Completed milestone set: " + set.getTitle();
+        Instant now = Instant.now();
+        int granted = 0;
+
+        for (MilestoneSetItem link : milestoneSetItemRepository.findBySetIds(List.of(set.getId()))) {
+            Item item = link.getItem();
+            if (!item.isObtainableAt(now) || countPriorSetGrants(userId, item, sourceId) > 0) {
+                continue;
+            }
+            itemService.awardSystem(userId, item.getId(), ItemSource.milestone_set, sourceId, reason,
+                    link.getQuantity());
+            granted++;
+        }
+        return granted;
+    }
+
+    private long countPriorSetGrants(Long userId, Item item, String sourceId) {
+        if (ItemService.isActiveCrateSentinel(item)) {
+            return userItemLinkRepository.countByUser_IdAndItem_Type_KeyAndSourceAndSourceId(
+                    userId, item.getType().getKey(), ItemSource.milestone_set, sourceId);
+        }
+        return userItemLinkRepository.countByUser_IdAndItem_IdAndSourceAndSourceId(
+                userId, item.getId(), ItemSource.milestone_set, sourceId);
     }
 
     private void awardCompletionXp(Long userId, List<Milestone> milestones, List<MilestoneSet> sets) {

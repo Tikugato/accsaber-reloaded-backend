@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -54,4 +55,18 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
     Optional<Item> findByType_KeyAndNameAndActiveTrue(String typeKey, String name);
 
     boolean existsByType_IdAndName(UUID typeId, String name);
+
+    @Query(value = """
+            SELECT i.id FROM items i
+            WHERE i.serialized = true AND i.tradeable = false
+              AND EXISTS (
+                  SELECT 1 FROM user_item_links l
+                  WHERE l.item_id = i.id AND l.serial_number IS NOT NULL)
+            ORDER BY i.name
+            """, nativeQuery = true)
+    List<UUID> findResequenceCandidates();
+
+    @Modifying
+    @Query(value = "UPDATE items SET next_serial = :next WHERE id = :itemId", nativeQuery = true)
+    void resetNextSerial(@Param("itemId") UUID itemId, @Param("next") long next);
 }

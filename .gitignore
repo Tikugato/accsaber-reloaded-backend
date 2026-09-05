@@ -115,6 +115,7 @@ desktop.ini
 #Only ignoring markdown files that aren't the README for now. A bunch of ideas on these
 *.md*
 !README.md
+docs/
 #General I Set
 data/
 general_i_first_steps.sql

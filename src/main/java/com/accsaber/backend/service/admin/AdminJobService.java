@@ -14,6 +14,7 @@ import com.accsaber.backend.model.dto.request.admin.RunJobRequest;
 import com.accsaber.backend.model.dto.response.admin.JobTypeResponse;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.repository.map.MapDifficultyRepository;
+import com.accsaber.backend.service.item.ItemSerialResequenceService;
 import com.accsaber.backend.service.media.CdnSyncService;
 import com.accsaber.backend.service.milestone.MilestoneEvaluationService;
 import com.accsaber.backend.service.milestone.MilestoneService;
@@ -38,6 +39,7 @@ public class AdminJobService {
     private final MilestoneService milestoneService;
     private final MilestoneEvaluationService milestoneEvaluationService;
     private final SongSuggestService songSuggestService;
+    private final ItemSerialResequenceService itemSerialResequenceService;
     private final MapDifficultyRepository mapDifficultyRepository;
 
     public List<JobTypeResponse> catalogue() {
@@ -122,6 +124,10 @@ public class AdminJobService {
                 milestoneEvaluationService.regrantRewards(request.getMilestoneId());
             case REGRANT_MILESTONE_REWARDS_ALL -> milestoneEvaluationService.regrantAllRewards();
 
+            case RESEQUENCE_ITEM_SERIALS -> request.getItemId() != null
+                    ? itemSerialResequenceService.resequence(request.getItemId())
+                    : itemSerialResequenceService.resequenceAll();
+
             case REGENERATE_SONG_SUGGEST -> songSuggestService.regenerateAsync();
         };
     }
@@ -137,6 +143,9 @@ public class AdminJobService {
         }
         if (request.getUserId() != null) {
             return "user " + request.getUserId();
+        }
+        if (request.getItemId() != null) {
+            return "item " + request.getItemId();
         }
         if (request.getDifficultyIds() != null && !request.getDifficultyIds().isEmpty()) {
             return request.getDifficultyIds().size() + " difficulties";

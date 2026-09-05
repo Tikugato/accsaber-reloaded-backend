@@ -144,4 +144,86 @@ public interface UserItemLinkRepository extends JpaRepository<UserItemLink, UUID
         int addModifierToAllLinksOfItem(
                         @Param("itemId") UUID itemId,
                         @Param("modifierId") UUID modifierId);
+
+        @Query(value = """
+                        SELECT l.id, l.serial_number,
+                               ROW_NUMBER() OVER (
+                                   ORDER BY COALESCE(b.claimed_at, uml.completed_at, uml.created_at, l.awarded_at),
+                                            l.user_id, l.id)
+                        FROM user_item_links l
+                        LEFT JOIN user_milestone_set_bonuses b
+                               ON l.source = 'milestone_set'
+                              AND b.user_id = l.user_id
+                              AND CAST(b.milestone_set_id AS text) = l.source_id
+                        LEFT JOIN user_milestone_links uml
+                               ON l.source = 'milestone'
+                              AND uml.user_id = l.user_id
+                              AND CAST(uml.milestone_id AS text) = l.source_id
+                              AND uml.completed = true
+                        WHERE l.item_id = :itemId
+                        """, nativeQuery = true)
+        List<Object[]> findSerialsInEarnedOrder(@Param("itemId") UUID itemId);
+
+        @Query(value = """
+                        SELECT COUNT(*) FROM user_item_links l
+                        WHERE l.item_id = :itemId
+                          AND (l.escrowed = true OR l.source NOT IN ('milestone', 'milestone_set'))
+                        """, nativeQuery = true)
+        long countUnorderableLinks(@Param("itemId") UUID itemId);
+
+        @Modifying(clearAutomatically = true, flushAutomatically = true)
+        @Query(value = """
+                        UPDATE user_item_links SET serial_number = NULL
+                        WHERE item_id = :itemId AND serial_number IS NOT NULL
+                        """, nativeQuery = true)
+        int clearSerials(@Param("itemId") UUID itemId);
+
+        @Modifying
+        @Query(value = """
+                        DELETE FROM user_item_link_modifiers lm
+                        USING user_item_links l, item_modifiers m
+                        WHERE lm.user_item_link_id = l.id AND lm.modifier_id = m.id
+                          AND l.item_id = :itemId AND m.key = 'founders'
+                          AND (l.serial_number IS NULL OR l.serial_number > :threshold)
+                        """, nativeQuery = true)
+        int stripFoundersAboveSerial(@Param("itemId") UUID itemId, @Param("threshold") long threshold);
+
+        @Modifying
+        @Query(value = """
+                        INSERT INTO user_item_link_modifiers (user_item_link_id, modifier_id)
+                        SELECT l.id, m.id
+                        FROM user_item_links l
+                        JOIN item_modifiers m ON m.key = 'founders'
+                        WHERE l.item_id = :itemId
+                          AND l.serial_number IS NOT NULL AND l.serial_number <= :threshold
+                          AND NOT EXISTS (
+                              SELECT 1 FROM user_item_link_modifiers x
+                              WHERE x.user_item_link_id = l.id AND x.modifier_id = m.id)
+                        """, nativeQuery = true)
+        int grantFoundersUpToSerial(@Param("itemId") UUID itemId, @Param("threshold") long threshold);
+
+        @Modifying
+        @Query(value = """
+                        DELETE FROM user_item_link_modifiers lm
+                        USING user_item_links l, item_modifiers m
+                        WHERE lm.user_item_link_id = l.id AND lm.modifier_id = m.id
+                          AND l.item_id = :itemId AND m.key = 'normal'
+                          AND EXISTS (
+                              SELECT 1 FROM user_item_link_modifiers other
+                              JOIN item_modifiers om ON om.id = other.modifier_id
+                              WHERE other.user_item_link_id = l.id AND om.key <> 'normal')
+                        """, nativeQuery = true)
+        int stripRedundantNormal(@Param("itemId") UUID itemId);
+
+        @Modifying
+        @Query(value = """
+                        INSERT INTO user_item_link_modifiers (user_item_link_id, modifier_id)
+                        SELECT l.id, m.id
+                        FROM user_item_links l
+                        JOIN item_modifiers m ON m.key = 'normal'
+                        WHERE l.item_id = :itemId
+                          AND NOT EXISTS (
+                              SELECT 1 FROM user_item_link_modifiers x WHERE x.user_item_link_id = l.id)
+                        """, nativeQuery = true)
+        int grantNormalWhereBare(@Param("itemId") UUID itemId);
 }

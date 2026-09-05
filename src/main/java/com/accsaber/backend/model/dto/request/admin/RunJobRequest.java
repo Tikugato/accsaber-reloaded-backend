@@ -28,6 +28,9 @@ public class RunJobRequest {
         @Schema(description = "Required by BACKFILL_MILESTONE.")
         private UUID milestoneId;
 
+        @Schema(description = "Optional for RESEQUENCE_ITEM_SERIALS - leave it off to sweep every eligible item.")
+        private UUID itemId;
+
         @Schema(description = "Required by BACKFILL_CAMPAIGN_LEGACY (the campaign must be flagged legacy)"
                         + " and by RESETTLE_CAMPAIGN.")
         private UUID campaignId;

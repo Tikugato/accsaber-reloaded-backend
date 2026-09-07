@@ -20,6 +20,7 @@ public class UserMapImprovementsResponse {
     private UUID mapDifficultyId;
     private UUID mapId;
     private String songName;
+    private String songSubName;
     private String songAuthor;
     private String mapAuthor;
     private String coverUrl;

@@ -367,6 +367,7 @@ public class BatchService {
                 .id(d.getId())
                 .mapId(map.getId())
                 .songName(map.getSongName())
+                .songSubName(map.getSongSubName())
                 .songAuthor(map.getSongAuthor())
                 .mapAuthor(map.getMapAuthor())
                 .coverUrl(map.getCoverUrl())

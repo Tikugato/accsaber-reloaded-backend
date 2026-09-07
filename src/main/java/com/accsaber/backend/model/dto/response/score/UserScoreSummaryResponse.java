@@ -12,6 +12,7 @@ public class UserScoreSummaryResponse {
     UUID mapDifficultyId;
     String songHash;
     String songName;
+    String songSubName;
     String songAuthor;
     String coverUrl;
     String cdnCoverUrl;

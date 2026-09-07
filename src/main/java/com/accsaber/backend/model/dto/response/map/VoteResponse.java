@@ -19,6 +19,7 @@ public class VoteResponse {
     Difficulty difficulty;
     Double complexity;
     String songName;
+    String songSubName;
     String songAuthor;
     String mapAuthor;
     String coverUrl;

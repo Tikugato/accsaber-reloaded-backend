@@ -335,6 +335,7 @@ public class MapVotingService {
                 .difficulty(v.getMapDifficulty().getDifficulty())
                 .complexity(complexity)
                 .songName(map.getSongName())
+                .songSubName(map.getSongSubName())
                 .songAuthor(map.getSongAuthor())
                 .mapAuthor(map.getMapAuthor())
                 .coverUrl(map.getCoverUrl())

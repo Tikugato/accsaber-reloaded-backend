@@ -40,6 +40,7 @@ public class MilestoneCompletionResponse {
     private String cdnCoverUrl;
     private Difficulty difficulty;
     private String songName;
+    private String songSubName;
     private String songAuthor;
     private String mapAuthor;
 }

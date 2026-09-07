@@ -26,6 +26,7 @@ public class ScoreResponse {
     private String beatsaverCode;
     private String songHash;
     private String songName;
+    private String songSubName;
     private String songAuthor;
     private String mapAuthor;
     private String coverUrl;

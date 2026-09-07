@@ -188,7 +188,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                         @Param("statuses") List<MapDifficultyStatus> statuses);
 
         @Query("""
-                        SELECT d.id, d.map.songHash, d.map.songName, d.difficulty, c.complexity, d.category.code, d.ssLeaderboardId, d.blLeaderboardId, d.rankedAt
+                        SELECT d.id, d.map.songHash, d.map.songName, d.map.songSubName, d.difficulty, c.complexity, d.category.code, d.ssLeaderboardId, d.blLeaderboardId, d.rankedAt
                         FROM MapDifficulty d
                         LEFT JOIN MapDifficultyComplexity c ON c.mapDifficulty = d AND c.active = true
                         WHERE d.status = com.accsaber.backend.model.entity.map.MapDifficultyStatus.RANKED

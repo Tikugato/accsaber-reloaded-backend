@@ -89,7 +89,7 @@ public class SiteStatisticsService {
                         Pageable pageable) {
                 String normalizedCountry = normalizeCountry(country);
                 String sql = """
-                                SELECT d.id, d.map_id, m.song_name, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url,
+                                SELECT d.id, d.map_id, m.song_name, m.song_subname, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url,
                                         d.difficulty, c.id AS cat_id, c.name AS cat_name,
                                         AVG(s.weighted_ap) AS avg_weighted_ap, COUNT(*) AS score_count,
                                         MAX(s.time_set) AS latest_time_set,
@@ -108,7 +108,7 @@ public class SiteStatisticsService {
                 if (normalizedCountry != null) {
                         sql += " AND LOWER(u.country) = LOWER(:country)";
                 }
-                sql += " GROUP BY d.id, d.map_id, m.song_name, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url," +
+                sql += " GROUP BY d.id, d.map_id, m.song_name, m.song_subname, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url," +
                                 " d.difficulty, c.id, c.name HAVING COUNT(*) >= :minScores" +
                                 " ORDER BY avg_weighted_ap DESC, score_count DESC, m.song_name ASC";
 
@@ -123,17 +123,18 @@ public class SiteStatisticsService {
                                 .mapDifficultyId((UUID) row[0])
                                 .mapId((UUID) row[1])
                                 .songName((String) row[2])
-                                .songAuthor((String) row[3])
-                                .mapAuthor((String) row[4])
-                                .coverUrl((String) row[5])
-                                .cdnCoverUrl((String) row[6])
-                                .difficulty(Difficulty.fromDbValue((String) row[7]))
-                                .categoryId((UUID) row[8])
-                                .categoryName((String) row[9])
-                                .averageWeightedAp((Double) row[10])
-                                .scoreCount(((Number) row[11]).longValue())
-                                .latestScoreTimeSet(row[12] != null ? (Instant) row[12] : null)
-                                .latestScoreId(row[13] != null ? (UUID) row[13] : null)
+                                .songSubName((String) row[3])
+                                .songAuthor((String) row[4])
+                                .mapAuthor((String) row[5])
+                                .coverUrl((String) row[6])
+                                .cdnCoverUrl((String) row[7])
+                                .difficulty(Difficulty.fromDbValue((String) row[8]))
+                                .categoryId((UUID) row[9])
+                                .categoryName((String) row[10])
+                                .averageWeightedAp((Double) row[11])
+                                .scoreCount(((Number) row[12]).longValue())
+                                .latestScoreTimeSet(row[13] != null ? (Instant) row[13] : null)
+                                .latestScoreId(row[14] != null ? (UUID) row[14] : null)
                                 .build());
         }
 
@@ -141,7 +142,7 @@ public class SiteStatisticsService {
         public Page<MapRetryResponse> getMostRetriedMaps(UUID categoryId, String country, Pageable pageable) {
                 String normalizedCountry = normalizeCountry(country);
                 String sql = """
-                                SELECT d.id, d.map_id, m.song_name, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url,
+                                SELECT d.id, d.map_id, m.song_name, m.song_subname, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url,
                                         d.difficulty, c.id AS cat_id, c.name AS cat_name,
                                         COUNT(*) AS superseded_count,
                                         MAX(s.time_set) AS latest_time_set,
@@ -160,7 +161,7 @@ public class SiteStatisticsService {
                 if (normalizedCountry != null) {
                         sql += " AND LOWER(u.country) = LOWER(:country)";
                 }
-                sql += " GROUP BY d.id, d.map_id, m.song_name, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url," +
+                sql += " GROUP BY d.id, d.map_id, m.song_name, m.song_subname, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url," +
                                 " d.difficulty, c.id, c.name ORDER BY superseded_count DESC, m.song_name ASC";
 
                 Map<String, Object> params = new LinkedHashMap<>();
@@ -173,16 +174,17 @@ public class SiteStatisticsService {
                                 .mapDifficultyId((UUID) row[0])
                                 .mapId((UUID) row[1])
                                 .songName((String) row[2])
-                                .songAuthor((String) row[3])
-                                .mapAuthor((String) row[4])
-                                .coverUrl((String) row[5])
-                                .cdnCoverUrl((String) row[6])
-                                .difficulty(Difficulty.fromDbValue((String) row[7]))
-                                .categoryId((UUID) row[8])
-                                .categoryName((String) row[9])
-                                .supersededCount(((Number) row[10]).longValue())
-                                .latestScoreTimeSet(row[11] != null ? (Instant) row[11] : null)
-                                .latestScoreId(row[12] != null ? (UUID) row[12] : null)
+                                .songSubName((String) row[3])
+                                .songAuthor((String) row[4])
+                                .mapAuthor((String) row[5])
+                                .coverUrl((String) row[6])
+                                .cdnCoverUrl((String) row[7])
+                                .difficulty(Difficulty.fromDbValue((String) row[8]))
+                                .categoryId((UUID) row[9])
+                                .categoryName((String) row[10])
+                                .supersededCount(((Number) row[11]).longValue())
+                                .latestScoreTimeSet(row[12] != null ? (Instant) row[12] : null)
+                                .latestScoreId(row[13] != null ? (UUID) row[13] : null)
                                 .build());
         }
 
@@ -233,7 +235,7 @@ public class SiteStatisticsService {
                 String normalizedCountry = normalizeCountry(country);
                 String sql = """
                                 SELECT u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country,
-                                        d.id AS diff_id, d.map_id, m.song_name, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url,
+                                        d.id AS diff_id, d.map_id, m.song_name, m.song_subname, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url,
                                         d.difficulty, c.id AS cat_id, c.name AS cat_name,
                                         COUNT(*) AS improvement_count,
                                         MAX(s.time_set) AS latest_time_set,
@@ -254,7 +256,7 @@ public class SiteStatisticsService {
                         sql += " AND LOWER(u.country) = LOWER(:country)";
                 }
                 sql += " GROUP BY u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country," +
-                                " d.id, d.map_id, m.song_name, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url," +
+                                " d.id, d.map_id, m.song_name, m.song_subname, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url," +
                                 " d.difficulty, c.id, c.name ORDER BY improvement_count DESC, u.name ASC, m.song_name ASC";
 
                 Map<String, Object> params = new LinkedHashMap<>();
@@ -272,16 +274,17 @@ public class SiteStatisticsService {
                                 .mapDifficultyId((UUID) row[5])
                                 .mapId((UUID) row[6])
                                 .songName((String) row[7])
-                                .songAuthor((String) row[8])
-                                .mapAuthor((String) row[9])
-                                .coverUrl((String) row[10])
-                                .cdnCoverUrl((String) row[11])
-                                .difficulty(Difficulty.fromDbValue((String) row[12]))
-                                .categoryId((UUID) row[13])
-                                .categoryName((String) row[14])
-                                .improvementCount(((Number) row[15]).longValue())
-                                .latestScoreTimeSet(row[16] != null ? ((Instant) row[16]) : null)
-                                .latestScoreId(row[17] != null ? (UUID) row[17] : null)
+                                .songSubName((String) row[8])
+                                .songAuthor((String) row[9])
+                                .mapAuthor((String) row[10])
+                                .coverUrl((String) row[11])
+                                .cdnCoverUrl((String) row[12])
+                                .difficulty(Difficulty.fromDbValue((String) row[13]))
+                                .categoryId((UUID) row[14])
+                                .categoryName((String) row[15])
+                                .improvementCount(((Number) row[16]).longValue())
+                                .latestScoreTimeSet(row[17] != null ? ((Instant) row[17]) : null)
+                                .latestScoreId(row[18] != null ? (UUID) row[18] : null)
                                 .build());
         }
 

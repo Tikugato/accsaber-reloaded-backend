@@ -14,6 +14,7 @@ public class RankedDifficultyResponse {
     UUID id;
     String songHash;
     String songName;
+    String songSubName;
     Difficulty difficulty;
     Double complexity;
     String categoryCode;

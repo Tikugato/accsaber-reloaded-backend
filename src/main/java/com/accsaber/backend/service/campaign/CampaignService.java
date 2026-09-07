@@ -2780,6 +2780,7 @@ public class CampaignService {
                 .nps(MapDifficultyMetrics.nps(md.getMetadata()))
                 .maxCombo(MapDifficultyMetrics.maxCombo(md.getMetadata()))
                 .songName(md.getMap().getSongName())
+                .songSubName(md.getMap().getSongSubName())
                 .songAuthor(md.getMap().getSongAuthor())
                 .mapAuthor(md.getMap().getMapAuthor())
                 .coverUrl(md.getMap().getCoverUrl())

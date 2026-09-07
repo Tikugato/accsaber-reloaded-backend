@@ -935,6 +935,7 @@ public class MilestoneService {
                         builder.coverUrl(map.getCoverUrl())
                                 .cdnCoverUrl(map.getCdnCoverUrl())
                                 .songName(map.getSongName())
+                                .songSubName(map.getSongSubName())
                                 .songAuthor(map.getSongAuthor())
                                 .mapAuthor(map.getMapAuthor());
                     }

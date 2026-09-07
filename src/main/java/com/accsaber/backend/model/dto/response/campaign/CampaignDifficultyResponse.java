@@ -29,6 +29,7 @@ public class CampaignDifficultyResponse {
     private Double nps;
     private Integer maxCombo;
     private String songName;
+    private String songSubName;
     private String songAuthor;
     private String mapAuthor;
     private String coverUrl;

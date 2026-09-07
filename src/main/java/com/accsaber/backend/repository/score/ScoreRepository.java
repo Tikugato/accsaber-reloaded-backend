@@ -635,7 +635,8 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         SELECT s.user.id, s.mapDifficulty.id,
                                MAX(CASE WHEN s.supersedesReason IS NULL OR s.supersedesReason <> 'Campaign attempt'
                                         THEN s.streak115 END),
-                               MAX(s.playCount)
+                               MAX(s.playCount),
+                               MAX(COALESCE(s.timeSet, s.createdAt))
                         FROM Score s
                         WHERE s.user.id IN :userIds
                           AND s.mapDifficulty.id IN :mapDifficultyIds

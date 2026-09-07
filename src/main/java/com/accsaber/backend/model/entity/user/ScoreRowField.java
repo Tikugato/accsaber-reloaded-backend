@@ -14,6 +14,7 @@ public enum ScoreRowField {
     MAX_STREAK_115,
     PAUSES,
     PLAY_COUNT,
+    LAST_PLAYED_AT,
     DATE;
 
     @JsonValue

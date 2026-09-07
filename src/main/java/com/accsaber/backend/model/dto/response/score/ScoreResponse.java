@@ -52,6 +52,7 @@ public class ScoreResponse {
     private Integer streak115;
     private Integer maxStreak115;
     private Integer playCount;
+    private Instant lastPlayedAt;
     private String hmd;
     private Instant timeSet;
     private boolean reweightDerivative;

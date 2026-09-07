@@ -196,7 +196,8 @@ public class UserController {
     @Operation(summary = "Get a player's scores", description = "A page of a player's current scores, best AP first. You can "
             + "narrow it to one category, passing either the UUID or the code, and search by song name. Only the active score "
             + "per difficulty shows up here, so if you want the older attempts have a look at the score history route. The "
-            + "exceptions are maxStreak115 and playCount, which count every attempt rather than just the score on the row.")
+            + "exceptions are maxStreak115, playCount and lastPlayedAt, which count every attempt rather than just the score on "
+            + "the row. Sort by lastPlayedAt to find the maps you have not touched in the longest.")
     @GetMapping("/{userId}/scores")
     public ResponseEntity<Page<ScoreResponse>> getUserScores(
             @PathVariable Long userId,

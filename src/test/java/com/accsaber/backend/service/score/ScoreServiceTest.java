@@ -688,6 +688,8 @@ class ScoreServiceTest {
         @Nested
         class AttemptAggregates {
 
+                private static final Instant LAST_ATTEMPT = Instant.parse("2026-08-01T12:00:00Z");
+
                 private Score activeScoreWithStreak(int streak) {
                         return Score.builder()
                                         .id(UUID.randomUUID())
@@ -711,7 +713,8 @@ class ScoreServiceTest {
                         when(scoreRepository.findAttemptAggregatesByUsersAndDifficulties(
                                         List.of(activeUser.getId()), List.of(rankedDifficulty.getId())))
                                         .thenReturn(List.<Object[]>of(new Object[] {
-                                                        activeUser.getId(), rankedDifficulty.getId(), 5, 9 }));
+                                                        activeUser.getId(), rankedDifficulty.getId(), 5, 9,
+                                                        LAST_ATTEMPT }));
 
                         Page<ScoreResponse> result = scoreService.findByUser(
                                         activeUser.getId(), null, null, PageRequest.of(0, 20));
@@ -729,7 +732,8 @@ class ScoreServiceTest {
                         when(scoreRepository.findAttemptAggregatesByUsersAndDifficulties(
                                         List.of(activeUser.getId()), List.of(rankedDifficulty.getId())))
                                         .thenReturn(List.<Object[]>of(new Object[] {
-                                                        activeUser.getId(), rankedDifficulty.getId(), 5, 9 }));
+                                                        activeUser.getId(), rankedDifficulty.getId(), 5, 9,
+                                                        LAST_ATTEMPT }));
 
                         Page<ScoreResponse> result = scoreService.findByUser(
                                         activeUser.getId(), null, null, PageRequest.of(0, 20));
@@ -745,7 +749,7 @@ class ScoreServiceTest {
                         when(scoreRepository.findAttemptAggregatesByUsersAndDifficulties(
                                         List.of(activeUser.getId()), List.of(rankedDifficulty.getId())))
                                         .thenReturn(List.<Object[]>of(new Object[] {
-                                                        activeUser.getId(), rankedDifficulty.getId(), 5, null }));
+                                                        activeUser.getId(), rankedDifficulty.getId(), 5, null, null }));
 
                         Page<ScoreResponse> result = scoreService.findByUser(
                                         activeUser.getId(), null, null, PageRequest.of(0, 20));
@@ -766,6 +770,42 @@ class ScoreServiceTest {
                                         activeUser.getId(), null, null, PageRequest.of(0, 20));
 
                         assertThat(result.getContent().get(0).getMaxStreak115()).isNull();
+                }
+
+                @Test
+                void hydratesLastPlayedAtFromTheNewestAttempt_notTheActiveScoreTime() {
+                        Score active = activeScoreWithStreak(3);
+                        active.setTimeSet(Instant.parse("2026-01-01T00:00:00Z"));
+                        when(scoreRepository.findActiveByUser(eq(activeUser.getId()), any(Pageable.class)))
+                                        .thenReturn(new PageImpl<>(List.of(active)));
+                        when(scoreRepository.findAttemptAggregatesByUsersAndDifficulties(
+                                        List.of(activeUser.getId()), List.of(rankedDifficulty.getId())))
+                                        .thenReturn(List.<Object[]>of(new Object[] {
+                                                        activeUser.getId(), rankedDifficulty.getId(), 5, 9,
+                                                        LAST_ATTEMPT }));
+
+                        Page<ScoreResponse> result = scoreService.findByUser(
+                                        activeUser.getId(), null, null, PageRequest.of(0, 20));
+
+                        assertThat(result.getContent().get(0).getTimeSet())
+                                        .isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
+                        assertThat(result.getContent().get(0).getLastPlayedAt()).isEqualTo(LAST_ATTEMPT);
+                }
+
+                @Test
+                void sortByLastPlayedAt_translatesToAnAggregateOverEveryAttempt() {
+                        when(scoreRepository.findActiveByUser(eq(activeUser.getId()), any(Pageable.class)))
+                                        .thenReturn(new PageImpl<>(List.of()));
+
+                        scoreService.findByUser(activeUser.getId(), null, null,
+                                        PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "lastPlayedAt")));
+
+                        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+                        verify(scoreRepository).findActiveByUser(eq(activeUser.getId()), captor.capture());
+                        String sort = captor.getValue().getSort().toString();
+                        assertThat(sort).contains("MAX(COALESCE(s2.timeSet, s2.createdAt))");
+                        assertThat(sort).contains("s2.user = s.user");
+                        assertThat(sort).contains("s2.mapDifficulty = s.mapDifficulty");
                 }
 
                 @Test

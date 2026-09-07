@@ -472,6 +472,7 @@ public class ScoreService {
                                 .complexity(complexities.get(s.getMapDifficulty().getId()))
                                 .maxStreak115(maxStreakFor(aggregates, s))
                                 .playCount(playCountFor(aggregates, s))
+                                .lastPlayedAt(lastPlayedAtFor(aggregates, s))
                                 .build());
         }
 
@@ -681,6 +682,7 @@ public class ScoreService {
                                 .skillLevel(skillLevels.get(s.getUser().getId()))
                                 .maxStreak115(maxStreakFor(aggregates, s))
                                 .playCount(playCountFor(aggregates, s))
+                                .lastPlayedAt(lastPlayedAtFor(aggregates, s))
                                 .build());
         }
 
@@ -728,6 +730,7 @@ public class ScoreService {
                                                 modifierIds.getOrDefault(s.getId(), List.of()))
                                                 .toBuilder()
                                                 .playCount(playCountFor(aggregates, s))
+                                                .lastPlayedAt(lastPlayedAtFor(aggregates, s))
                                                 .build())
                                 .toList();
                 ScoreResponse player = toResponse(scores.get(playerIndex),
@@ -735,12 +738,14 @@ public class ScoreService {
                                 modifierIds.getOrDefault(scores.get(playerIndex).getId(), List.of()))
                                 .toBuilder()
                                 .playCount(playCountFor(aggregates, scores.get(playerIndex)))
+                                .lastPlayedAt(lastPlayedAtFor(aggregates, scores.get(playerIndex)))
                                 .build();
                 List<ScoreResponse> belowScores = scores.subList(playerIndex + 1, scores.size()).stream()
                                 .map(s -> toResponse(s, computeAccuracy(s.getScore(), maxScore),
                                                 modifierIds.getOrDefault(s.getId(), List.of()))
                                                 .toBuilder()
                                                 .playCount(playCountFor(aggregates, s))
+                                                .lastPlayedAt(lastPlayedAtFor(aggregates, s))
                                                 .build())
                                 .toList();
 
@@ -967,7 +972,7 @@ public class ScoreService {
         private record AttemptKey(Long userId, UUID mapDifficultyId) {
         }
 
-        private record AttemptAggregate(Integer maxStreak115, Integer playCount) {
+        private record AttemptAggregate(Integer maxStreak115, Integer playCount, Instant lastPlayedAt) {
         }
 
         private java.util.Map<AttemptKey, AttemptAggregate> loadAttemptAggregatesBatch(
@@ -981,7 +986,8 @@ public class ScoreService {
                 for (Object[] row : scoreRepository.findAttemptAggregatesByUsersAndDifficulties(userIds,
                                 difficultyIds)) {
                         byKey.put(new AttemptKey((Long) row[0], (UUID) row[1]),
-                                        new AttemptAggregate((Integer) row[2], (Integer) row[3]));
+                                        new AttemptAggregate((Integer) row[2], (Integer) row[3],
+                                                        (Instant) row[4]));
                 }
                 return byKey;
         }
@@ -1002,6 +1008,11 @@ public class ScoreService {
                                 : aggregate.playCount();
         }
 
+        private static Instant lastPlayedAtFor(java.util.Map<AttemptKey, AttemptAggregate> aggregates, Score s) {
+                AttemptAggregate aggregate = aggregateFor(aggregates, s);
+                return aggregate == null ? null : aggregate.lastPlayedAt();
+        }
+
         private static final String ACCURACY_SORT_EXPRESSION = "CAST(s.score AS double) / s.mapDifficulty.maxScore";
 
         private static final String COMPLEXITY_SORT_EXPRESSION = "(SELECT mdc.complexity FROM MapDifficultyComplexity mdc "
@@ -1013,6 +1024,9 @@ public class ScoreService {
 
         private static final String PLAY_COUNT_SORT_EXPRESSION = "(SELECT MAX(s2.playCount) FROM Score s2 "
                         + "WHERE s2.user = s.user AND s2.mapDifficulty = s.mapDifficulty)";
+
+        private static final String LAST_PLAYED_AT_SORT_EXPRESSION = "(SELECT MAX(COALESCE(s2.timeSet, s2.createdAt)) "
+                        + "FROM Score s2 WHERE s2.user = s.user AND s2.mapDifficulty = s.mapDifficulty)";
 
         private Pageable resolveSort(Pageable pageable, Sort defaultSort) {
                 Sort resolved;
@@ -1049,6 +1063,9 @@ public class ScoreService {
                                                                                         + ") IS NULL THEN 1 ELSE 0 END)"))
                                                         .and(JpaSort.unsafe(order.getDirection(),
                                                                         PLAY_COUNT_SORT_EXPRESSION));
+                                } else if ("lastPlayedAt".equalsIgnoreCase(order.getProperty())) {
+                                        resolved = resolved.and(JpaSort.unsafe(order.getDirection(),
+                                                        LAST_PLAYED_AT_SORT_EXPRESSION));
                                 } else {
                                         resolved = resolved.and(Sort.by(
                                                         new Sort.Order(order.getDirection(), order.getProperty(),

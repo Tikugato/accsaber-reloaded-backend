@@ -268,6 +268,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                                 SELECT 1 FROM Score s
                                 WHERE s.mapDifficulty = d AND s.user.id = :excludeUserId AND s.active = true))
                         AND (search_normalize(d.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        OR search_normalize(d.map.songSubName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
                         OR search_normalize(d.map.songAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
                         OR search_normalize(d.map.mapAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """, countQuery = """
@@ -285,6 +286,7 @@ public interface MapDifficultyRepository extends JpaRepository<MapDifficulty, UU
                                 SELECT 1 FROM Score s
                                 WHERE s.mapDifficulty = d AND s.user.id = :excludeUserId AND s.active = true))
                         AND (search_normalize(d.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        OR search_normalize(d.map.songSubName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
                         OR search_normalize(d.map.songAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
                         OR search_normalize(d.map.mapAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """)

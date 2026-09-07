@@ -76,6 +76,7 @@ public interface MapRepository extends JpaRepository<Map, UUID> {
                         SELECT m FROM Map m
                         WHERE m.active = true
                         AND (search_normalize(m.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                             OR search_normalize(m.songSubName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
                              OR search_normalize(m.songAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
                              OR search_normalize(m.mapAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         AND m.id IN (
@@ -94,6 +95,7 @@ public interface MapRepository extends JpaRepository<Map, UUID> {
                         AND ((:status IS NULL AND d.status <> com.accsaber.backend.model.entity.map.MapDifficultyStatus.CAMPAIGN)
                              OR d.status = :status)
                         AND (search_normalize(m.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                             OR search_normalize(m.songSubName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
                              OR search_normalize(m.songAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
                              OR search_normalize(m.mapAuthor) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """)

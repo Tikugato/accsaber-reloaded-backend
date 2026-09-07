@@ -498,14 +498,14 @@ public class ScoreService {
         private Page<Score> queryActiveByUser(Long resolvedUserId, UUID categoryId, String search, Pageable pageable) {
                 boolean hasSearch = search != null && !search.isBlank();
                 if (categoryId != null && hasSearch) {
-                        return scoreRepository.findActiveByUserAndCategoryAndSongNameSearch(
+                        return scoreRepository.findActiveByUserAndCategoryAndSongSearch(
                                         resolvedUserId, categoryId, search.trim(), pageable);
                 }
                 if (categoryId != null) {
                         return scoreRepository.findActiveByUserAndCategory(resolvedUserId, categoryId, pageable);
                 }
                 if (hasSearch) {
-                        return scoreRepository.findActiveByUserAndSongNameSearch(
+                        return scoreRepository.findActiveByUserAndSongSearch(
                                         resolvedUserId, search.trim(), pageable);
                 }
                 return scoreRepository.findActiveByUser(resolvedUserId, pageable);
@@ -566,12 +566,12 @@ public class ScoreService {
                 boolean hasSearch = search != null && !search.isBlank();
                 Page<Score> scores;
                 if (categoryId != null && hasSearch) {
-                        scores = scoreRepository.findActiveByUsersAndCategoryAndSongNameSearch(
+                        scores = scoreRepository.findActiveByUsersAndCategoryAndSongSearch(
                                         userIds, categoryId, search.trim(), effective);
                 } else if (categoryId != null) {
                         scores = scoreRepository.findActiveByUsersAndCategory(userIds, categoryId, effective);
                 } else if (hasSearch) {
-                        scores = scoreRepository.findActiveByUsersAndSongNameSearch(
+                        scores = scoreRepository.findActiveByUsersAndSongSearch(
                                         userIds, search.trim(), effective);
                 } else {
                         scores = scoreRepository.findActiveByUsers(userIds, effective);

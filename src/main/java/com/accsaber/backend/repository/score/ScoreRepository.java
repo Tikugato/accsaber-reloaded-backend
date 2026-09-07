@@ -510,9 +510,10 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         SELECT s FROM Score s
                         WHERE s.user.id = :userId
                         AND s.active = true
-                        AND search_normalize(s.mapDifficulty.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        AND (search_normalize(s.mapDifficulty.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        OR search_normalize(s.mapDifficulty.map.songSubName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """)
-        Page<Score> findActiveByUserAndSongNameSearch(
+        Page<Score> findActiveByUserAndSongSearch(
                         @Param("userId") Long userId,
                         @Param("search") String search,
                         Pageable pageable);
@@ -522,9 +523,10 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         WHERE s.user.id = :userId
                         AND s.mapDifficulty.category.id = :categoryId
                         AND s.active = true
-                        AND search_normalize(s.mapDifficulty.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        AND (search_normalize(s.mapDifficulty.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        OR search_normalize(s.mapDifficulty.map.songSubName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """)
-        Page<Score> findActiveByUserAndCategoryAndSongNameSearch(
+        Page<Score> findActiveByUserAndCategoryAndSongSearch(
                         @Param("userId") Long userId,
                         @Param("categoryId") UUID categoryId,
                         @Param("search") String search,
@@ -557,9 +559,10 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         JOIN FETCH s.user u
                         WHERE s.user.id IN :userIds
                         AND s.active = true
-                        AND search_normalize(s.mapDifficulty.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        AND (search_normalize(s.mapDifficulty.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        OR search_normalize(s.mapDifficulty.map.songSubName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """)
-        Page<Score> findActiveByUsersAndSongNameSearch(
+        Page<Score> findActiveByUsersAndSongSearch(
                         @Param("userIds") java.util.Collection<Long> userIds,
                         @Param("search") String search,
                         Pageable pageable);
@@ -570,9 +573,10 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         WHERE s.user.id IN :userIds
                         AND s.mapDifficulty.category.id = :categoryId
                         AND s.active = true
-                        AND search_normalize(s.mapDifficulty.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        AND (search_normalize(s.mapDifficulty.map.songName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%')
+                        OR search_normalize(s.mapDifficulty.map.songSubName) LIKE CONCAT('%', search_normalize(CAST(:search AS string)), '%'))
                         """)
-        Page<Score> findActiveByUsersAndCategoryAndSongNameSearch(
+        Page<Score> findActiveByUsersAndCategoryAndSongSearch(
                         @Param("userIds") java.util.Collection<Long> userIds,
                         @Param("categoryId") UUID categoryId,
                         @Param("search") String search,

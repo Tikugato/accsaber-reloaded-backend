@@ -31,6 +31,7 @@ import com.accsaber.backend.model.entity.campaign.Campaign;
 import com.accsaber.backend.model.entity.campaign.CampaignDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.score.SnipeSort;
+import com.accsaber.backend.model.entity.score.SnipeUnplayed;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.CategoryRepository;
 import com.accsaber.backend.repository.campaign.CampaignDifficultyRepository;
@@ -234,6 +235,17 @@ class PlaylistServiceTest {
         }
 
         @Test
+        void appendsUnplayedLabelToTitleWhenAskedFor() {
+            when(playlistAssembler.assemble(anyString(), any(), anyString(), any())).thenReturn(Map.of());
+
+            playlistService.generateSnipePlaylist(selectionOf(null, List.of()),
+                    query(null, null, SnipeUnplayed.ONLY), SYNC_URL);
+
+            verify(playlistAssembler).assemble(eq("AccSaber: Snipe Victim - unplayed only"), any(), anyString(),
+                    any());
+        }
+
+        @Test
         void emptyResultStillProducesPlaylistWithNoSongs() {
             when(playlistAssembler.assemble(anyString(), any(), anyString(), any())).thenReturn(Map.of());
 
@@ -249,7 +261,11 @@ class PlaylistServiceTest {
         }
 
         private SnipeQuery query(SnipeSort sort, Sort.Direction direction) {
-            return new SnipeQuery(SNIPER_ID, TARGET_ID, null, sort, direction);
+            return query(sort, direction, null);
+        }
+
+        private SnipeQuery query(SnipeSort sort, Sort.Direction direction, SnipeUnplayed unplayed) {
+            return new SnipeQuery(SNIPER_ID, TARGET_ID, null, sort, direction, unplayed);
         }
 
         @SuppressWarnings("unchecked")

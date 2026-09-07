@@ -37,6 +37,7 @@ import com.accsaber.backend.model.entity.Category;
 import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.score.SnipeSort;
+import com.accsaber.backend.model.entity.score.SnipeUnplayed;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.repository.CategoryRepository;
 import com.accsaber.backend.repository.score.ScoreRepository;
@@ -80,7 +81,7 @@ class SnipeServiceTest {
             Page<Object[]> page = new PageImpl<>(List.<Object[]>of(new Object[] { targetScore, sniperScore }));
 
             mockUsersExist();
-            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false), any()))
+            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false), eq(true), eq(false), any()))
                     .thenReturn(page);
             ScoreResponse sniperResponse = ScoreResponse.builder().build();
             ScoreResponse targetResponse = ScoreResponse.builder().build();
@@ -102,7 +103,7 @@ class SnipeServiceTest {
         @Test
         void emptyResultProducesEmptyPage() {
             mockUsersExist();
-            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false), any()))
+            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false), eq(true), eq(false), any()))
                     .thenReturn(new PageImpl<>(List.<Object[]>of()));
 
             Page<SnipeComparisonResponse> result = snipeService.findSnipeComparisons(query(null, null, null),
@@ -118,14 +119,14 @@ class SnipeServiceTest {
             Category category = Category.builder().id(categoryId).code("true_acc").name("True Acc").build();
             mockUsersExist();
             when(categoryRepository.findByCodeAndActiveTrue("true_acc")).thenReturn(Optional.of(category));
-            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), eq(categoryId), eq(false), any()))
+            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), eq(categoryId), eq(false), eq(true), eq(false), any()))
                     .thenReturn(new PageImpl<>(List.<Object[]>of()));
 
             Page<SnipeComparisonResponse> result = snipeService.findSnipeComparisons(query("true_acc", null, null),
                     PageRequest.of(0, 10));
 
             assertThat(result.getContent()).isEmpty();
-            verify(scoreRepository).findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), eq(categoryId), eq(false), any());
+            verify(scoreRepository).findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), eq(categoryId), eq(false), eq(true), eq(false), any());
         }
 
         @Test
@@ -133,18 +134,18 @@ class SnipeServiceTest {
             mockUsersExist();
             when(categoryRepository.findByCodeAndActiveTrue("overall"))
                     .thenReturn(Optional.of(Category.builder().code("overall").name("Overall").build()));
-            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(true), any()))
+            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(true), eq(true), eq(false), any()))
                     .thenReturn(new PageImpl<>(List.<Object[]>of()));
 
             snipeService.findSnipeComparisons(query("overall", null, null), PageRequest.of(0, 10));
 
-            verify(scoreRepository).findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(true), any());
+            verify(scoreRepository).findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(true), eq(true), eq(false), any());
         }
 
         @Test
         void defaultsToClosestGapAscending() {
             mockUsersExist();
-            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false), any()))
+            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false), eq(true), eq(false), any()))
                     .thenReturn(new PageImpl<>(List.<Object[]>of()));
 
             snipeService.findSnipeComparisons(query(null, null, null), PageRequest.of(2, 10));
@@ -159,7 +160,7 @@ class SnipeServiceTest {
         @Test
         void appliesRequestedSortAndDirection() {
             mockUsersExist();
-            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false), any()))
+            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false), eq(true), eq(false), any()))
                     .thenReturn(new PageImpl<>(List.<Object[]>of()));
 
             snipeService.findSnipeComparisons(query(null, SnipeSort.TARGET_AP, Sort.Direction.ASC),
@@ -168,6 +169,45 @@ class SnipeServiceTest {
             Sort.Order primary = capturedSort().toList().get(0);
             assertThat(primary.getProperty()).isEqualTo(SnipeSort.TARGET_AP.getExpression());
             assertThat(primary.getDirection()).isEqualTo(Sort.Direction.ASC);
+        }
+
+        @Test
+        void unplayedMapsComeBackWithNoSniperScoreAndTheFullDelta() {
+            UUID diffId = UUID.randomUUID();
+            MapDifficulty diff = MapDifficulty.builder().id(diffId).build();
+            Score targetScore = scoreOn(diff, 950_000);
+
+            mockUsersExist();
+            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false), eq(false), eq(true),
+                    any()))
+                    .thenReturn(new PageImpl<>(List.<Object[]>of(new Object[] { targetScore, null })));
+            ScoreResponse targetResponse = ScoreResponse.builder().build();
+            when(scoreService.mapToResponse(targetScore)).thenReturn(targetResponse);
+            when(mapService.getDifficultyResponsePublic(diffId))
+                    .thenReturn(PublicMapDifficultyResponse.builder().id(diffId).build());
+
+            SnipeQuery onlyUnplayed = new SnipeQuery(SNIPER_ID, TARGET_ID, null, null, null, SnipeUnplayed.ONLY);
+            Page<SnipeComparisonResponse> result = snipeService.findSnipeComparisons(onlyUnplayed,
+                    PageRequest.of(0, 10));
+
+            SnipeComparisonResponse comparison = result.getContent().get(0);
+            assertThat(comparison.getSniperScore()).isNull();
+            assertThat(comparison.getTargetScore()).isSameAs(targetResponse);
+            assertThat(comparison.getScoreDelta()).isEqualTo(950_000);
+        }
+
+        @Test
+        void includingUnplayedMapsAllowsBothSides() {
+            mockUsersExist();
+            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false), eq(true), eq(true),
+                    any()))
+                    .thenReturn(new PageImpl<>(List.<Object[]>of()));
+
+            snipeService.findSnipeComparisons(new SnipeQuery(SNIPER_ID, TARGET_ID, null, null, null,
+                    SnipeUnplayed.INCLUDE), PageRequest.of(0, 10));
+
+            verify(scoreRepository).findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false), eq(true),
+                    eq(true), any());
         }
 
         @Test
@@ -182,7 +222,7 @@ class SnipeServiceTest {
 
         @Test
         void rejectsSelfSnipe() {
-            SnipeQuery selfQuery = new SnipeQuery(SNIPER_ID, SNIPER_ID, null, null, null);
+            SnipeQuery selfQuery = new SnipeQuery(SNIPER_ID, SNIPER_ID, null, null, null, null);
 
             assertThatThrownBy(() -> snipeService.findSnipeComparisons(selfQuery, PageRequest.of(0, 10)))
                     .isInstanceOf(ValidationException.class);
@@ -218,7 +258,7 @@ class SnipeServiceTest {
             MapDifficulty diff = MapDifficulty.builder().id(UUID.randomUUID()).build();
             mockUsersExist();
             when(categoryRepository.findByCodeAndActiveTrue("tech_acc")).thenReturn(Optional.of(category));
-            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), eq(categoryId), eq(false), any()))
+            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), eq(categoryId), eq(false), eq(true), eq(false), any()))
                     .thenReturn(new PageImpl<>(List.<Object[]>of(new Object[] { scoreOn(diff, 950_000), null })));
 
             SnipeSelection selection = snipeService.findSnipeDifficulties(query("tech_acc", null, null), 20);
@@ -233,7 +273,7 @@ class SnipeServiceTest {
         @Test
         void unlimitedSizeStaysUnpagedButKeepsTheSort() {
             mockUsersExist();
-            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false), any()))
+            when(scoreRepository.findSnipePairs(eq(SNIPER_ID), eq(TARGET_ID), isNull(), eq(false), eq(true), eq(false), any()))
                     .thenReturn(new PageImpl<>(List.<Object[]>of()));
 
             snipeService.findSnipeDifficulties(query(null, SnipeSort.AP_GAP, null), 0);
@@ -246,12 +286,13 @@ class SnipeServiceTest {
     }
 
     private Sort capturedSort() {
-        verify(scoreRepository).findSnipePairs(any(), any(), any(), anyBoolean(), pageableCaptor.capture());
+        verify(scoreRepository).findSnipePairs(any(), any(), any(), anyBoolean(), anyBoolean(), anyBoolean(),
+                pageableCaptor.capture());
         return pageableCaptor.getValue().getSort();
     }
 
     private SnipeQuery query(String categoryCode, SnipeSort sort, Sort.Direction direction) {
-        return new SnipeQuery(SNIPER_ID, TARGET_ID, categoryCode, sort, direction);
+        return new SnipeQuery(SNIPER_ID, TARGET_ID, categoryCode, sort, direction, null);
     }
 
     private void mockUsersExist() {

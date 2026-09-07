@@ -4,13 +4,16 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.JpaSort;
 
 import com.accsaber.backend.model.entity.score.SnipeSort;
+import com.accsaber.backend.model.entity.score.SnipeUnplayed;
 
-public record SnipeQuery(Long sniperId, Long targetId, String categoryCode, SnipeSort sort, Sort.Direction direction) {
+public record SnipeQuery(Long sniperId, Long targetId, String categoryCode, SnipeSort sort, Sort.Direction direction,
+        SnipeUnplayed unplayed) {
 
     public SnipeQuery {
         sort = sort == null ? SnipeSort.GAP : sort;
         direction = direction != null ? direction
                 : sort.isDescendingByDefault() ? Sort.Direction.DESC : Sort.Direction.ASC;
+        unplayed = unplayed == null ? SnipeUnplayed.EXCLUDE : unplayed;
     }
 
     public boolean isDefaultOrder() {
@@ -26,10 +29,9 @@ public record SnipeQuery(Long sniperId, Long targetId, String categoryCode, Snip
     }
 
     public Sort toSort() {
-        JpaSort primary = JpaSort.unsafe(direction, sort.getExpression());
-        Sort ordered = sort.isNullable()
-                ? Sort.by(primary.stream().map(order -> order.with(Sort.NullHandling.NULLS_LAST)).toList())
-                : primary;
-        return ordered.and(JpaSort.unsafe(Sort.Direction.ASC, "s_b.id"));
+        Sort primary = Sort.by(JpaSort.unsafe(direction, sort.getExpression()).stream()
+                .map(order -> order.with(Sort.NullHandling.NULLS_LAST))
+                .toList());
+        return primary.and(JpaSort.unsafe(Sort.Direction.ASC, "s_b.id"));
     }
 }

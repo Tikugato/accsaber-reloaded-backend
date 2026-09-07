@@ -11,6 +11,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.data.domain.Sort;
 
 import com.accsaber.backend.model.entity.score.SnipeSort;
+import com.accsaber.backend.model.entity.score.SnipeUnplayed;
 
 class SnipeQueryTest {
 
@@ -67,12 +68,10 @@ class SnipeQueryTest {
 
         @ParameterizedTest
         @EnumSource(SnipeSort.class)
-        void nullableSortsPushEmptyValuesToTheEnd(SnipeSort sort) {
+        void everySortPushesEmptyValuesToTheEnd(SnipeSort sort) {
             Sort.Order primary = query(sort, null).toSort().toList().get(0);
 
-            assertThat(primary.getNullHandling()).isEqualTo(sort.isNullable()
-                    ? Sort.NullHandling.NULLS_LAST
-                    : Sort.NullHandling.NATIVE);
+            assertThat(primary.getNullHandling()).isEqualTo(Sort.NullHandling.NULLS_LAST);
         }
 
         @ParameterizedTest
@@ -82,6 +81,39 @@ class SnipeQueryTest {
 
             assertThat(expression.startsWith("(") || expression.startsWith("s_a.") || expression.startsWith("s_b."))
                     .isTrue();
+        }
+    }
+
+    @Nested
+    class Unplayed {
+
+        @Test
+        void missingToggleKeepsUnplayedMapsOut() {
+            SnipeQuery query = query(null, null);
+
+            assertThat(query.unplayed()).isEqualTo(SnipeUnplayed.EXCLUDE);
+            assertThat(query.unplayed().isDefault()).isTrue();
+            assertThat(query.unplayed().allowsPlayed()).isTrue();
+            assertThat(query.unplayed().allowsUnplayed()).isFalse();
+        }
+
+        @Test
+        void includeKeepsBothSides() {
+            assertThat(SnipeUnplayed.INCLUDE.allowsPlayed()).isTrue();
+            assertThat(SnipeUnplayed.INCLUDE.allowsUnplayed()).isTrue();
+        }
+
+        @Test
+        void onlyDropsTheMapsYouHavePlayed() {
+            assertThat(SnipeUnplayed.ONLY.allowsPlayed()).isFalse();
+            assertThat(SnipeUnplayed.ONLY.allowsUnplayed()).isTrue();
+        }
+
+        @Test
+        void labelAndSlugDescribeTheToggle() {
+            assertThat(SnipeUnplayed.ONLY.getLabel()).isEqualTo("unplayed only");
+            assertThat(SnipeUnplayed.ONLY.getSlug()).isEqualTo("unplayed-only");
+            assertThat(SnipeUnplayed.INCLUDE.getSlug()).isEqualTo("unplayed-include");
         }
     }
 
@@ -98,6 +130,6 @@ class SnipeQueryTest {
     }
 
     private SnipeQuery query(SnipeSort sort, Sort.Direction direction) {
-        return new SnipeQuery(SNIPER_ID, TARGET_ID, null, sort, direction);
+        return new SnipeQuery(SNIPER_ID, TARGET_ID, null, sort, direction, null);
     }
 }

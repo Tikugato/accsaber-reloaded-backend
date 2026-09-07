@@ -157,7 +157,8 @@ public class PlaylistService {
     public Map<String, Object> generateSnipePlaylist(SnipeSelection selection, SnipeQuery query, String syncUrl) {
         String title = "AccSaber: Snipe " + selection.target().getName()
                 + (selection.categoryLabel() != null ? " (" + selection.categoryLabel() + ")" : "")
-                + (query.isDefaultOrder() ? "" : " - " + query.orderLabel());
+                + (query.isDefaultOrder() ? "" : " - " + query.orderLabel())
+                + (query.unplayed().isDefault() ? "" : " - " + query.unplayed().getLabel());
 
         return playlistAssembler.assemble(
                 title,

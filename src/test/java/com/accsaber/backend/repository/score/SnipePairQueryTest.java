@@ -27,6 +27,7 @@ import com.accsaber.backend.model.entity.map.MapDifficulty;
 import com.accsaber.backend.model.entity.map.MapDifficultyStatus;
 import com.accsaber.backend.model.entity.score.Score;
 import com.accsaber.backend.model.entity.score.SnipeSort;
+import com.accsaber.backend.model.entity.score.SnipeUnplayed;
 import com.accsaber.backend.model.entity.user.User;
 import com.accsaber.backend.service.snipe.SnipeQuery;
 
@@ -110,8 +111,8 @@ class SnipePairQueryTest {
     @Test
     @DisplayName("a paged request keeps both the ordering and the unsorted count query")
     void pagedRequestKeepsOrderingAndCount() {
-        SnipeQuery query = new SnipeQuery(SNIPER_ID, TARGET_ID, null, SnipeSort.AP_GAP, null);
-        var page = scoreRepository.findSnipePairs(SNIPER_ID, TARGET_ID, null, false,
+        SnipeQuery query = new SnipeQuery(SNIPER_ID, TARGET_ID, null, SnipeSort.AP_GAP, null, null);
+        var page = scoreRepository.findSnipePairs(SNIPER_ID, TARGET_ID, null, false, true, false,
                 PageRequest.of(0, 2, query.toSort()));
 
         assertThat(page.getTotalElements()).isEqualTo(3);
@@ -130,10 +131,69 @@ class SnipePairQueryTest {
     }
 
     private List<UUID> orderedBy(SnipeSort sort, Sort.Direction direction) {
-        SnipeQuery query = new SnipeQuery(SNIPER_ID, TARGET_ID, null, sort, direction);
+        return orderedBy(sort, direction, SnipeUnplayed.EXCLUDE);
+    }
+
+    private List<UUID> orderedBy(SnipeSort sort, Sort.Direction direction, SnipeUnplayed unplayed) {
+        SnipeQuery query = new SnipeQuery(SNIPER_ID, TARGET_ID, null, sort, direction, unplayed);
         return difficultyIds(scoreRepository
-                .findSnipePairs(SNIPER_ID, TARGET_ID, null, false, Pageable.unpaged(query.toSort()))
+                .findSnipePairs(SNIPER_ID, TARGET_ID, null, false, unplayed.allowsPlayed(), unplayed.allowsUnplayed(),
+                        Pageable.unpaged(query.toSort()))
                 .getContent());
+    }
+
+    @Test
+    @DisplayName("a map only the target has played is left out by default")
+    void unplayedMapIsHiddenUnlessAskedFor() {
+        UUID unplayed = persistTargetOnly(trueAcc, target, 1_000_000, 960_000, 520.0, 2);
+        entityManager.flush();
+
+        assertThat(orderedBy(SnipeSort.TARGET_AP, null)).doesNotContain(unplayed);
+    }
+
+    @Test
+    @DisplayName("including unplayed maps adds them alongside the ones you have played")
+    void includingUnplayedAddsThemToTheList() {
+        UUID unplayed = persistTargetOnly(trueAcc, target, 1_000_000, 960_000, 520.0, 2);
+        entityManager.flush();
+
+        assertThat(orderedBy(SnipeSort.TARGET_AP, null, SnipeUnplayed.INCLUDE))
+                .containsExactlyInAnyOrder(tightestGap, wideGap, closeGap, unplayed);
+    }
+
+    @Test
+    @DisplayName("only unplayed leaves nothing but the maps you have never touched")
+    void onlyUnplayedDropsEverythingYouHavePlayed() {
+        UUID unplayed = persistTargetOnly(trueAcc, target, 1_000_000, 960_000, 520.0, 2);
+        entityManager.flush();
+
+        assertThat(orderedBy(SnipeSort.TARGET_AP, null, SnipeUnplayed.ONLY)).containsExactly(unplayed);
+    }
+
+    @Test
+    @DisplayName("unplayed maps sort last rather than hijacking the top of a sniper-side order")
+    void unplayedMapsSortLastOnSniperSideOrders() {
+        UUID unplayed = persistTargetOnly(trueAcc, target, 1_000_000, 960_000, 520.0, 2);
+        entityManager.flush();
+
+        assertThat(orderedBy(SnipeSort.YOUR_AP, null, SnipeUnplayed.INCLUDE))
+                .containsExactly(tightestGap, closeGap, wideGap, unplayed);
+    }
+
+    @Test
+    @DisplayName("a map where you are already ahead stays out even when unplayed maps are included")
+    void mapsYouAlreadyLeadStayOut() {
+        UUID alreadyAhead = persistPair(trueAcc, sniper, target, 1_000_000, 980_000, 700.0, 1, 900_000, 400.0, 40);
+        entityManager.flush();
+
+        assertThat(orderedBy(SnipeSort.TARGET_AP, null, SnipeUnplayed.INCLUDE)).doesNotContain(alreadyAhead);
+    }
+
+    private UUID persistTargetOnly(Category category, User target, Integer maxScore, int targetScore, double targetAp,
+            int targetRank) {
+        MapDifficulty difficulty = persistDifficulty(category, maxScore);
+        persistScore(target, difficulty, targetScore, targetAp, targetRank);
+        return difficulty.getId();
     }
 
     private List<UUID> difficultyIds(List<Object[]> rows) {
@@ -148,6 +208,13 @@ class SnipePairQueryTest {
 
     private UUID persistPair(Category category, User sniper, User target, Integer maxScore,
             int sniperScore, double sniperAp, int sniperRank, int targetScore, double targetAp, int targetRank) {
+        MapDifficulty difficulty = persistDifficulty(category, maxScore);
+        persistScore(sniper, difficulty, sniperScore, sniperAp, sniperRank);
+        persistScore(target, difficulty, targetScore, targetAp, targetRank);
+        return difficulty.getId();
+    }
+
+    private MapDifficulty persistDifficulty(Category category, Integer maxScore) {
         Map map = Map.builder()
                 .songName("Song")
                 .songAuthor("Author")
@@ -165,10 +232,7 @@ class SnipePairQueryTest {
                 .maxScore(maxScore)
                 .build();
         entityManager.persist(difficulty);
-
-        persistScore(sniper, difficulty, sniperScore, sniperAp, sniperRank);
-        persistScore(target, difficulty, targetScore, targetAp, targetRank);
-        return difficulty.getId();
+        return difficulty;
     }
 
     private void persistScore(User user, MapDifficulty difficulty, int value, double ap, int rank) {

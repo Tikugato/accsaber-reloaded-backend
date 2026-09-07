@@ -886,14 +886,16 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         JOIN FETCH s_b.mapDifficulty d
                         JOIN FETCH d.map
                         JOIN FETCH d.category c
-                        JOIN Score s_a
+                        LEFT JOIN Score s_a
                           ON s_a.mapDifficulty = s_b.mapDifficulty
                          AND s_a.user.id = :sniperId
                          AND s_a.active = true
                         WHERE s_b.user.id = :targetId
                           AND s_b.active = true
                           AND d.active = true
-                          AND s_b.score > s_a.score
+                          AND (s_a.id IS NULL OR s_b.score > s_a.score)
+                          AND (:allowPlayed = true OR s_a.id IS NULL)
+                          AND (:allowUnplayed = true OR s_a.id IS NOT NULL)
                           AND (:categoryId IS NULL OR c.id = :categoryId)
                           AND (:overallOnly = false OR c.countForOverall = true)
                         """, countQuery = """
@@ -901,14 +903,16 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         FROM Score s_b
                         JOIN s_b.mapDifficulty d
                         JOIN d.category c
-                        JOIN Score s_a
+                        LEFT JOIN Score s_a
                           ON s_a.mapDifficulty = s_b.mapDifficulty
                          AND s_a.user.id = :sniperId
                          AND s_a.active = true
                         WHERE s_b.user.id = :targetId
                           AND s_b.active = true
                           AND d.active = true
-                          AND s_b.score > s_a.score
+                          AND (s_a.id IS NULL OR s_b.score > s_a.score)
+                          AND (:allowPlayed = true OR s_a.id IS NULL)
+                          AND (:allowUnplayed = true OR s_a.id IS NOT NULL)
                           AND (:categoryId IS NULL OR c.id = :categoryId)
                           AND (:overallOnly = false OR c.countForOverall = true)
                         """)
@@ -917,6 +921,8 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
                         @Param("targetId") Long targetId,
                         @Param("categoryId") UUID categoryId,
                         @Param("overallOnly") boolean overallOnly,
+                        @Param("allowPlayed") boolean allowPlayed,
+                        @Param("allowUnplayed") boolean allowUnplayed,
                         Pageable pageable);
 
         @Query("""

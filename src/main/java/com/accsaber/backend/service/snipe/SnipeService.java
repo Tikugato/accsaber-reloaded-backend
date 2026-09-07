@@ -45,7 +45,8 @@ public class SnipeService {
         requireDistinctPlayers(query);
         CategoryFilter filter = resolveCategoryFilter(query.categoryCode());
         Page<Object[]> pairs = scoreRepository.findSnipePairs(query.sniperId(), query.targetId(),
-                filter.categoryId(), filter.overallOnly(), sorted(pageable, query));
+                filter.categoryId(), filter.overallOnly(), query.unplayed().allowsPlayed(),
+                query.unplayed().allowsUnplayed(), sorted(pageable, query));
 
         List<Object[]> rows = pairs.getContent();
         List<UUID> difficultyIds = rows.stream()
@@ -56,7 +57,9 @@ public class SnipeService {
         List<Score> scores = new ArrayList<>(rows.size() * 2);
         for (Object[] r : rows) {
             scores.add((Score) r[0]);
-            scores.add((Score) r[1]);
+            if (r[1] != null) {
+                scores.add((Score) r[1]);
+            }
         }
         Map<UUID, ScoreResponse> scoreResponses = scoreService.mapToResponsesByScoreId(scores);
 
@@ -70,7 +73,8 @@ public class SnipeService {
                 ? Pageable.unpaged(query.toSort())
                 : PageRequest.of(0, size, query.toSort());
         List<MapDifficulty> difficulties = scoreRepository
-                .findSnipePairs(query.sniperId(), query.targetId(), filter.categoryId(), filter.overallOnly(), pageable)
+                .findSnipePairs(query.sniperId(), query.targetId(), filter.categoryId(), filter.overallOnly(),
+                        query.unplayed().allowsPlayed(), query.unplayed().allowsUnplayed(), pageable)
                 .stream()
                 .map(row -> ((Score) row[0]).getMapDifficulty())
                 .toList();
@@ -93,20 +97,17 @@ public class SnipeService {
         if (difficulty == null) {
             difficulty = mapService.getDifficultyResponsePublic(difficultyId);
         }
-        ScoreResponse sniperResponse = scoreResponses.get(sniperScore.getId());
-        if (sniperResponse == null) {
-            sniperResponse = scoreService.mapToResponse(sniperScore);
-        }
-        ScoreResponse targetResponse = scoreResponses.get(targetScore.getId());
-        if (targetResponse == null) {
-            targetResponse = scoreService.mapToResponse(targetScore);
-        }
         return SnipeComparisonResponse.builder()
                 .mapDifficulty(difficulty)
-                .sniperScore(sniperResponse)
-                .targetScore(targetResponse)
-                .scoreDelta(targetScore.getScore() - sniperScore.getScore())
+                .sniperScore(sniperScore == null ? null : resolveResponse(sniperScore, scoreResponses))
+                .targetScore(resolveResponse(targetScore, scoreResponses))
+                .scoreDelta(targetScore.getScore() - (sniperScore == null ? 0 : sniperScore.getScore()))
                 .build();
+    }
+
+    private ScoreResponse resolveResponse(Score score, Map<UUID, ScoreResponse> scoreResponses) {
+        ScoreResponse response = scoreResponses.get(score.getId());
+        return response != null ? response : scoreService.mapToResponse(score);
     }
 
     CategoryFilter resolveCategoryFilter(String categoryCode) {

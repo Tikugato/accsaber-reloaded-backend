@@ -10,6 +10,7 @@ import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.entity.campaign.Campaign;
 import com.accsaber.backend.model.entity.map.Batch;
 import com.accsaber.backend.model.entity.score.SnipeSort;
+import com.accsaber.backend.model.entity.score.SnipeUnplayed;
 import com.accsaber.backend.repository.campaign.CampaignRepository;
 import com.accsaber.backend.repository.map.BatchRepository;
 import org.springframework.data.domain.Pageable;
@@ -85,8 +86,9 @@ public class PlaylistController {
                         @Parameter(description = "User ID of the sniping player") @PathVariable Long sniperId,
                         @Parameter(description = "User ID of the target player") @PathVariable Long targetId,
                         @Parameter(description = "GAP, AP_GAP, TARGET_AP, YOUR_AP or RANK_GAP") @RequestParam(defaultValue = "GAP") SnipeSort sort,
-                        @Parameter(description = "ASC or DESC; each sort has its own sensible default") @RequestParam(required = false) Sort.Direction direction) {
-                return buildSnipePlaylistResponse(new SnipeQuery(sniperId, targetId, null, sort, direction), 0);
+                        @Parameter(description = "ASC or DESC; each sort has its own sensible default") @RequestParam(required = false) Sort.Direction direction,
+                        @Parameter(description = "EXCLUDE (only maps you have played), INCLUDE (add the ones you have not) or ONLY (just those)") @RequestParam(required = false) SnipeUnplayed unplayed) {
+                return buildSnipePlaylistResponse(new SnipeQuery(sniperId, targetId, null, sort, direction, unplayed), 0);
         }
 
         @Operation(summary = "Download a snipe playlist with a size cap", description = "The same snipe playlist but stopping "
@@ -98,8 +100,9 @@ public class PlaylistController {
                         @Parameter(description = "User ID of the target player") @PathVariable Long targetId,
                         @Parameter(description = "Map count cap (0 = unlimited)") @PathVariable int size,
                         @Parameter(description = "GAP, AP_GAP, TARGET_AP, YOUR_AP or RANK_GAP") @RequestParam(defaultValue = "GAP") SnipeSort sort,
-                        @Parameter(description = "ASC or DESC; each sort has its own sensible default") @RequestParam(required = false) Sort.Direction direction) {
-                return buildSnipePlaylistResponse(new SnipeQuery(sniperId, targetId, null, sort, direction), size);
+                        @Parameter(description = "ASC or DESC; each sort has its own sensible default") @RequestParam(required = false) Sort.Direction direction,
+                        @Parameter(description = "EXCLUDE (only maps you have played), INCLUDE (add the ones you have not) or ONLY (just those)") @RequestParam(required = false) SnipeUnplayed unplayed) {
+                return buildSnipePlaylistResponse(new SnipeQuery(sniperId, targetId, null, sort, direction, unplayed), size);
         }
 
         @Operation(summary = "Download a snipe playlist for one category", description = "A snipe playlist narrowed to a single "
@@ -112,8 +115,10 @@ public class PlaylistController {
                         @Parameter(description = "Map count cap (0 = unlimited)") @PathVariable int size,
                         @Parameter(description = "Category code") @PathVariable String category,
                         @Parameter(description = "GAP, AP_GAP, TARGET_AP, YOUR_AP or RANK_GAP") @RequestParam(defaultValue = "GAP") SnipeSort sort,
-                        @Parameter(description = "ASC or DESC; each sort has its own sensible default") @RequestParam(required = false) Sort.Direction direction) {
-                return buildSnipePlaylistResponse(new SnipeQuery(sniperId, targetId, category, sort, direction), size);
+                        @Parameter(description = "ASC or DESC; each sort has its own sensible default") @RequestParam(required = false) Sort.Direction direction,
+                        @Parameter(description = "EXCLUDE (only maps you have played), INCLUDE (add the ones you have not) or ONLY (just those)") @RequestParam(required = false) SnipeUnplayed unplayed) {
+                return buildSnipePlaylistResponse(new SnipeQuery(sniperId, targetId, category, sort, direction, unplayed),
+                                size);
         }
 
         @Operation(summary = "Download a player's own scores as a playlist", description = "The maps behind a slice of a "
@@ -211,6 +216,9 @@ public class PlaylistController {
                 if (!query.isDefaultOrder()) {
                         syncBuilder.queryParam("sort", query.sort()).queryParam("direction", query.direction());
                 }
+                if (!query.unplayed().isDefault()) {
+                        syncBuilder.queryParam("unplayed", query.unplayed());
+                }
                 String syncUrl = categoryParam
                                 .map(c -> syncBuilder.buildAndExpand(query.sniperId(), query.targetId(), size, c))
                                 .orElseGet(() -> syncBuilder.buildAndExpand(query.sniperId(), query.targetId(), size))
@@ -219,7 +227,8 @@ public class PlaylistController {
                 Map<String, Object> playlist = playlistService.generateSnipePlaylist(selection, query, syncUrl);
 
                 String filenameSuffix = categoryParam.map(c -> "-" + c.replace("_", "-")).orElse("")
-                                + (query.isDefaultOrder() ? "" : "-" + query.orderSlug());
+                                + (query.isDefaultOrder() ? "" : "-" + query.orderSlug())
+                                + (query.unplayed().isDefault() ? "" : "-" + query.unplayed().getSlug());
                 String filename = "accsaber-snipe-" + query.sniperId() + "-" + query.targetId() + filenameSuffix
                                 + ".bplist";
 

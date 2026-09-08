@@ -867,7 +867,6 @@ public class MissionBuilderService {
 
     private UserMission.UserMissionBuilder baseBuilder(MissionAssignmentContext ctx, MissionTemplate template,
             Category category, Instant expiresAt, MissionPool pool, MissionBand band) {
-        UserCategorySkill skill = category != null ? ctx.skillByCategoryId().get(category.getId()) : null;
         return UserMission.builder()
                 .user(userRepository.getReferenceById(ctx.userId()))
                 .template(template)
@@ -875,7 +874,7 @@ public class MissionBuilderService {
                 .category(category)
                 .band(band)
                 .assignedSkillLevel(skillService.skillLevelFor(ctx, category))
-                .assignedSkillThreshold(skill != null ? skill.getRawApForOneGain() : null)
+                .assignedSkillThreshold(skillService.skillThresholdFor(ctx, category))
                 .expiresAt(expiresAt);
     }
 

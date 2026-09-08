@@ -4,6 +4,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
+import java.util.OptionalDouble;
 import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
@@ -55,6 +57,23 @@ public class MissionSkillService {
                 .findFirst()
                 .map(UserCategorySkill::getSkillLevel)
                 .orElse(0.0);
+    }
+
+    public Double skillThresholdFor(MissionAssignmentContext ctx, Category category) {
+        if (category != null && !OVERALL_CODE.equals(category.getCode())) {
+            UserCategorySkill s = ctx.skillByCategoryId().get(category.getId());
+            if (s != null && s.getRawApForOneGain() != null) {
+                return s.getRawApForOneGain();
+            }
+        }
+        OptionalDouble mean = ctx.skillByCategoryId().values().stream()
+                .filter(s -> s.getCategory() != null)
+                .filter(s -> !OVERALL_CODE.equals(s.getCategory().getCode()))
+                .map(UserCategorySkill::getRawApForOneGain)
+                .filter(Objects::nonNull)
+                .mapToDouble(Double::doubleValue)
+                .average();
+        return mean.isPresent() ? mean.getAsDouble() : null;
     }
 
     public Double liftedThreshold(MissionAssignmentContext ctx, Category targetCategory,

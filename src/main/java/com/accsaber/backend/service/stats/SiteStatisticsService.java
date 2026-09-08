@@ -44,8 +44,6 @@ import com.accsaber.backend.service.score.ScoreService;
 import com.accsaber.backend.util.HmdMapper;
 import com.accsaber.backend.util.TimeRangeUtil;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -55,19 +53,19 @@ public class SiteStatisticsService {
 
         private final ScoreRepository scoreRepository;
         private final ScoreService scoreService;
-        private final EntityManager entityManager;
+        private final StatsQueryRunner queryRunner;
 
         @Cacheable(value = "statistics", key = "'streaks:' + #categoryId + ':' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<ScoreResponse> getTopStreaks(UUID categoryId, String country, Pageable pageable) {
                 Pageable effective = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-                return hydrateScorePage(scoreRepository.findTopStreakIds(categoryId, normalizeCountry(country),
+                return hydrateScorePage(scoreRepository.findTopStreakIds(categoryId, StatsQueryRunner.normalizeCountry(country),
                                 effective));
         }
 
         @Cacheable(value = "statistics", key = "'maxap:' + #categoryId + ':' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<ScoreResponse> getTopByAp(UUID categoryId, String country, Pageable pageable) {
                 Pageable effective = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-                return hydrateScorePage(scoreRepository.findTopApIds(categoryId, normalizeCountry(country), effective));
+                return hydrateScorePage(scoreRepository.findTopApIds(categoryId, StatsQueryRunner.normalizeCountry(country), effective));
         }
 
         private Page<ScoreResponse> hydrateScorePage(Page<UUID> ids) {
@@ -87,7 +85,7 @@ public class SiteStatisticsService {
         @Cacheable(value = "statistics", key = "'highavgweightedap:' + #categoryId + ':' + #country + ':' + #minScores + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<MapAvgApResponse> getHighestAvgAp(UUID categoryId, String country, int minScores,
                         Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = """
                                 SELECT d.id, d.map_id, m.song_name, m.song_subname, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url,
                                         d.difficulty, c.id AS cat_id, c.name AS cat_name,
@@ -119,7 +117,7 @@ public class SiteStatisticsService {
                         params.put("country", normalizedCountry);
                 params.put("minScores", (long) minScores);
 
-                return executePagedNativeQuery(sql, params, pageable, row -> MapAvgApResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> MapAvgApResponse.builder()
                                 .mapDifficultyId((UUID) row[0])
                                 .mapId((UUID) row[1])
                                 .songName((String) row[2])
@@ -140,7 +138,7 @@ public class SiteStatisticsService {
 
         @Cacheable(value = "statistics", key = "'mostretried:' + #categoryId + ':' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<MapRetryResponse> getMostRetriedMaps(UUID categoryId, String country, Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = """
                                 SELECT d.id, d.map_id, m.song_name, m.song_subname, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url,
                                         d.difficulty, c.id AS cat_id, c.name AS cat_name,
@@ -170,7 +168,7 @@ public class SiteStatisticsService {
                 if (normalizedCountry != null)
                         params.put("country", normalizedCountry);
 
-                return executePagedNativeQuery(sql, params, pageable, row -> MapRetryResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> MapRetryResponse.builder()
                                 .mapDifficultyId((UUID) row[0])
                                 .mapId((UUID) row[1])
                                 .songName((String) row[2])
@@ -190,7 +188,7 @@ public class SiteStatisticsService {
 
         @Cacheable(value = "statistics", key = "'mostimprovements:' + #categoryId + ':' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<UserImprovementsResponse> getMostImprovements(UUID categoryId, String country, Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = """
                                 SELECT u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country, COUNT(*) AS improvement_count,
                                         MAX(s.time_set) AS latest_time_set,
@@ -217,7 +215,7 @@ public class SiteStatisticsService {
                 if (normalizedCountry != null)
                         params.put("country", normalizedCountry);
 
-                return executePagedNativeQuery(sql, params, pageable, row -> UserImprovementsResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> UserImprovementsResponse.builder()
                                 .userId(String.valueOf(((Number) row[0]).longValue()))
                                 .userName((String) row[1])
                                 .avatarUrl((String) row[2])
@@ -232,7 +230,7 @@ public class SiteStatisticsService {
         @Cacheable(value = "statistics", key = "'mostmapimprovements:' + #categoryId + ':' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<UserMapImprovementsResponse> getMostMapImprovements(UUID categoryId, String country,
                         Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = """
                                 SELECT u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country,
                                         d.id AS diff_id, d.map_id, m.song_name, m.song_subname, m.song_author, m.map_author, m.cover_url, m.cdn_cover_url,
@@ -265,7 +263,7 @@ public class SiteStatisticsService {
                 if (normalizedCountry != null)
                         params.put("country", normalizedCountry);
 
-                return executePagedNativeQuery(sql, params, pageable, row -> UserMapImprovementsResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> UserMapImprovementsResponse.builder()
                                 .userId(String.valueOf(((Number) row[0]).longValue()))
                                 .userName((String) row[1])
                                 .avatarUrl((String) row[2])
@@ -290,7 +288,7 @@ public class SiteStatisticsService {
 
         @Cacheable(value = "statistics", key = "'milestonecollectors:' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<MilestoneCollectorResponse> getMilestoneCollectors(String country, Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = """
                                 SELECT u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country, COUNT(*) AS milestone_count
                                 FROM user_milestone_links uml
@@ -305,7 +303,7 @@ public class SiteStatisticsService {
 
                 Map<String, Object> params = normalizedCountry != null ? Map.of("country", normalizedCountry) : Map.of();
 
-                return executePagedNativeQuery(sql, params, pageable, row -> MilestoneCollectorResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> MilestoneCollectorResponse.builder()
                                 .userId(String.valueOf(((Number) row[0]).longValue()))
                                 .userName((String) row[1])
                                 .avatarUrl((String) row[2])
@@ -319,60 +317,60 @@ public class SiteStatisticsService {
         public List<TimeSeriesPointResponse> getNewPlayersPerDay(int amount, String unit, String country) {
                 Instant since = TimeRangeUtil.computeSince(amount, unit);
                 String trunc = TimeRangeUtil.granularity(since);
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String countryClause = normalizedCountry != null ? " AND LOWER(country) = LOWER(:country)" : "";
                 String sql = "SELECT day, cnt FROM (" +
                                 " SELECT date_trunc('" + trunc + "', created_at)::date AS day, COUNT(*) AS cnt" +
                                 " FROM users WHERE active = true AND banned = false AND created_at >= :since" +
                                 countryClause +
                                 " GROUP BY day) sub WHERE cnt <= 4000 ORDER BY day";
-                return executeTimeSeriesQuery(sql, since, normalizedCountry);
+                return queryRunner.timeSeries(sql, since, normalizedCountry);
         }
 
         @Cacheable(value = "statistics", key = "'scoresperday:' + #amount + ':' + #unit + ':' + #country")
         public List<TimeSeriesPointResponse> getScoresPerDay(int amount, String unit, String country) {
                 Instant since = TimeRangeUtil.computeSince(amount, unit);
                 String trunc = TimeRangeUtil.granularity(since);
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String countryClause = normalizedCountry != null ? " AND LOWER(u.country) = LOWER(:country)" : "";
                 String sql = "SELECT date_trunc('" + trunc + "', s.time_set)::date AS day, COUNT(*) AS cnt" +
                                 " FROM scores s JOIN users u ON u.id = s.user_id" +
                                 " WHERE u.active = true AND u.banned = false AND s.time_set >= :since" +
                                 countryClause +
                                 " GROUP BY day ORDER BY day";
-                return executeTimeSeriesQuery(sql, since, normalizedCountry);
+                return queryRunner.timeSeries(sql, since, normalizedCountry);
         }
 
         @Cacheable(value = "statistics", key = "'cumulativeaccounts:' + #amount + ':' + #unit + ':' + #country")
         public List<TimeSeriesPointResponse> getCumulativeAccounts(int amount, String unit, String country) {
                 Instant since = TimeRangeUtil.computeSince(amount, unit);
                 String trunc = TimeRangeUtil.granularity(since);
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String countryClause = normalizedCountry != null ? " AND LOWER(country) = LOWER(:country)" : "";
                 String sql = "SELECT day, SUM(cnt) OVER (ORDER BY day) AS cumulative FROM (" +
                                 " SELECT date_trunc('" + trunc + "', created_at)::date AS day, COUNT(*) AS cnt" +
                                 " FROM users WHERE active = true AND banned = false" + countryClause + " GROUP BY day" +
                                 ") daily WHERE day >= :since ORDER BY day";
-                return executeTimeSeriesQuery(sql, since, normalizedCountry);
+                return queryRunner.timeSeries(sql, since, normalizedCountry);
         }
 
         @Cacheable(value = "statistics", key = "'cumulativescores:' + #amount + ':' + #unit + ':' + #country")
         public List<TimeSeriesPointResponse> getCumulativeScores(int amount, String unit, String country) {
                 Instant since = TimeRangeUtil.computeSince(amount, unit);
                 String trunc = TimeRangeUtil.granularity(since);
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String countryClause = normalizedCountry != null ? " AND LOWER(u.country) = LOWER(:country)" : "";
                 String sql = "SELECT day, SUM(cnt) OVER (ORDER BY day) AS cumulative FROM (" +
                                 " SELECT date_trunc('" + trunc + "', time_set)::date AS day, COUNT(*) AS cnt" +
                                 " FROM scores s JOIN users u ON u.id = s.user_id" +
                                 " WHERE u.active = true AND u.banned = false" + countryClause + " GROUP BY day" +
                                 ") daily WHERE day >= :since ORDER BY day";
-                return executeTimeSeriesQuery(sql, since, normalizedCountry);
+                return queryRunner.timeSeries(sql, since, normalizedCountry);
         }
 
         @Cacheable(value = "statistics", key = "'scorespercategory:' + #country")
         public List<DistributionEntryResponse> getScoresPerCategory(String country) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = "SELECT c.name, COUNT(*) AS cnt" +
                                 " FROM scores s" +
                                 " JOIN map_difficulties d ON d.id = s.map_difficulty_id" +
@@ -381,13 +379,13 @@ public class SiteStatisticsService {
                                 " WHERE s.active = true AND u.active = true AND u.banned = false" +
                                 (normalizedCountry != null ? " AND LOWER(u.country) = LOWER(:country)" : "") +
                                 " GROUP BY c.name ORDER BY cnt DESC";
-                return executeDistributionQuery(sql,
+                return queryRunner.distribution(sql,
                                 normalizedCountry != null ? Map.of("country", normalizedCountry) : Map.of());
         }
 
         @Cacheable(value = "statistics", key = "'playersbyhmd:' + #country")
         public List<DistributionEntryResponse> getPlayersByHmd(String country) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = "SELECT hmd, COUNT(*) AS cnt FROM (" +
                                 " SELECT DISTINCT ON (s.user_id) s.hmd" +
                                 " FROM scores s" +
@@ -397,18 +395,15 @@ public class SiteStatisticsService {
                                 (normalizedCountry != null ? " AND LOWER(u.country) = LOWER(:country)" : "") +
                                 " ORDER BY s.user_id, s.time_set DESC NULLS LAST" +
                                 ") latest GROUP BY hmd ORDER BY cnt DESC";
-                Query nativeQuery = entityManager.createNativeQuery(sql);
-                if (normalizedCountry != null)
-                        nativeQuery.setParameter("country", normalizedCountry);
-                @SuppressWarnings("unchecked")
-                List<Object[]> rows = nativeQuery.getResultList();
+                List<DistributionEntryResponse> rows = queryRunner.distribution(sql,
+                                normalizedCountry != null ? Map.of("country", normalizedCountry) : Map.of());
 
                 Map<String, Long> aggregated = new LinkedHashMap<>();
-                for (Object[] row : rows) {
-                        String label = HmdMapper.normalize((String) row[0]);
+                for (DistributionEntryResponse row : rows) {
+                        String label = HmdMapper.normalize(row.getLabel());
                         if (label == null)
                                 continue;
-                        aggregated.merge(label, ((Number) row[1]).longValue(), Long::sum);
+                        aggregated.merge(label, row.getCount(), Long::sum);
                 }
 
                 return aggregated.entrySet().stream()
@@ -429,12 +424,12 @@ public class SiteStatisticsService {
                                 GROUP BY country
                                 ORDER BY cnt DESC
                                 """;
-                return executeDistributionQuery(sql, Map.of());
+                return queryRunner.distribution(sql, Map.of());
         }
 
         @Cacheable(value = "statistics", key = "'mostitems:' + #type + ':' + #modifier + ':' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<MostItemsResponse> getMostItems(String type, String modifier, String country, Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = """
                                 SELECT u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country, SUM(l.quantity) AS item_count
                                 FROM user_item_links l
@@ -462,7 +457,7 @@ public class SiteStatisticsService {
                 if (normalizedCountry != null)
                         params.put("country", normalizedCountry);
 
-                return executePagedNativeQuery(sql, params, pageable, row -> MostItemsResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> MostItemsResponse.builder()
                                 .userId(String.valueOf(((Number) row[0]).longValue()))
                                 .userName((String) row[1])
                                 .avatarUrl((String) row[2])
@@ -474,7 +469,7 @@ public class SiteStatisticsService {
 
         @Cacheable(value = "statistics", key = "'mostcrates:' + #crateId + ':' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<MostCratesOpenedResponse> getMostCratesOpened(UUID crateId, String country, Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = """
                                 SELECT u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country, COUNT(*) AS crate_count
                                 FROM user_crate_opens o
@@ -494,7 +489,7 @@ public class SiteStatisticsService {
                 if (normalizedCountry != null)
                         params.put("country", normalizedCountry);
 
-                return executePagedNativeQuery(sql, params, pageable, row -> MostCratesOpenedResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> MostCratesOpenedResponse.builder()
                                 .userId(String.valueOf(((Number) row[0]).longValue()))
                                 .userName((String) row[1])
                                 .avatarUrl((String) row[2])
@@ -506,7 +501,7 @@ public class SiteStatisticsService {
 
         @Cacheable(value = "statistics", key = "'rarestunboxed:' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<RarestUnboxedResponse> getRarestUnboxed(String country, Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = """
                                 SELECT l.id, u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country,
                                         i.id, i.name, i.icon_url, i.rarity, t.key, l.serial_number,
@@ -532,7 +527,7 @@ public class SiteStatisticsService {
 
                 Map<String, Object> params = normalizedCountry != null ? Map.of("country", normalizedCountry) : Map.of();
 
-                return executePagedNativeQuery(sql, params, pageable, row -> RarestUnboxedResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> RarestUnboxedResponse.builder()
                                 .linkId((UUID) row[0])
                                 .userId(String.valueOf(((Number) row[1]).longValue()))
                                 .userName((String) row[2])
@@ -553,7 +548,7 @@ public class SiteStatisticsService {
 
         @Cacheable(value = "statistics", key = "'valuableinventory:' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<InventoryValueResponse> getMostValuableInventory(String country, Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = """
                                 SELECT u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country,
                                         COALESCE(SUM(i.worth * l.quantity), 0) AS items_value,
@@ -572,7 +567,7 @@ public class SiteStatisticsService {
 
                 Map<String, Object> params = normalizedCountry != null ? Map.of("country", normalizedCountry) : Map.of();
 
-                return executePagedNativeQuery(sql, params, pageable, row -> InventoryValueResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> InventoryValueResponse.builder()
                                 .userId(String.valueOf(((Number) row[0]).longValue()))
                                 .userName((String) row[1])
                                 .avatarUrl((String) row[2])
@@ -586,7 +581,7 @@ public class SiteStatisticsService {
 
         @Cacheable(value = "statistics", key = "'firsteditions:' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<FirstEditionsResponse> getFirstEditions(String country, Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = """
                                 SELECT u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country, COUNT(*) AS first_edition_count
                                 FROM user_item_links l
@@ -602,7 +597,7 @@ public class SiteStatisticsService {
 
                 Map<String, Object> params = normalizedCountry != null ? Map.of("country", normalizedCountry) : Map.of();
 
-                return executePagedNativeQuery(sql, params, pageable, row -> FirstEditionsResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> FirstEditionsResponse.builder()
                                 .userId(String.valueOf(((Number) row[0]).longValue()))
                                 .userName((String) row[1])
                                 .avatarUrl((String) row[2])
@@ -614,7 +609,7 @@ public class SiteStatisticsService {
 
         @Cacheable(value = "statistics", key = "'firsteditionholders:' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<FirstEditionHolderResponse> getFirstEditionHolders(String country, Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = """
                                 SELECT i.id, i.name, i.icon_url, i.rarity, t.key, l.id, l.serial_number,
                                         u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country
@@ -631,7 +626,7 @@ public class SiteStatisticsService {
 
                 Map<String, Object> params = normalizedCountry != null ? Map.of("country", normalizedCountry) : Map.of();
 
-                return executePagedNativeQuery(sql, params, pageable, row -> FirstEditionHolderResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> FirstEditionHolderResponse.builder()
                                 .itemId((UUID) row[0])
                                 .itemName((String) row[1])
                                 .iconUrl((String) row[2])
@@ -649,7 +644,7 @@ public class SiteStatisticsService {
 
         @Cacheable(value = "statistics", key = "'completecollection:' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<CollectionCompletionResponse> getMostCompleteCollection(String country, Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String catalog = "(SELECT COUNT(*) FROM items ci WHERE ci.tradeable = true" +
                                 " AND ci.active = true AND ci.visible = true AND ci.deprecated = false)";
                 String sql = "SELECT u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country," +
@@ -668,7 +663,7 @@ public class SiteStatisticsService {
 
                 Map<String, Object> params = normalizedCountry != null ? Map.of("country", normalizedCountry) : Map.of();
 
-                return executePagedNativeQuery(sql, params, pageable, row -> CollectionCompletionResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> CollectionCompletionResponse.builder()
                                 .userId(String.valueOf(((Number) row[0]).longValue()))
                                 .userName((String) row[1])
                                 .avatarUrl((String) row[2])
@@ -694,7 +689,7 @@ public class SiteStatisticsService {
                                 """;
                 sql += " ORDER BY instance_count ASC, owner_count ASC, " + rarityRank("i.rarity") + " DESC, i.name ASC";
 
-                return executePagedNativeQuery(sql, Map.of(), pageable, row -> ItemScarcityResponse.builder()
+                return queryRunner.paged(sql, Map.of(), pageable, row -> ItemScarcityResponse.builder()
                                 .itemId((UUID) row[0])
                                 .itemName((String) row[1])
                                 .iconUrl((String) row[2])
@@ -756,7 +751,7 @@ public class SiteStatisticsService {
                     params.put("viewerId", viewerId);
             }
 
-            return executePagedNativeQuery(sql, params, pageable, row -> ItemHolderResponse.builder()
+            return queryRunner.paged(sql, params, pageable, row -> ItemHolderResponse.builder()
                             .userId(String.valueOf(((Number) row[0]).longValue()))
                             .userName((String) row[1])
                             .avatarUrl((String) row[2])
@@ -792,7 +787,7 @@ public class SiteStatisticsService {
 
     @Cacheable(value = "statistics", key = "'biggesttraders:' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<BiggestTraderResponse> getBiggestTraders(String country, Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = """
                                 SELECT u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country,
                                         COUNT(DISTINCT parties.trade_id) AS trade_count,
@@ -813,7 +808,7 @@ public class SiteStatisticsService {
 
                 Map<String, Object> params = normalizedCountry != null ? Map.of("country", normalizedCountry) : Map.of();
 
-                return executePagedNativeQuery(sql, params, pageable, row -> BiggestTraderResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> BiggestTraderResponse.builder()
                                 .userId(String.valueOf(((Number) row[0]).longValue()))
                                 .userName((String) row[1])
                                 .avatarUrl((String) row[2])
@@ -826,7 +821,7 @@ public class SiteStatisticsService {
 
         @Cacheable(value = "statistics", key = "'essenceearned:' + #country + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
         public Page<EssenceEarnedResponse> getMostEssenceEarned(String country, Pageable pageable) {
-                String normalizedCountry = normalizeCountry(country);
+                String normalizedCountry = StatsQueryRunner.normalizeCountry(country);
                 String sql = """
                                 SELECT u.id, u.name, u.avatar_url, u.cdn_avatar_url, u.country,
                                         COALESCE(SUM(d.essence_gained), 0) AS essence_earned
@@ -843,7 +838,7 @@ public class SiteStatisticsService {
 
                 Map<String, Object> params = normalizedCountry != null ? Map.of("country", normalizedCountry) : Map.of();
 
-                return executePagedNativeQuery(sql, params, pageable, row -> EssenceEarnedResponse.builder()
+                return queryRunner.paged(sql, params, pageable, row -> EssenceEarnedResponse.builder()
                                 .userId(String.valueOf(((Number) row[0]).longValue()))
                                 .userName((String) row[1])
                                 .avatarUrl((String) row[2])
@@ -864,58 +859,4 @@ public class SiteStatisticsService {
                 return List.of(aggregated.split(","));
         }
 
-        private static String normalizeCountry(String country) {
-                if (country == null)
-                        return null;
-                String trimmed = country.trim();
-                return trimmed.isEmpty() ? null : trimmed;
-        }
-
-        @SuppressWarnings("unchecked")
-        private <T> Page<T> executePagedNativeQuery(String sql, Map<String, Object> params, Pageable pageable,
-                        java.util.function.Function<Object[], T> mapper) {
-
-                String countSql = "SELECT COUNT(*) FROM (" + sql + ") _count";
-                Query countQuery = entityManager.createNativeQuery(countSql);
-                params.forEach(countQuery::setParameter);
-                long total = ((Number) countQuery.getSingleResult()).longValue();
-
-                Query dataQuery = entityManager.createNativeQuery(sql);
-                params.forEach(dataQuery::setParameter);
-                dataQuery.setFirstResult((int) pageable.getOffset());
-                dataQuery.setMaxResults(pageable.getPageSize());
-
-                List<Object[]> rows = dataQuery.getResultList();
-                List<T> content = rows.stream().map(mapper).toList();
-
-                return new PageImpl<>(content, pageable, total);
-        }
-
-        @SuppressWarnings("unchecked")
-        private List<TimeSeriesPointResponse> executeTimeSeriesQuery(String sql, Instant since, String country) {
-                Query query = entityManager.createNativeQuery(sql);
-                query.setParameter("since", since);
-                if (country != null && sql.contains(":country"))
-                        query.setParameter("country", country);
-                List<Object[]> rows = query.getResultList();
-                return rows.stream()
-                                .map(row -> TimeSeriesPointResponse.builder()
-                                                .date((java.time.LocalDate) row[0])
-                                                .value(((Number) row[1]).longValue())
-                                                .build())
-                                .toList();
-        }
-
-        @SuppressWarnings("unchecked")
-        private List<DistributionEntryResponse> executeDistributionQuery(String sql, Map<String, Object> params) {
-                Query query = entityManager.createNativeQuery(sql);
-                params.forEach(query::setParameter);
-                List<Object[]> rows = query.getResultList();
-                return rows.stream()
-                                .map(row -> DistributionEntryResponse.builder()
-                                                .label((String) row[0])
-                                                .count(((Number) row[1]).longValue())
-                                                .build())
-                                .toList();
-        }
 }

@@ -98,6 +98,7 @@ accsaber:
   release-channel: ${RELEASE_CHANNEL:BETA}
   missions:
     enabled: true
+    assign-active-days: ${MISSION_ASSIGN_ACTIVE_DAYS:90}
   voting:
     qualify-threshold: 3
     reweight-threshold: 3

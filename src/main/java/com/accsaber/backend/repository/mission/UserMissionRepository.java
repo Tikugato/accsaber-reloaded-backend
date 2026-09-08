@@ -31,7 +31,16 @@ public interface UserMissionRepository extends JpaRepository<UserMission, UUID> 
 
         long countByUser_IdAndPoolAndStatus(Long userId, MissionPool pool, MissionStatus status);
 
-        long countByUser_IdAndPoolAndExpiresAtAfter(Long userId, MissionPool pool, Instant now);
+        @Query("""
+                        SELECT COUNT(m) FROM UserMission m
+                        WHERE m.user.id = :userId
+                          AND m.pool = :pool
+                          AND m.expiresAt > :now
+                          AND m.status IN (com.accsaber.backend.model.entity.mission.MissionStatus.active,
+                                           com.accsaber.backend.model.entity.mission.MissionStatus.completed)
+                        """)
+        long countCurrentCycle(@Param("userId") Long userId, @Param("pool") MissionPool pool,
+                        @Param("now") Instant now);
 
         @Query("""
                         SELECT m FROM UserMission m
@@ -95,29 +104,32 @@ public interface UserMissionRepository extends JpaRepository<UserMission, UUID> 
 
         @Modifying
         @Query("""
-                        DELETE FROM UserMission m
+                        UPDATE UserMission m
+                        SET m.status = com.accsaber.backend.model.entity.mission.MissionStatus.voided
                         WHERE m.user.id = :userId
                           AND m.status = com.accsaber.backend.model.entity.mission.MissionStatus.active
                           AND m.pool <> com.accsaber.backend.model.entity.mission.MissionPool.event
                         """)
-        int deleteActiveForUser(@Param("userId") Long userId);
+        int voidActiveForUser(@Param("userId") Long userId);
 
         @Modifying
         @Query("""
-                        DELETE FROM UserMission m
+                        UPDATE UserMission m
+                        SET m.status = com.accsaber.backend.model.entity.mission.MissionStatus.voided
                         WHERE m.user.id = :userId
                           AND m.pool = :pool
                           AND m.status = com.accsaber.backend.model.entity.mission.MissionStatus.active
                         """)
-        int deleteActiveForUserAndPool(@Param("userId") Long userId, @Param("pool") MissionPool pool);
+        int voidActiveForUserAndPool(@Param("userId") Long userId, @Param("pool") MissionPool pool);
 
         @Modifying
         @Query("""
-                        DELETE FROM UserMission m
+                        UPDATE UserMission m
+                        SET m.status = com.accsaber.backend.model.entity.mission.MissionStatus.expired
                         WHERE m.pool = :pool
-                          AND m.status <> com.accsaber.backend.model.entity.mission.MissionStatus.completed
+                          AND m.status = com.accsaber.backend.model.entity.mission.MissionStatus.active
                         """)
-        int deleteNonCompletedByPool(@Param("pool") MissionPool pool);
+        int expireByPool(@Param("pool") MissionPool pool);
 
         @Modifying
         @Query("""

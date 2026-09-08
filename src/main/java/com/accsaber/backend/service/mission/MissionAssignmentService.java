@@ -1,5 +1,6 @@
 package com.accsaber.backend.service.mission;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +52,9 @@ public class MissionAssignmentService {
 
     private static final int DAILY_MISSION_COUNT = 2;
     private static final String OVERALL_CODE = "overall";
+
+    @Value("${accsaber.missions.assign-active-days:90}")
+    private int assignActiveDays;
 
     private final UserRepository userRepository;
     private final UserCategorySkillRepository skillRepository;
@@ -90,14 +95,14 @@ public class MissionAssignmentService {
 
     public void rolloutAllUsers(boolean freshSeed) {
         MissionPoolCache cache = loadPoolCache();
-        List<Long> eligible = scoreRepository.findActivePlayerIdsWithAtLeastActiveScores(1);
+        List<Long> eligible = eligiblePlayerIds();
         log.info("Rolling out daily + weekly for {} users (fresh={})", eligible.size(), freshSeed);
 
         for (Long userId : eligible) {
             backfillExecutor.execute(() -> {
                 try {
                     transactionTemplate.executeWithoutResult(status -> {
-                        userMissionRepository.deleteActiveForUser(userId);
+                        userMissionRepository.voidActiveForUser(userId);
                         assignForUser(userId, MissionPool.daily, cache, freshSeed);
                         assignForUser(userId, MissionPool.weekly, cache, freshSeed);
                     });
@@ -146,14 +151,14 @@ public class MissionAssignmentService {
         assertRollable(pool);
         MissionPoolCache cache = loadPoolCache();
         if (pool == null) {
-            userMissionRepository.deleteActiveForUserAndPool(userId, MissionPool.daily);
-            userMissionRepository.deleteActiveForUserAndPool(userId, MissionPool.weekly);
+            userMissionRepository.voidActiveForUserAndPool(userId, MissionPool.daily);
+            userMissionRepository.voidActiveForUserAndPool(userId, MissionPool.weekly);
             List<UserMission> all = new ArrayList<>();
             all.addAll(assignForUser(userId, MissionPool.daily, cache, true));
             all.addAll(assignForUser(userId, MissionPool.weekly, cache, true));
             return all;
         }
-        userMissionRepository.deleteActiveForUserAndPool(userId, pool);
+        userMissionRepository.voidActiveForUserAndPool(userId, pool);
         return assignForUser(userId, pool, cache, true);
     }
 
@@ -171,8 +176,13 @@ public class MissionAssignmentService {
         }
     }
 
+    private List<Long> eligiblePlayerIds() {
+        Instant playedSince = Instant.now().minus(Duration.ofDays(assignActiveDays));
+        return scoreRepository.findRecentlyActivePlayerIds(1, playedSince);
+    }
+
     private boolean hasCurrentCycle(Long userId, MissionPool pool) {
-        return userMissionRepository.countByUser_IdAndPoolAndExpiresAtAfter(userId, pool, Instant.now()) > 0;
+        return userMissionRepository.countCurrentCycle(userId, pool, Instant.now()) > 0;
     }
 
     private MissionPoolCache loadPoolCache() {
@@ -184,12 +194,12 @@ public class MissionAssignmentService {
 
     private void purgeAndRollPool(MissionPool pool, boolean freshSeed) {
         transactionTemplate.executeWithoutResult(status -> {
-            int removed = userMissionRepository.deleteNonCompletedByPool(pool);
-            log.info("Purged {} non-completed {} missions before rollout", removed, pool);
+            int expired = userMissionRepository.expireByPool(pool);
+            log.info("Expired {} unfinished {} missions before rollout", expired, pool);
         });
 
         MissionPoolCache cache = loadPoolCache();
-        List<Long> eligible = scoreRepository.findActivePlayerIdsWithAtLeastActiveScores(1);
+        List<Long> eligible = eligiblePlayerIds();
         log.info("Rolling {} missions for {} users (fresh={})", pool, eligible.size(), freshSeed);
 
         for (Long userId : eligible) {

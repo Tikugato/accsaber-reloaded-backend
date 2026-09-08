@@ -496,6 +496,18 @@ public interface ScoreRepository extends JpaRepository<Score, UUID> {
         List<Long> findActivePlayerIdsWithAtLeastActiveScores(@Param("minScores") long minScores);
 
         @Query("""
+                        SELECT s.user.id FROM Score s
+                        JOIN s.user u
+                        WHERE s.active = true AND u.active = true AND u.banned = false
+                          AND u.playerInactive = false
+                        GROUP BY s.user.id
+                        HAVING COUNT(s) >= :minScores
+                           AND MAX(COALESCE(s.timeSet, s.createdAt)) >= :playedSince
+                        """)
+        List<Long> findRecentlyActivePlayerIds(@Param("minScores") long minScores,
+                        @Param("playedSince") Instant playedSince);
+
+        @Query("""
                         SELECT s FROM Score s
                         WHERE s.user.id = :userId
                         AND s.mapDifficulty.category.id = :categoryId

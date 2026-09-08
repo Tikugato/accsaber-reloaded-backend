@@ -133,6 +133,7 @@ src/main/resources/
 | `IMPERSONATION_ENABLED`   | No   | Turns on the staff endpoint that mints a player token for any account, so you can browse as that player. Only works when the `staging` profile is active, and the app refuses to start if you enable it anywhere else. Defaults to off. |
 | `IMPERSONATION_TOKEN_TTL` | No   | How many seconds an impersonation token stays valid. Defaults to 3600. |
 | `RELEASE_CHANNEL`         | No   | The label shown next to the version, like `BETA` or `RC`. It comes back from `/v1/health/ping` so the site can show which build people are on. Leave it blank once a version is a proper release and the label disappears. Defaults to `BETA`. |
+| `MISSION_ASSIGN_ACTIVE_DAYS` | No | How recently somebody has to have played before the nightly roll hands them daily and weekly missions. Defaults to 90 days. Anyone outside the window picks missions up the next time they log in, and keeping the window tight is what stops the completion rate on the stats page being watered down by people who never saw the mission. |
 | `CDN_UPLOAD_MAX_DIMENSION`| No   | Pixel cap for **uploaded** content (campaign bg/icon, item icon, user-uploaded avatar). Default 4096. Effectively unconstrained; admin/user controls dimension. |
 | `CDN_MAX_UPLOAD_BYTES`    | No   | Hard ceiling on uploaded file size in bytes. Default 10485760 (10 MB). |
 | `CDN_BACKFILL_DELAY_MS`   | No   | Throttle between tasks in the avatar/cover backfill loop. Default 0 (no throttle). Set higher to gentle the system or upstream APIs. |

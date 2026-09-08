@@ -94,6 +94,12 @@ public class UserMission {
     @Column(name = "snipe_distance")
     private Double snipeDistance;
 
+    @Column(name = "assigned_skill_level")
+    private Double assignedSkillLevel;
+
+    @Column(name = "assigned_skill_threshold")
+    private Double assignedSkillThreshold;
+
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     @Builder.Default

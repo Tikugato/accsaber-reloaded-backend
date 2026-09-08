@@ -216,7 +216,7 @@ public class CampaignStatisticsService {
                 + " FROM campaigns c"
                 + " JOIN users u ON u.id = c.creator_id"
                 + " LEFT JOIN user_campaigns uc ON uc.campaign_id = c.id AND uc.active = true"
-                + " WHERE c.active = true AND c.status <> 'draft'"
+                + " WHERE c.active = true AND c.status <> 'draft' AND c.official = false"
                 + " AND u.active = true AND u.banned = false"
                 + filter.appendCampaignPredicate(params);
         if (normalizedCountry != null) {

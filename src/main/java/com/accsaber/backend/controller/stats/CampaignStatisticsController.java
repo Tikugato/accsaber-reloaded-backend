@@ -97,7 +97,8 @@ public class CampaignStatisticsController {
     }
 
     @Operation(summary = "Campaign creators by reach", description = "Whoever built the campaigns, ranked by how many "
-            + "people have played them and how many got to the end. Drafts do not count.")
+            + "people have played them and how many got to the end. Drafts do not count, and neither do official "
+            + "campaigns.")
     @GetMapping("/leaderboards/top-creators")
     public ResponseEntity<Page<CampaignCreatorResponse>> getTopCreators(
             @RequestParam(required = false) List<String> status,

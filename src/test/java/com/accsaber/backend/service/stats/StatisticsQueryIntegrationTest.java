@@ -28,8 +28,11 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import com.accsaber.backend.exception.ValidationException;
 import com.accsaber.backend.model.dto.response.statistics.MissionCalibrationResponse;
 import com.accsaber.backend.model.dto.response.statistics.MissionShortfallResponse;
+import com.accsaber.backend.model.dto.response.statistics.CampaignCreatorResponse;
 import com.accsaber.backend.model.dto.response.statistics.EventMissionLeaderboardResponse;
 import com.accsaber.backend.model.dto.response.statistics.EventSummaryResponse;
+import com.accsaber.backend.model.entity.campaign.Campaign;
+import com.accsaber.backend.model.entity.campaign.CampaignStatus;
 import com.accsaber.backend.model.entity.mission.Event;
 import com.accsaber.backend.model.entity.mission.MissionBand;
 import com.accsaber.backend.model.entity.mission.MissionPool;
@@ -375,6 +378,52 @@ class StatisticsQueryIntegrationTest {
     }
 
     @Nested
+    @DisplayName("Creator credit")
+    class CreatorCredit {
+
+        @Test
+        @DisplayName("official campaigns are never credited to a person")
+        void officialCampaignsAreUserless() {
+            User author = persistUser();
+            persistCampaign(author, false);
+            persistCampaign(author, true);
+            persistCampaign(author, true);
+            entityManager.flush();
+
+            List<CampaignCreatorResponse> creators = campaignStats
+                    .getTopCreators(CampaignStatsFilter.none(), PageRequest.of(0, 20))
+                    .getContent();
+
+            assertThat(creators).hasSize(1);
+            assertThat(creators.get(0).getCampaigns()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("someone who only publishes official campaigns does not appear at all")
+        void officialOnlyAuthorIsAbsent() {
+            User frontman = persistUser();
+            persistCampaign(frontman, true);
+            entityManager.flush();
+
+            assertThat(campaignStats.getTopCreators(CampaignStatsFilter.none(), PageRequest.of(0, 20)))
+                    .isEmpty();
+        }
+
+        @Test
+        @DisplayName("asking for official campaigns by status still credits nobody")
+        void officialStatusFilterCreditsNobody() {
+            User author = persistUser();
+            persistCampaign(author, true);
+            persistCampaign(author, false);
+            entityManager.flush();
+
+            CampaignStatsFilter officialOnly = new CampaignStatsFilter(List.of("official"), null, 0);
+
+            assertThat(campaignStats.getTopCreators(officialOnly, PageRequest.of(0, 20))).isEmpty();
+        }
+    }
+
+    @Nested
     @DisplayName("Every query runs")
     class Smoke {
 
@@ -473,6 +522,19 @@ class StatisticsQueryIntegrationTest {
         User user = User.builder().id(nextUserId++).name("Player " + nextUserId).country("ES").build();
         entityManager.persist(user);
         return user;
+    }
+
+    private Campaign persistCampaign(User creator, boolean official) {
+        Campaign campaign = Campaign.builder()
+                .creator(creator)
+                .name("Campaign " + UUID.randomUUID())
+                .slug("campaign-" + UUID.randomUUID())
+                .status(CampaignStatus.PUBLISHED)
+                .official(official)
+                .publishedAt(Instant.now())
+                .build();
+        entityManager.persist(campaign);
+        return campaign;
     }
 
     private Event persistEvent() {
